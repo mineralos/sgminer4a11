@@ -7,5 +7,5 @@ if [ -f Makefile ]; then
 fi
 
 # compat 清理不干净
-git co compat
+#git co compat
 

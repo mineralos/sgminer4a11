@@ -3,12 +3,6 @@ ACLOCAL_AMFLAGS = -I m4
 
 JANSSON_CPPFLAGS= -I$(top_builddir)/compat/jansson-2.5/src -I$(top_srcdir)/compat/jansson-2.5/src
 
-if WANT_USBUTILS
-USBUTILS_CPPFLAGS = -I$(top_builddir)/compat/libusb-1.0/libusb -I$(top_srcdir)/compat/libusb-1.0/libusb
-else
-USBUTILS_CPPFLAGS =
-endif
-
 EXTRA_DIST	= example.conf linux-usb-sgminer \
 		  api-example.php miner.php	\
 		  API.class API.java api-example.c windows-build.txt \
@@ -49,9 +43,6 @@ sgminer_SOURCES	+= noncedup.c
 
 sgminer_SOURCES += scrypt.c scrypt.h
 
-if WANT_USBUTILS
-sgminer_SOURCES += usbutils.c usbutils.h
-endif
 sgminer_SOURCES += darkcoin.c darkcoin.h
 sgminer_SOURCES += marucoin.c marucoin.h
 

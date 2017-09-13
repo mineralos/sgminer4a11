@@ -8,6 +8,7 @@ minerd.exe
 autom4te.cache
 .deps
 
+libtool
 Makefile
 Makefile.in
 INSTALL
