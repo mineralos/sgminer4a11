@@ -1,0 +1,1 @@
+sgminer -k x11 -o stratum+tcp://asia1.darkcoin.miningpoolhub.com:20465 -u sonsangsu.user -p password --minerwork

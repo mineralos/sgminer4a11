@@ -1,0 +1,1564 @@
+
+/*
+ * Copyright 2012-2013 Andrew Smith
+ * Copyright 2012 Luke Dashjr
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.  See COPYING for more details.
+ */
+
+//=====================================================================//
+//***	driver-coinflex.c is for X11 algorithm mining by using Han-Lab's Pantheon-XXX series miner		***//
+//=====================================================================//
+
+//=====================================================================//
+//  DRIVER_COINFLEX DEFINITION FOR X11 ALGORITHM
+//  Support Product:
+//		1) Pantheon-A	: Altera Stratix V E9 FPGA Chip
+//						: 1 base b'd, 10 miner b'd, 1 miner b'd includes 4EA FPGA Chip
+//		2) Pantheon-AFS4	: Altera Stratix IV 530 FPGA Chip
+//						: 2 miner b'd(operating independently), 1 miner b'd includes 10EA FPGA Chip
+//		3) Pantheon-CMF1 : Altera Stratix V E9 FPGA Chip
+//						:  1 base b'd, 1 core b'd, 1 core b'd includes 1EA FPGA Chip
+//=====================================================================//
+
+
+#include "config.h"
+
+#include <stdarg.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <math.h>
+#include <pthread.h>
+
+#include "logging.h"
+#include "miner.h"
+//#include "usbutils.h"
+#include "util.h"
+#include "driver-coinflex.h"
+#include "compat.h"
+
+
+#include "spi-context.h"
+#include "logging.h"
+#include "miner.h"
+#include "util.h"
+
+#include "A1-board-selector.h"
+#include "A1-trimpot-mcp4x.h"
+
+#include "asic_inno.h"
+#include "asic_inno_clock.h"
+#include "asic_inno_cmd.h"
+#include "asic_inno_gpio.h"
+
+#include "inno_fan.h"
+
+
+
+#define COINFLEX_TIMEOUT		(5)
+
+#define COINFLEX_DEF_DIFF		(64)
+
+#define COINFLEX_STX			(0x12)
+#define COINFLEX_ETX			(0x13)
+
+#define STX_POS					(0)
+#define CMD_POS					(1)
+#define LEN_POS					(2)
+#define DATA_POS				(3)
+#define ETX_POS					(DATA_POS + len)
+
+#define WAIT_TIME				(10)
+#define INFO_SIZE				(28)
+#define ALGO_SIZE				(2)
+#define CORE_SIZE				(16)
+#define CLOCK_SIZE				(6)
+#define MWORK_SIZE				(2)
+
+#define WORK_SIZE				(80)
+#define DEVICE_TARGET_SIZE		(32)
+#define NONCE_POS				(76)
+#define NONCE_SIZE				(4)
+#define TARGET_POS				(80)
+#define TARGET_SIZE				(4)
+#define MINER_ID_POS			(84)
+#define MINER_ID_SIZE			(1)
+#define WORK_ID_POS			(85)
+#define WORK_ID_SIZE			(1)
+#define FIND_NONCE_SIZE		(6)				// For receive value from miner: 4-Bytes nonce, 1-Byte miner_id, 1-Byte work_id
+
+#define REPLY_SIZE				(2)
+#define BUF_SIZE					(128)
+#define TEMP_UPDATE_TIME		(5 * 1000)		/* 30sec -> 5sec*/
+
+#define COINFLEX_COM_TIMEOUT_MS		(999)
+#define TEMP_UPDATE_INT_MS	2000
+
+// Commands
+enum coinflex_cmd
+{
+	COINFLEX_RESET			= 0x00,
+	COINFLEX_GET_STATUS	= 0x01,
+	COINFLEX_GET_INFO		= 0x02,
+	COINFLEX_SET_CLK		= 0x03,
+	COINFLEX_GET_CLK		= 0x04,
+	COINFLEX_SET_TEMP		= 0x05,
+	COINFLEX_GET_TEMP		= 0x06,
+	RESERVED07				= 0x07,
+	RESERVED08				= 0x08,
+	COINFLEX_SEND_WORK	= 0x09,
+	RESERVED0A				= 0x0A,
+	RESERVED0B				= 0x0B,
+	RESERVED0C				= 0x0C,
+	RESERVED0D				= 0x0D,
+	RESERVED0E				= 0x0E,
+	RESERVED0F				= 0x0F,
+	COINFLEX_GET_WORK	= 0x10,
+	COINFLEX_SET_LED		= 0x11,
+	COINFLEX_SET_IDLE		= 0x12,
+	COINFLEX_SET_ALGO		= 0x13,
+	COINFLEX_GET_CORE		= 0x14,
+	COINFLEX_SET_MUTI		= 0x15,
+	COINFLEX_HW_RESET	= 0x16,
+	COINFLEX_STOP_MINER	= 0x17,
+	COINFLEX_START_MINER	= 0x18
+};
+
+
+
+struct spi_config cfg[ASIC_CHAIN_NUM];
+struct spi_ctx *spi[ASIC_CHAIN_NUM];
+struct A1_chain *chain[ASIC_CHAIN_NUM];
+
+static uint8_t A1Pll1=A5_PLL_CLOCK_400MHz;
+static uint8_t A1Pll2=A5_PLL_CLOCK_400MHz;
+static uint8_t A1Pll3=A5_PLL_CLOCK_400MHz;
+static uint8_t A1Pll4=A5_PLL_CLOCK_400MHz;
+static uint8_t A1Pll5=A5_PLL_CLOCK_400MHz;
+static uint8_t A1Pll6=A5_PLL_CLOCK_400MHz;
+
+/* FAN CTRL */
+static INNO_FAN_CTRL_T s_fan_ctrl;
+
+
+// Commands result
+enum coinflex_result
+{
+	COINFLEX_RESULT_OK = 0,
+	COINFLEX_SEND_FAIL = 1,
+	COINFLEX_RECV_FAIL = 2,
+	COINFLEX_CMD_FAIL  = 3
+};
+
+/* added by yex in 20170907 */
+/*
+ * if not cooled sufficiently, communication fails and chip is temporary
+ * disabled. we let it inactive for 30 seconds to cool down
+ *
+ * TODO: to be removed after bring up / test phase
+ */
+#define COOLDOWN_MS (30 * 1000)
+/* if after this number of retries a chip is still inaccessible, disable it */
+#define DISABLE_CHIP_FAIL_THRESHOLD	3
+
+/*
+ * for now, we have one global config, defaulting values:
+ * - ref_clk 16MHz / sys_clk 800MHz
+ * - 2000 kHz SPI clock
+ */
+struct A1_config_options A1_config_options = {
+	.ref_clk_khz = 16000, .sys_clk_khz = 800000, .spi_clk_khz = 2000,
+};
+
+/* override values with --bitmine-a1-options ref:sys:spi: - use 0 for default */
+static struct A1_config_options *parsed_config_options;
+
+
+#if COINFLEX_TEST_MODE
+static void coinflex_set_testdata(struct work *work);
+static void coinflex_print_hash(struct work *work, uint32_t nonce);
+#endif
+
+static void coinflex_print_hw_error(char *drv_name, int device_id, struct work *work, uint32_t nonce);
+static bool coinflex_set_algorithm(struct cgpu_info *coinflex);
+
+/********** work queue */
+static bool wq_enqueue(struct work_queue *wq, struct work *work)
+{
+	if (work == NULL)
+		return false;
+	struct work_ent *we = malloc(sizeof(*we));
+	assert(we != NULL);
+
+	we->work = work;
+	INIT_LIST_HEAD(&we->head);
+	list_add_tail(&we->head, &wq->head);
+	wq->num_elems++;
+	return true;
+}
+
+static struct work *wq_dequeue(struct work_queue *wq)
+{
+	if (wq == NULL)
+		return NULL;
+	if (wq->num_elems == 0)
+		return NULL;
+	struct work_ent *we;
+	we = list_entry(wq->head.next, struct work_ent, head);
+	struct work *work = we->work;
+
+	list_del(&we->head);
+	free(we);
+	wq->num_elems--;
+	return work;
+}
+
+
+/* queue two work items per chip in chain */
+static bool coinflex_queue_full(struct cgpu_info *cgpu)
+{
+	struct A1_chain *a1 = cgpu->device_data;
+	int queue_full = false;
+
+	mutex_lock(&a1->lock);
+	applog(LOG_NOTICE, "%d, A1 running queue_full: %d/%d",
+       a1->chain_id, a1->active_wq.num_elems, a1->num_active_chips);
+
+	if (a1->active_wq.num_elems >= a1->num_active_chips * 2)
+		queue_full = true;
+	else
+		wq_enqueue(&a1->active_wq, get_queued(cgpu));
+
+	mutex_unlock(&a1->lock);
+
+	return queue_full;
+}
+
+
+static int coinflex_encode(unsigned char *packet, unsigned char cmd, unsigned char *data, int len)
+{
+	
+
+	return (ETX_POS + 1);
+}
+
+
+static bool coinflex_send(struct cgpu_info *coinflex, uint8_t cmd, char *data, int len)
+{
+	char		buf[BUF_SIZE];
+	int		result, amount, decode_len;
+
+	usb_buffer_clear(coinflex);
+
+	decode_len = coinflex_encode(buf, cmd, data, len);
+
+	if((result = usb_write(coinflex, buf, decode_len, &amount, coinflex_usb_cmd[cmd])) != 0)
+	{
+		applog(LOG_ERR, "[%s %d]:ERROR  - coinflex_send():result=%d", coinflex->drv->name, coinflex->device_id, result);
+		return (false);
+	}
+
+	if(amount != decode_len)
+	{
+		return (false);
+	}
+
+	return (true);
+}
+
+
+static bool coinflex_recv(struct cgpu_info *coinflex, uint8_t cmd, char *data, int len)
+{
+	int		result, amount = 0;
+
+	result = usb_read_timeout(coinflex, data, len, &amount, COINFLEX_COM_TIMEOUT_MS, coinflex_usb_cmd[cmd]);
+
+	if(result && result != LIBUSB_ERROR_TIMEOUT)
+	{
+		applog(LOG_ERR, "[%s %d]:ERROR  - coinflex_recv():result=%d", coinflex->drv->name, coinflex->device_id, result);
+		return (false);
+	}
+
+	if(amount != len)
+	{
+		return (false);
+	}
+	
+	return (true);
+}
+
+static int coinflex_send_cmd(struct cgpu_info *coinflex, uint8_t cmd, uint8_t *data, uint32_t data_len, uint8_t *status)
+{
+	char		buf[BUF_SIZE];
+
+	usb_buffer_clear(coinflex);
+	
+	mutex_lock(coinflex->device_mutex);
+
+	if(coinflex_send(coinflex, cmd, data, data_len) == false)
+	{
+		mutex_unlock(coinflex->device_mutex);
+		return (COINFLEX_SEND_FAIL);
+	}
+
+	if(coinflex_recv(coinflex, cmd, buf, REPLY_SIZE) == false)
+	{
+		mutex_unlock(coinflex->device_mutex);
+		return (COINFLEX_RECV_FAIL);
+	}
+
+	mutex_unlock(coinflex->device_mutex);
+
+	if(buf[0] != cmd)
+	{
+		applog(LOG_ERR, "[%s %d]:ERROR  - coinflex_send_cmd():cmd=0x%02X,buf[0]=0x%02X", coinflex->drv->name, coinflex->device_id, cmd, buf[0]);
+		return (COINFLEX_CMD_FAIL);
+	}
+
+	*status = buf[1];
+
+	return (COINFLEX_RESULT_OK);
+}
+
+
+static void coinflex_info_clear(struct coinflex_info *info)
+{
+	int		miner_index;
+	
+	if(!info)
+	{
+		return;
+	}
+
+	for(miner_index = 0; miner_index < COINFLEX_MINER_MAX; miner_index++)
+	{
+		if(info->cfxwork[miner_index])
+		{
+			free_work(info->cfxwork[miner_index]);
+		}
+	}
+}
+
+
+static bool coinflex_getinfo(struct cgpu_info *coinflex)
+{
+	char		buf[BUF_SIZE];
+	uint8_t	cmd = COINFLEX_GET_INFO;
+	struct	coinflex_info *info = (struct coinflex_info *)coinflex->device_data;
+
+	mutex_lock(coinflex->device_mutex);
+
+	if(coinflex_send(coinflex, cmd, NULL, 0) == false)
+	{
+		mutex_unlock(coinflex->device_mutex);
+		return (false);
+	}
+
+	if(coinflex_recv(coinflex, cmd, buf, INFO_SIZE) == false)
+	{
+		mutex_unlock(coinflex->device_mutex);
+		applog(LOG_ERR, "[%s X]:ERROR  - coinflex_getinfo():size", coinflex->drv->name);
+		return (false);
+	}
+
+	mutex_unlock(coinflex->device_mutex);
+
+	if((buf[0] != cmd) || (buf[1] != COINFLEX_RESULT_OK))
+	{
+		applog(LOG_ERR, "[%s X]:ERROR  - coinflex_getinfo():cmd=0x%02X,buf[0]=0x%02X,buf[1]=0x%02X", coinflex->drv->name, cmd, buf[0], buf[1]);
+		return (false);
+	}
+
+	memcpy(info->product, &buf[2], INFO_SIZE - 2);
+	coinflex->name = strdup(info->product);
+
+	if(memcmp(COINFLEX_SERILA_NUMBER_PANTHEON_AFS4, info->serial, COINFLEX_SERIAL_NUMBER_SIZE) == 0)
+	{
+		info->product_type		= COINFLEX_PRODUCT_TYPE_PANTHEON_AFS4;
+		strcpy(info->product_name, COINFLEX_PRODUCT_NAME_PANTHEON_AFS4);
+		info->miner_core_num		= COINFLEX_MINER_CORE_NUM_PANTHEON_AFS4;
+		info->algorithm_clock		= COINFLEX_ALGORITHM_CLOCK_PANTHEON_AFS4;
+		info->working_time_offset	= COINFLEX_WORKING_TIME_OFFSET_PANTHEON_AFS4;
+		info->hashrate_offset		= COINFLEX_HASH_RATE_OFFSET_PANTHEON_AFS4;
+	}
+	else if(memcmp(COINFLEX_SERILA_NUMBER_PANTHEON_CMF1, info->serial, COINFLEX_SERIAL_NUMBER_SIZE) == 0)
+	{
+		info->product_type		= COINFLEX_PRODUCT_TYPE_PANTHEON_CMF1;
+		strcpy(info->product_name, COINFLEX_PRODUCT_NAME_PANTHEON_CMF1);
+		info->miner_core_num		= COINFLEX_MINER_CORE_NUM_PANTHEON_CMF1;
+		info->algorithm_clock		= COINFLEX_ALGORITHM_CLOCK_PANTHEON_CMF1;
+		info->working_time_offset	= COINFLEX_WORKING_TIME_OFFSET_PANTHEON_CMF1;
+		info->hashrate_offset		= COINFLEX_HASH_RATE_OFFSET_PANTHEON_CMF1;
+	}
+	else
+	{
+		info->product_type		= COINFLEX_PRODUCT_TYPE_PANTHEON_A;
+		strcpy(info->product_name, COINFLEX_PRODUCT_NAME_PANTHEON_A);
+		info->miner_core_num		= COINFLEX_MINER_CORE_NUM_PANTHEON_A;
+		info->algorithm_clock		= COINFLEX_ALGORITHM_CLOCK_PANTHEON_A;
+		info->working_time_offset	= COINFLEX_WORKING_TIME_OFFSET_PANTHEON_A;
+		info->hashrate_offset		= COINFLEX_HASH_RATE_OFFSET_PANTHEON_A;
+	}
+
+	coinflex->hw_ver = info->hw_ver;
+	coinflex->fw_ver = info->fw_ver;
+	coinflex->core_ver = info->core_ver;
+
+	if(info->algo_type != kernel)
+	{
+		applog(LOG_ERR, "[%s X]:ERROR  - coinflex_getinfo():Algorithm mismached", coinflex->drv->name);
+		return (false);
+	}
+	
+	return (true);
+}
+
+
+static bool coinflex_reset(struct cgpu_info *coinflex)
+{
+	int		result;
+	int		retry;
+	uint8_t	status;
+
+	for(retry = 0; retry < 5; retry++)	// Retry for Atmel SAM4E8E MCU
+	{
+		result = coinflex_send_cmd(coinflex, COINFLEX_RESET, NULL, 0, &status);
+		if((result == COINFLEX_RESULT_OK) && (status == COINFLEX_RESULT_OK))
+		{
+			return (true);
+		}
+
+		cgsleep_ms(1);
+	}
+
+	applog(LOG_ERR, "[%s X]:ERROR  - coinflex_reset():result=%d,status=%d", coinflex->drv->name, result, status);
+	return (false);
+}
+
+
+static void coinflex_identify(struct cgpu_info *coinflex)
+{
+	int		result;
+	uint8_t	status;
+
+	result = coinflex_send_cmd(coinflex, COINFLEX_SET_LED, NULL, 0, &status);
+	if((result != COINFLEX_RESULT_OK) || (status != COINFLEX_RESULT_OK))
+	{
+		applog(LOG_ERR, "[%s %d]:ERROR  - coinflex_identify():result=%d,status=%d", coinflex->drv->name, coinflex->device_id, result, status);
+	}
+}
+
+static bool coinflex_set_clock(struct cgpu_info *coinflex, uint32_t clock)
+{
+	int		result;
+	uint8_t	status;
+	struct	coinflex_info *info = (struct coinflex_info *)coinflex->device_data;
+
+	if((info->product_type == COINFLEX_PRODUCT_TYPE_PANTHEON_AFS4) || (info->product_type == COINFLEX_PRODUCT_TYPE_PANTHEON_CMF1))
+		result = coinflex_send_cmd(coinflex, COINFLEX_SET_CLK, (uint8_t*)&clock, 2, &status);
+	else		// For Pantheon-A
+		result = coinflex_send_cmd(coinflex, COINFLEX_SET_CLK, (uint8_t*)&clock, 1, &status);
+
+	if((result != COINFLEX_RESULT_OK) || (status != COINFLEX_RESULT_OK))
+	{
+		applog(LOG_ERR, "[%s X]:ERROR  - coinflex_set_clock():result=%d,status=%d", coinflex->drv->name, result, status);
+		return (false);
+	}
+
+	info->clock = clock;
+
+	return (true);
+}
+
+static bool coinflex_get_clock(struct cgpu_info *coinflex)
+{
+	char		buf[BUF_SIZE];
+	uint8_t	cmd = COINFLEX_GET_CLK;
+	struct	coinflex_info *info = (struct coinflex_info *)coinflex->device_data;
+
+	mutex_lock(coinflex->device_mutex);
+
+	if(coinflex_send(coinflex, cmd, NULL, 0) != true)
+	{
+		mutex_unlock(coinflex->device_mutex);
+		return (false);
+	}
+
+	if(coinflex_recv(coinflex, cmd, buf, CLOCK_SIZE) == false)
+	{
+		mutex_unlock(coinflex->device_mutex);
+		applog(LOG_ERR, "[%s %d]:ERROR  - coinflex_get_clock():size", coinflex->drv->name, coinflex->device_id);
+		return (false);
+	}
+
+	mutex_unlock(coinflex->device_mutex);
+
+	if((buf[0] != cmd) || (buf[1] != COINFLEX_RESULT_OK))
+	{
+		applog(LOG_ERR, "[%s %d]:ERROR  - coinflex_get_clock():cmd=0x%02X,buf[0]=0x%02x,buf[1]=0x%02x", coinflex->drv->name, coinflex->device_id, cmd, buf[0], buf[1]);
+		return (false);
+	}
+
+	memcpy(&info->clock, &buf[2], CLOCK_SIZE - 2);
+
+	return (true);
+}
+
+
+static bool coinflex_cal_working_time(struct cgpu_info *coinflex)
+{
+	struct	coinflex_info *info = (struct coinflex_info *)coinflex->device_data;
+
+	// It is msecond value
+	info->working_time	= ((0xFFFFFFFF / (((info->clock * 1000000) / info->algorithm_clock) * info->core_total_cnt)) * 1000) - info->working_time_offset;
+
+	return (true);
+}
+
+
+static bool coinflex_set_temp(struct cgpu_info *coinflex, uint8_t temp)
+{
+	int		result;
+	uint8_t	status;
+	struct	coinflex_info *info = (struct coinflex_info *)coinflex->device_data;
+
+	if((temp < COINFLEX_TEMP_MIN) || (temp > COINFLEX_TEMP_MAX))
+	{
+		temp = COINFLEX_TEMP_DEF;
+	}
+
+	result = coinflex_send_cmd(coinflex, COINFLEX_SET_TEMP, &temp, 1, &status);
+	if((result != COINFLEX_RESULT_OK) || (status != COINFLEX_RESULT_OK))
+	{
+		applog(LOG_ERR, "[%s X]:ERROR  - coinflex_set_temp():result=%d,status=%d", coinflex->drv->name, result, status);
+		return (false);
+	}
+
+	info->settemp = temp;
+
+	return (true);
+}
+
+ 
+static bool coinflex_get_temp(struct cgpu_info *coinflex)
+{
+	int		result;                                                             
+	uint8_t	temp;                                                           
+	struct	coinflex_info *info = (struct coinflex_info *)coinflex->device_data;
+
+	result = coinflex_send_cmd(coinflex, COINFLEX_GET_TEMP, NULL, 0, &temp);
+
+	if(result != COINFLEX_RESULT_OK)
+	{
+		temp = COINFLEX_TEMP_DISP;
+//		applog(LOG_ERR, "[%s %d]:ERROR  - coinflex_get_temp():result=%d", coinflex->drv->name, coinflex->device_id, result);
+	}
+	else if(temp > COINFLEX_TEMP_MAX)
+	{
+		temp = COINFLEX_TEMP_MAX;
+	}
+
+	info->temp = temp;
+
+	if(info->temp_max < info->temp)
+	{
+		info->temp_max = info->temp;
+	}
+
+	coinflex->temp = (float)temp;
+		
+	return (true);
+}
+
+
+static bool coinflex_set_algorithm(struct cgpu_info *coinflex)
+{
+	int		result;
+	uint8_t	status;
+	unsigned char algo = (unsigned char)kernel;
+	
+	result = coinflex_send_cmd(coinflex, COINFLEX_SET_ALGO, &algo, 1, &status);
+
+	if((result != COINFLEX_RESULT_OK) || (status != COINFLEX_RESULT_OK))
+	{
+		applog(LOG_ERR, "[%s %d]:ERROR  - coinflex_set_algorithm():result=%d", coinflex->drv->name, coinflex->device_id, result);
+		return (false);
+	}
+
+	return (true);
+}
+
+
+static bool coinflex_get_core(struct cgpu_info *coinflex)
+{
+	int		miner_index;
+	char		buf[BUF_SIZE];
+	uint8_t	cmd = COINFLEX_GET_CORE;
+	struct	coinflex_info *info = (struct coinflex_info *)coinflex->device_data;
+
+	mutex_lock(coinflex->device_mutex);
+
+	if(coinflex_send(coinflex, cmd, NULL, 0) == false)
+	{
+		mutex_unlock(coinflex->device_mutex);
+		return (false);
+	}	
+
+	if(coinflex_recv(coinflex, cmd, buf, CORE_SIZE) == false)
+	{
+		mutex_unlock(coinflex->device_mutex);
+		return (false);
+	}
+
+	mutex_unlock(coinflex->device_mutex);
+
+	if(buf[0] != COINFLEX_GET_CORE)
+	{
+		return (false);
+	}
+
+	for(miner_index = 0; miner_index < COINFLEX_MINER_MAX; miner_index++)
+	{
+		if(info->miner_sta & (0x1 << miner_index))
+		{
+			info->corenum[miner_index] = buf[1 + miner_index];
+
+			if((int8_t)buf[1 + miner_index] > info->miner_core_num)
+			{
+				applog(LOG_ERR, "[%s X]:ERROR  - coinflex_get_core():Miner_ID=%d,Target  CoreNum=%d", coinflex->drv->name, miner_index, info->miner_core_num);
+				applog(LOG_ERR, "[%s X]:ERROR  - coinflex_get_core():Miner_ID=%d,Receive CoreNum=%d", coinflex->drv->name, miner_index, info->corenum[miner_index]);
+				return (false);
+			}
+		}
+	}
+
+	return (true);
+}
+
+
+static bool coinflex_hw_reset(struct cgpu_info *coinflex)
+{
+	int		result;
+	uint8_t	status;
+
+	result = coinflex_send_cmd(coinflex, COINFLEX_HW_RESET, NULL, 0, &status);
+	if((result != COINFLEX_RESULT_OK) || (status != COINFLEX_RESULT_OK))
+	{
+//		applog(LOG_ERR, "[%s %d]:ERROR  - coinflex_hw_reset():result=%d,status=%d", coinflex->drv->name, coinflex->device_id, result, status);
+		return (false);
+	}
+
+	return (true);
+}
+
+static bool coinflex_stop_miner(struct cgpu_info *coinflex)
+{
+	int		result;
+	uint8_t	status;
+	struct	coinflex_info *info = (struct coinflex_info *)coinflex->device_data;
+
+	if(info->product_type != COINFLEX_PRODUCT_TYPE_PANTHEON_A)
+	{
+		result = coinflex_send_cmd(coinflex, COINFLEX_STOP_MINER, NULL, 0, &status);
+		if((result != COINFLEX_RESULT_OK) || (status != COINFLEX_RESULT_OK))
+		{
+//			applog(LOG_ERR, "[%s %d]:ERROR  - coinflex_stop_miner():result=%d,status=%d", coinflex->drv->name, coinflex->device_id, result, status);
+			return (false);
+		}
+	}
+
+	return (true);
+}
+
+static bool coinflex_start_miner(struct cgpu_info *coinflex)
+{
+	int		result;
+	uint8_t	status;
+	struct	coinflex_info *info = (struct coinflex_info *)coinflex->device_data;
+
+	if(info->product_type != COINFLEX_PRODUCT_TYPE_PANTHEON_A)
+	{
+		result = coinflex_send_cmd(coinflex, COINFLEX_START_MINER, NULL, 0, &status);
+		if((result != COINFLEX_RESULT_OK) || (status != COINFLEX_RESULT_OK))
+		{
+//			applog(LOG_ERR, "[%s %d]:ERROR  - coinflex_start_miner():result=%d,status=%d", coinflex->drv->name, coinflex->device_id, result, status);
+			return (false);
+		}
+	}
+
+	return (true);
+}
+
+static bool coinflex_initialize(struct cgpu_info *coinflex)
+{
+	struct coinflex_info *info;
+
+	coinflex->device_mutex = NULL;
+	coinflex->device_data = NULL;
+
+	info = calloc(sizeof(struct coinflex_info), 1);
+	if(!info)
+	{
+		return (false);
+	}
+
+	memset(info, 0, sizeof(struct coinflex_info));
+
+	coinflex->device_data = info;
+	
+	coinflex->device_mutex = calloc(1, sizeof(*(coinflex->device_mutex)));
+	if(!coinflex->device_mutex)
+	{
+		return (false);
+	}
+
+	mutex_init(coinflex->device_mutex);
+
+	coinflex_usb_clear(coinflex);
+
+	return (true);
+}
+
+
+static bool coinflex_finalize(struct cgpu_info *coinflex)
+{
+	if(coinflex->device_data)
+	{
+		free(coinflex->device_data);
+		coinflex->device_data = NULL;
+	}
+
+	if(coinflex->device_mutex)
+	{
+		free(coinflex->device_mutex);
+		coinflex->device_mutex = NULL;
+	}
+	
+	if(coinflex->name)
+	{
+		free(coinflex->name);
+		coinflex->name = NULL;
+	}
+}
+ 
+static bool coinflex_add_gpu(struct cgpu_info *coinflex)
+{
+	int		miner_index;
+	int		miner;
+	uint16_t	miner_sta;
+	struct	coinflex_info *info = (struct coinflex_info *)coinflex->device_data;
+	
+	miner = 0;
+	miner_sta = info->miner_sta;
+
+	for(miner_index = 0; miner_index < COINFLEX_MINER_MAX; miner_index++)
+	{
+		if(miner_sta & (0x1 << miner_index))
+		{
+			miner++;
+		}
+	}
+
+	if(miner == 0)
+	{
+		applog(LOG_ERR, "[%s X]:ERROR  - coinflex_add_gpu():MinerNum=%d", coinflex->drv->name, miner);
+		return false;
+	}
+	
+	if(!add_cgpu(coinflex))
+	{
+		applog(LOG_ERR, "[%s X]:ERROR  - coinflex_add_gpu():add_cgpu()", coinflex->drv->name);
+		return false;
+	}
+
+	update_usb_stats(coinflex);
+
+	info->miner_cnt = miner;
+	
+	return true;
+}
+
+#define TARGET_32BIT_LIMIT_E9				(0x00000002)
+static bool coinflex_send_work(struct thr_info *thr)
+{
+	struct cgpu_info		*coinflex = thr->cgpu;
+	struct coinflex_info	*info = coinflex->device_data;
+	struct work			*work;
+
+	char					buf[BUF_SIZE];
+	int					len;
+	int					target = 0;
+
+	applog(LOG_INFO, "[%s %d]:INFO   - coinflex_send_work():", coinflex->drv->name, coinflex->device_id);
+	
+	work = get_work(thr, thr->id);
+
+	set_target(work->device_target, work->device_diff);
+	
+	if(info->cfxwork[0])
+	{
+		free_work(info->cfxwork[0]);
+	}
+
+	info->cfxwork[0] = copy_work(work);
+	info->cfxwork[0]->work_id = (unsigned char)(info->cfxwork[0]->id & 0xFF);
+
+	*((uint32_t *)(info->cfxwork[0]->data + NONCE_POS)) = info->cfxwork[0]->nonce;
+
+	memcpy(&buf[0], info->cfxwork[0]->data, WORK_SIZE);
+
+	target = *((unsigned int*)(&info->cfxwork[0]->device_target[28]));
+
+	if((info->product_type == COINFLEX_PRODUCT_TYPE_PANTHEON_A) && (target > TARGET_32BIT_LIMIT_E9))
+	{
+//		target = TARGET_32BIT_LIMIT_E9;
+	}
+
+	target = htobe32(target);
+
+	memcpy(&buf[TARGET_POS], &target, TARGET_SIZE);
+
+	buf[MINER_ID_POS]	= COINFLEX_MINER_ID_ALL;		// 0 -> COINFLEX_MINER_ID_ALL. It is not meaning at now.
+	buf[WORK_ID_POS]	= info->cfxwork[0]->work_id;
+	len 					= WORK_SIZE + TARGET_SIZE + MINER_ID_SIZE + WORK_ID_SIZE;
+	
+	mutex_lock(coinflex->device_mutex);
+	if (coinflex_send(coinflex, COINFLEX_SEND_WORK, buf, len) == false)
+	{
+		mutex_unlock(coinflex->device_mutex);
+		applog(LOG_ERR, "[%s %d]:ERROR  - coinflex_send_work()", coinflex->drv->name, coinflex->device_id);
+		return (false);
+	}
+
+	cgtime(&info->tv_workstart);
+	mutex_unlock(coinflex->device_mutex);
+
+	return (true);
+}
+
+
+static struct cgpu_info *coinflex_detect_one(struct libusb_device *dev, struct usb_find_devices *found)
+{
+	int		clock = COINFLEX_CORE_CLOCK_DEF;
+	int		temp = COINFLEX_TEMP_DEF;
+
+	char		serial[COINFLEX_SERIAL_NUMBER_SIZE + 1];
+
+	struct	cgpu_info *coinflex;
+	struct	coinflex_info *info;
+
+	applog(LOG_NOTICE, "---------------------------------------------------------");
+	memset(serial, 0, sizeof(serial));
+	coinflex = usb_alloc_cgpu(&coinflex_drv, 1);
+	if(!coinflex)
+	{
+		quit(1, "[%s X]:Quit   - coinflex_detect_one(): Failed to usb_alloc_cgpu()", coinflex_drv.name);
+		applog(LOG_NOTICE, "---------------------------------------------------------");
+	}
+
+	drv_name	= coinflex_drv.dname;
+	drv_ver		= coinflex_drv.drv_ver;
+	drv_date	= coinflex_drv.drv_date;
+
+	if(!usb_init(coinflex, dev, found))
+	{
+		applog(LOG_ERR, "[%s X]:ERROR  - usb_init():", coinflex_drv.name);
+		goto out;
+	}
+
+	applog(LOG_NOTICE, "[%s X]:NOTICE - coinflex_detect_one():", coinflex_drv.name);
+
+	if(!coinflex_initialize(coinflex))
+	{
+		applog(LOG_ERR, "[%s X]:ERROR  - coinflex_initialize():", coinflex_drv.name);
+		goto dev_err;
+	}
+
+	if(!coinflex_reset(coinflex))
+	{
+		applog(LOG_ERR, "[%s X]:ERROR  - coinflex_reset():", coinflex_drv.name);
+		goto dev_err;
+	}
+
+	if(!coinflex_getinfo(coinflex))
+	{
+		applog(LOG_ERR, "[%s X]:ERROR  - coinflex_getinfo():", coinflex_drv.name);
+		goto dev_err;
+	}
+	
+	info = (struct coinflex_info *)coinflex->device_data;
+
+	memcpy(serial, info->serial, COINFLEX_SERIAL_NUMBER_SIZE);
+
+	applog(LOG_NOTICE, "[%s X]:NOTICE - S:%s, P:%s detected", coinflex->drv->name, serial, info->product_name);
+
+	if(!coinflex_get_core(coinflex))
+	{
+		applog(LOG_ERR, "[%s X]:ERROR  - coinflex_get_core():", coinflex_drv.name);
+		goto dev_err;
+	}
+
+	if(opt_device_options != NULL)
+	{
+		sscanf(opt_device_options, "%d:%d", &clock, &temp);
+		applog(LOG_NOTICE, "[%s X]:NOTICE - S-Options[scantime=%d,clock=%d,temp=%d]", coinflex->drv->name, opt_scantime, clock, temp);
+	}
+
+	if(!coinflex_set_clock(coinflex, clock))
+	{
+		applog(LOG_ERR, "[%s X]:ERROR  - coinflex_set_clock():", coinflex_drv.name);
+		goto dev_err;
+	}
+
+	if(!coinflex_set_temp(coinflex, temp))
+	{
+		applog(LOG_ERR, "[%s X]:ERROR  - coinflex_set_temp():", coinflex_drv.name);
+		goto dev_err;
+	}
+
+	if (!coinflex_add_gpu(coinflex))
+	{
+		applog(LOG_ERR, "[%s X]:ERROR  - coinflex_add_gpu():", coinflex_drv.name);
+		goto dev_err;
+	}
+
+	if((info->product_type == COINFLEX_PRODUCT_TYPE_PANTHEON_AFS4) || (info->product_type == COINFLEX_PRODUCT_TYPE_PANTHEON_CMF1))
+	{
+		coinflex_get_clock(coinflex);
+	}
+	else		// For Pantheon-A which have not this function
+	{
+	}
+
+	coinflex_cal_working_time(coinflex);
+
+ 	applog(LOG_NOTICE, "[%s %d]:NOTICE - coinflex_detect_one(): O.K. and added", coinflex->drv->name, coinflex->device_id); 
+	applog(LOG_NOTICE, "---------------------------------------------------------");
+
+	return coinflex;
+
+dev_err:
+	coinflex_finalize(coinflex);
+	applog(LOG_NOTICE, "[%s X]:ERROR  - coinflex_detect_one():Fail to initialize", coinflex_drv.name);
+
+out:
+	usb_uninit(coinflex);
+	coinflex = usb_free_cgpu(coinflex);
+	applog(LOG_NOTICE, "---------------------------------------------------------");
+
+	return (NULL);
+}
+
+void exit_A1_chain(struct A1_chain *a1)
+{
+	if (a1 == NULL)
+		return;
+	free(a1->chips);
+	a1->chips = NULL;
+	a1->spi_ctx = NULL;
+	free(a1);
+}
+
+struct A1_chain *init_A1_chain(struct spi_ctx *ctx, int chain_id)
+{
+	int i;
+	struct A1_chain *a1 = malloc(sizeof(*a1));
+	assert(a1 != NULL);
+
+	applog(LOG_DEBUG, "%d: A1 init chain", chain_id);
+	
+	memset(a1, 0, sizeof(*a1));
+	a1->spi_ctx = ctx;
+	a1->chain_id = chain_id;
+
+	applog(LOG_INFO,"chain_id:%d", chain_id);
+	switch(chain_id){
+		case 0:a1->num_chips = chain_detect(a1, A1Pll1);break;
+		case 1:a1->num_chips = chain_detect(a1, A1Pll2);break;
+		case 2:a1->num_chips = chain_detect(a1, A1Pll3);break;
+		case 3:a1->num_chips = chain_detect(a1, A1Pll4);break;
+		case 4:a1->num_chips = chain_detect(a1, A1Pll5);break;
+		case 5:a1->num_chips = chain_detect(a1, A1Pll6);break;
+		default:;
+	}
+	usleep(10000);
+	
+	if (a1->num_chips == 0)
+		goto failure;
+
+	applog(LOG_WARNING, "spidev%d.%d: %d: Found %d A1 chips",
+	       a1->spi_ctx->config.bus, a1->spi_ctx->config.cs_line,
+	       a1->chain_id, a1->num_chips);
+/*
+	if (!set_pll_config(a1, 0, A1_config_options.ref_clk_khz,
+			    A1_config_options.sys_clk_khz))
+		goto failure;
+*/
+	/* override max number of active chips if requested */
+	a1->num_active_chips = a1->num_chips;
+	if (A1_config_options.override_chip_num > 0 &&
+	    a1->num_chips > A1_config_options.override_chip_num) 
+	{
+		a1->num_active_chips = A1_config_options.override_chip_num;
+		applog(LOG_WARNING, "%d: limiting chain to %d chips",
+		       a1->chain_id, a1->num_active_chips);
+	}
+
+	a1->chips = calloc(a1->num_active_chips, sizeof(struct A1_chip));
+	assert (a1->chips != NULL);
+
+	if (!inno_cmd_bist_fix(a1, ADDR_BROADCAST))
+		goto failure;
+
+	usleep(200);
+
+	for (i = 0; i < a1->num_active_chips; i++)
+    {
+		check_chip(a1, i);
+
+        /* 温度值 */
+        inno_fan_temp_add(&s_fan_ctrl, chain_id, a1->chips[i].temp);
+    }
+    /* 设置初始值 */ 
+    inno_fan_temp_init(&s_fan_ctrl, chain_id);
+
+	applog(LOG_WARNING, "%d: found %d chips with total %d active cores",
+	       a1->chain_id, a1->num_active_chips, a1->num_cores);
+
+	mutex_init(&a1->lock);
+	INIT_LIST_HEAD(&a1->active_wq.head);
+
+	return a1;
+
+failure:
+	exit_A1_chain(a1);
+	return NULL;
+}
+
+static bool detect_A1_chain(void)
+{
+	int i;
+	//board_selector = (struct board_selector*)&dummy_board_selector;
+	applog(LOG_WARNING, "A1: checking A1 chain");
+
+	for(i = 0; i < ASIC_CHAIN_NUM; i++)
+	{
+		cfg[i].bus     = i;
+		cfg[i].cs_line = 0;
+		cfg[i].mode    = SPI_MODE_1;
+		cfg[i].speed   = DEFAULT_SPI_SPEED;
+		cfg[i].bits    = DEFAULT_SPI_BITS_PER_WORD;
+		cfg[i].delay   = DEFAULT_SPI_DELAY_USECS;
+
+		spi[i] = spi_init(&cfg[i]);
+		if(spi[i] == NULL)
+		{
+			applog(LOG_ERR, "spi init fail");
+			return false;
+		}
+
+		spi[i]->power_en = SPI_PIN_POWER_EN[i];		
+		spi[i]->start_en = SPI_PIN_START_EN[i];		
+		spi[i]->reset = SPI_PIN_RESET[i];
+		//spi[i]->plug  = SPI_PIN_PLUG[i];
+		//spi[i]->led   = SPI_PIN_LED[i];
+		
+
+		asic_gpio_init(spi[i]->power_en, 0);
+		asic_gpio_init(spi[i]->start_en, 0);
+		asic_gpio_init(spi[i]->reset, 0);
+		//asic_gpio_init(spi[i]->plug, 0);
+		//asic_gpio_init(spi[i]->led, 0);
+	}
+
+	for(i = 0; i < ASIC_CHAIN_NUM; i++)
+	{
+		asic_gpio_write(spi[i]->power_en, 1);
+		sleep(1);
+		asic_gpio_write(spi[i]->start_en, 1);
+		asic_gpio_write(spi[i]->reset, 1);
+		sleep(1);
+		asic_gpio_write(spi[i]->reset, 0);
+		sleep(1);
+		asic_gpio_write(spi[i]->reset, 1);	
+		sleep(1);
+	}
+
+	for(i = 0; i < ASIC_CHAIN_NUM; i++)
+	{
+		chain[i] = init_A1_chain(spi[i], i);
+		if (chain[i] == NULL)
+		{
+			applog(LOG_ERR, "init a1 chain fail");
+			return false;
+		}
+
+		struct cgpu_info *cgpu = malloc(sizeof(*cgpu));
+		assert(cgpu != NULL);
+	
+		memset(cgpu, 0, sizeof(*cgpu));
+		cgpu->drv = &bitmineA1_drv;
+		cgpu->name = "BitmineA1.SingleChain";
+		cgpu->threads = 1;
+
+		cgpu->device_data = chain[i];
+
+		chain[i]->cgpu = cgpu;
+		add_cgpu(cgpu);
+
+		applog(LOG_WARNING, "Detected the %d A1 chain with %d chips / %d cores",
+		       i, chain[i]->num_active_chips, chain[i]->num_cores);
+	}
+
+
+	return true;
+}
+
+
+static void coinflex_detect(bool __maybe_unused hotplug)
+{
+  /* no hotplug support for SPI */
+	if (hotplug)
+		return;
+
+	/* parse bimine-a1-options */
+	if (opt_bitmine_a1_options != NULL && parsed_config_options == NULL) {
+		int ref_clk = 0;
+		int sys_clk = 0;
+		int spi_clk = 0;
+		int override_chip_num = 0;
+		int wiper = 0;
+
+		sscanf(opt_bitmine_a1_options, "%d:%d:%d:%d:%d",
+		       &ref_clk, &sys_clk, &spi_clk,  &override_chip_num,
+		       &wiper);
+		if (ref_clk != 0)
+			A1_config_options.ref_clk_khz = ref_clk;
+		if (sys_clk != 0) {
+			if (sys_clk < 100000)
+				quit(1, "system clock must be above 100MHz");
+			A1_config_options.sys_clk_khz = sys_clk;
+		}
+		if (spi_clk != 0)
+			A1_config_options.spi_clk_khz = spi_clk;
+		if (override_chip_num != 0)
+			A1_config_options.override_chip_num = override_chip_num;
+		if (wiper != 0)
+			A1_config_options.wiper = wiper;
+
+		/* config options are global, scan them once */
+		parsed_config_options = &A1_config_options;
+	}
+	applog(LOG_DEBUG, "A1 detect");
+
+    /* 初始化风扇控制 */
+    inno_fan_init(&s_fan_ctrl);
+	
+	A1Pll1 = A1_ConfigA1PLLClock(opt_A1Pll1);
+	A1Pll2 = A1_ConfigA1PLLClock(opt_A1Pll2);
+	A1Pll3 = A1_ConfigA1PLLClock(opt_A1Pll3);
+	A1Pll4 = A1_ConfigA1PLLClock(opt_A1Pll4);
+	A1Pll5 = A1_ConfigA1PLLClock(opt_A1Pll5);
+	A1Pll6 = A1_ConfigA1PLLClock(opt_A1Pll6);
+
+
+	if(detect_A1_chain())
+	{
+		return;
+	}
+
+	applog(LOG_WARNING, "A1 dectect finish");
+
+    int i = 0;
+	/* release SPI context if no A1 products found */
+	for(i = 0; i < ASIC_CHAIN_NUM; i++)
+	{
+		spi_exit(spi[i]);
+	}
+	//usb_detect(&coinflex_drv, coinflex_detect_one);
+}
+
+
+static bool coinflex_prepare(struct thr_info *thr)
+{
+	struct	cgpu_info *coinflex = thr->cgpu;
+	struct	timeval now;
+
+	applog(LOG_INFO, "[%s %d]:INFO   - coinflex_prepare():", coinflex->drv->name, coinflex->device_id);
+	
+	cgtime(&now);
+	get_datestamp(coinflex->init, sizeof(coinflex->init), &now);
+	
+	return (true);
+}
+
+
+static struct api_data* coinflex_api_stats(struct cgpu_info *cgpu)
+{
+	struct	coinflex_info *info = (struct coinflex_info *)cgpu->device_data;
+	struct	api_data *root = NULL;
+	int		hw_ver, core_ver, fw_ver, core_total_cnt;
+
+	hw_ver = info->hw_ver;
+	root = api_add_int(root, "hw_version", &hw_ver, true);
+
+	fw_ver = info->fw_ver;
+	root = api_add_int(root, "fw_version", &fw_ver, true);
+
+	core_ver = info->core_ver;
+	root = api_add_int(root, "core_version", &core_ver, true);
+
+	core_total_cnt = info->core_total_cnt;
+	root = api_add_int(root, "core_count", &core_total_cnt, true);
+
+	root = api_add_int(root, "clock", &(info->clock), false);
+	root = api_add_int(root, "temp", &(info->temp), false);
+
+	return (root);
+}
+
+
+static char* coinflex_set_device(struct cgpu_info *coinflex, char *option, char *setting, char *replybuf)
+{
+	int		val;
+
+	applog(LOG_INFO, "[%s %d]:INFO   - coinflex_set_device():", coinflex->drv->name, coinflex->device_id);
+
+	if(strcasecmp(option, "help") == 0)
+	{
+		sprintf(replybuf, "clock: range %d - %d", COINFLEX_CORE_CLOCK_MIN, COINFLEX_CORE_CLOCK_MAX);
+		return (replybuf);
+	}
+
+	if(strcasecmp(option, "clock") == 0)
+	{
+		if(!setting || !*setting)
+		{
+			sprintf(replybuf, "missing clock setting");
+			return (replybuf);
+		}
+
+		val = atoi(setting);
+		if(val < COINFLEX_CORE_CLOCK_MIN || val > COINFLEX_CORE_CLOCK_MAX)
+		{
+			sprintf(replybuf, "invalid clock: '%s' valid range %d-%d", setting, COINFLEX_CORE_CLOCK_MIN, COINFLEX_CORE_CLOCK_MAX);
+			return (replybuf);
+		}
+
+		if(coinflex_set_clock(coinflex, val))
+		{
+			return (NULL);
+		}
+		else
+		{
+			sprintf(replybuf, "Set clock failed");
+			return (replybuf);
+		}
+		return (NULL);
+	}
+
+	sprintf(replybuf, "Unknown option: %s", option);
+	return (replybuf);
+}
+
+
+static void coinflex_get_statline_before(char *buf, size_t bufsiz, struct cgpu_info *coinflex)
+{
+	struct	coinflex_info *info = (struct coinflex_info *)coinflex->device_data;
+
+	tailsprintf(buf, bufsiz, "[MI#%2d CO#%2d][H:%d.%d F:%d.%d C:%d.%d][%3uMHz %2d(%2d)C]",
+		info->miner_cnt, info->core_total_cnt,
+		(coinflex->hw_ver >> 8) & 0xFF, (coinflex->hw_ver) & 0xFF, (coinflex->fw_ver >> 8) & 0xFF, (coinflex->fw_ver) & 0xFF, (coinflex->core_ver >> 8) & 0xFF, (coinflex->core_ver) & 0xFF,
+		info->clock, info->temp, info->temp_max);
+}
+
+
+static void coinflex_shutdown(struct thr_info *thr)
+{
+	int		result;
+	uint8_t	status;
+
+	struct	cgpu_info *coinflex = thr->cgpu;
+	struct	coinflex_info *info = (struct coinflex_info *)coinflex->device_data;
+
+	applog(LOG_NOTICE, "[%s %d]:NOTICE - coinflex_shutdown():", coinflex->drv->name, coinflex->device_id);
+	
+	result = coinflex_send_cmd(thr->cgpu, COINFLEX_SET_IDLE, NULL, 0, &status);
+	if((result != COINFLEX_RESULT_OK) || (status != COINFLEX_RESULT_OK))
+	{
+//		applog(LOG_ERR, "[%s %d]:ERROR  - coinflex_shutdown():result=%d,status=%d", coinflex->drv->name, coinflex->device_id, result, status);
+	}
+
+	coinflex->shutdown = true;
+	coinflex_info_clear(info);
+}
+
+
+static void coinflex_update_work(struct cgpu_info *coinflex)
+{
+	struct	thr_info *thr = coinflex->thr[0];
+	struct	coinflex_info *info = (struct coinflex_info *)coinflex->device_data;
+
+	applog(LOG_INFO, "[%s %d]:INFO   - coinflex_update_work():work_restart=%d,work_update=%d", coinflex->drv->name, coinflex->device_id, thr->work_restart, thr->work_update);
+
+	if((coinflex->usbinfo.nodev == true) || (coinflex->shutdown == true))
+	{
+		return;
+	}
+
+	thr->work_restart = false;
+	thr->work_update = false;
+
+	coinflex_send_work(thr);
+}
+
+
+static void coinflex_flush_work(struct cgpu_info *coinflex)
+{
+	struct	thr_info *thr = coinflex->thr[0];
+
+	applog(LOG_INFO, "[%s %d]:INFO   - coinflex_flush_work():work_restart=%d,work_update=%d", coinflex->drv->name, coinflex->device_id, thr->work_restart, thr->work_update);
+
+	coinflex_update_work(coinflex);
+}
+
+static bool coinflex_get_result(struct cgpu_info *coinflex, char *data, int len)
+{
+	int		result, amount = 0;
+	
+	result = usb_read_once(coinflex, data, len, &amount, coinflex_usb_cmd[COINFLEX_GET_WORK]);
+	if(result && result != LIBUSB_ERROR_TIMEOUT)
+	{
+		applog(LOG_ERR, "[%s %d]:ERROR  - coinflex_get_result():result=%d", coinflex->drv->name, coinflex->device_id, result);
+		return (false);
+	}
+
+	if(amount != len)
+	{
+		return (false);
+	}
+	
+	return (true);
+}
+
+
+static int64_t coinflex_scanwork(struct thr_info *thr)
+{
+	struct	cgpu_info *coinflex = thr->cgpu;
+	struct	coinflex_info *info = (struct coinflex_info *)coinflex->device_data;
+
+	struct	timeval now;
+	int64_t	elapsed;
+	int64_t	hashes = 0;
+
+	char		find[FIND_NONCE_SIZE];
+	uint32_t	nonce;
+	unsigned char work_id;
+
+	applog(LOG_INFO, "[%s %d]:INFO   - coinflex_scanwork():", coinflex->drv->name, coinflex->device_id);
+
+	if((coinflex->usbinfo.nodev == true) || (coinflex->shutdown == true))
+	{
+		return 0;
+	}
+
+	if(coinflex_get_result(coinflex, find, FIND_NONCE_SIZE))
+	{
+		nonce = *((uint32_t*)find);
+
+		work_id = (unsigned char)find[5];
+
+		if((info->cfxwork[0] == NULL) || (work_id != info->cfxwork[0]->work_id))
+		{
+#if	0	// Blocked by HKS: Do not display message for performance
+			applog(LOG_NOTICE, "---------------------------------------------------------");
+			applog(LOG_NOTICE, "[%s %d]:NOTICE - Work_ID:Send=%d,Receive=%d", thr->cgpu->drv->name, thr->cgpu->device_id, info->cfxwork[0]->work_id, work_id);
+			applog(LOG_NOTICE, "---------------------------------------------------------");
+#endif
+			workid_mismatch++;
+		}
+		else
+		{
+			if(submit_nonce(thr, info->cfxwork[0], nonce) == false)
+			{
+//				coinflex_print_hw_error(thr->cgpu->drv->name, thr->cgpu->device_id, info->cfxwork[0], nonce);
+			}
+		}
+	}
+
+	cgtime(&now);
+
+	elapsed = ms_tdiff(&now, &info->tv_workstart);
+
+	if(info->working_time < elapsed)
+	{
+		applog(LOG_INFO, "[%s %d]:INFO   - coinflex_scanwork():Work Update:working_time=%dmin %dsec, elapsed=%dmin %dsec",
+					coinflex->drv->name, coinflex->device_id, info->working_time / (60 * 1000), info->working_time % (60 * 1000), (elapsed / 1000) / 60, (elapsed / 1000) % 60);
+
+		coinflex_send_work(thr);
+	}
+
+	elapsed = ms_tdiff(&now, &info->tv_hashrate);
+
+	if(elapsed > 1000)
+	{
+		if((info->tv_hashrate.tv_usec == 0) && (info->tv_hashrate.tv_sec == 0))
+		{
+			info->tv_hashrate = now;
+			return 0;
+		}
+
+		info->tv_hashrate = now;
+
+		// Changed by HKS: Calibrate the hash rate to display for adjusting the real core performance
+		hashes = ((info->clock * info->core_total_cnt * elapsed * 1000) /info->algorithm_clock) + 
+				((((info->clock * info->core_total_cnt * elapsed * 1000) /info->algorithm_clock) / 100) * info->hashrate_offset);
+	}
+
+	elapsed = ms_tdiff(&now, &info->tv_temp);
+	if(elapsed > TEMP_UPDATE_TIME)
+	{
+		coinflex_get_temp(coinflex);
+
+		info->tv_temp = now;
+	}
+
+	return hashes;
+}
+
+
+static void coinflex_print_hw_error(char *drv_name, int device_id, struct work *work, uint32_t nonce)
+{
+	char		*twork;
+	char		twork_data[BUF_SIZE];
+	int		twork_index;
+	int		display_size = 16;		// 16 Bytes
+
+	applog(LOG_ERR, "---------------------------------------------------------");
+	applog(LOG_ERR, "[%s %d]:ERROR  - Nonce = 0x%X,Work_ID = %3d", drv_name, device_id, nonce, work->work_id);
+	twork = bin2hex(work->data, WORK_SIZE);						// Multiply 2 for making string in bin2hex()
+	for(twork_index = 0; twork_index < (WORK_SIZE * 2); twork_index += (display_size * 2))
+	{
+		snprintf(twork_data, (display_size * 2) + 1, "%s", &twork[twork_index]);
+		applog(LOG_ERR, "Work Data      = %s", twork_data);
+	}
+	free(twork);
+	twork = bin2hex(work->device_target, DEVICE_TARGET_SIZE);		// Multiply 2 for making string in bin2hex()
+	for(twork_index = 0; twork_index < (DEVICE_TARGET_SIZE * 2); twork_index += (display_size * 2))
+	{
+		snprintf(twork_data, (display_size * 2) + 1, "%s", &twork[twork_index]);
+		applog(LOG_ERR, "Device Target  = %s", twork_data);
+	}
+	free(twork);
+	applog(LOG_ERR, "---------------------------------------------------------");
+}
+
+struct device_drv coinflex_drv = 
+{
+	.drv_id					= DRIVER_coinflex,
+	.dname					= "HLT_Coinflex",
+	.name					= "HLT",
+	.drv_ver					= COINFLEX_DRIVER_VER,
+	.drv_date					= COINFLEX_DRIVER_DATE,
+	.drv_detect				= coinflex_detect,
+	.get_statline_before		= coinflex_get_statline_before,
+	.get_api_stats				= coinflex_api_stats,
+	.identify_device			= coinflex_identify,
+	.set_device				= coinflex_set_device,
+	.thread_prepare			= coinflex_prepare,
+	.thread_shutdown			= coinflex_shutdown,
+	.hw_reset				= coinflex_hw_reset,
+	.stop_miner				= coinflex_stop_miner,
+	.start_miner				= coinflex_start_miner,
+	.hash_work				= hash_driver_work,
+	.update_work				= coinflex_update_work,
+	.flush_work				= coinflex_flush_work,			// new block detected or work restart 
+	.scanwork				= coinflex_scanwork,				// scan hash
+	.max_diff					= 65536
+};
+
+#if COINFLEX_TEST_MODE
+char dataX11[80] =  { 0x00,0x00,0x00,0x02,0x75,0xd6,0x91,0x99,0x65,0x07,0x7e,0x96,0xb8,0x04,0xb1,0xbf,0x77,0x8a,0xe9,0x2a,0x6d,0xe7,0x5f,0xeb,0x56,0x91,0x11,0x00,0x00,0x04,0xbe,0x72,0x00,0x00,0x00,0x00,0x62,0x22,0x72,0xad,0xf6,0x99,0x66,0x75,0xf2,0xa0,0xf9,0xe5,0x54,0xb3,0x67,0x54,0xfb,0x40,0xf8,0x1f,0x2d,0xad,0x5e,0xd8,0x4a,0x34,0x56,0x09,0xd7,0x58,0x2c,0xe9,0x53,0x95,	0x16,0xe7,0x1b,0x14,0x76,0x0a,0x00,0x10,0x6b,0x0d };
+char targetX11[4] = { 0x00,0x00,0x00,0xff };
+uint32_t nonceX11 = 225120256;	// 0xd6b1000
+
+char dataX13[80] =  { 0x00,0x00,0x00,0x02,0x5b,0x4a,0xbb,0x46,0x95,0x9d,0x93,0xd0,0x49,0x1a,0x8c,0x97,0xb0,0x02,0x37,0x29,0x5d,0x1e,0xf8,0xfd,0xe0,0x74,0x2c,0xf7,0x00,0xdd,0x5c,0xb2,0x00,0x00,0x00,0x00,0x56,0xc0,0x2f,0x12,0x82,0x24,0xd3,0xb8,0xe9,0x37,0x67,0x9f,0x9d,0x00,0x10,0x00,0x2e,0x32,0x02,0x6b,0xf2,0x9d,0x22,0xd5,0x30,0x68,0xcb,0x13,0xc0,0x14,0x4d,0xa5,0x53,0x95,	0x89,0xad,0x1c,0x02,0xac,0x3d,0x00,0x0a,0x1e,0xf1 };
+char targetX13[4] = { 0xff,0x00,0x00,0x00 };
+uint32_t nonceX13 = 4045277696;	// 0xf11e0a00
+
+static void coinflex_set_testdata(struct work *work)
+{
+	char		*data;
+	char		*target;
+	uint32_t	nonce;
+
+	switch(kernel)
+	{
+		case KL_SCRYPT:
+			break;
+		case KL_X11MOD:
+			data = dataX11;
+			target = targetX11;
+			nonce = nonceX11;
+			break;
+		case KL_X13MOD:
+			data = dataX13;
+			target = targetX13;
+			nonce = nonceX13;
+			break;
+		case KL_X15MOD:
+		case KL_NONE:
+		default:
+			return;
+	}
+
+	memcpy(&work->data[0], data, 80);
+	memcpy(&work->device_target[28], target, 4);
+	work->nonce = nonce;
+}
+
+
+static void coinflex_print_hash(struct work *work, uint32_t nonce)
+{
+	uint32_t	*work_nonce = (uint32_t *)(work->data + 64 + 12);
+	uint32_t	*ohash = (uint32_t *)(work->hash);
+	unsigned char hash_swap[32], target_swap[32];
+	char		*hash_str, *target_str;
+
+	*work_nonce = htole32(nonce);
+
+	switch(kernel)
+	{
+		case KL_SCRYPT:
+			break;
+		case KL_X11MOD:
+			darkcoin_regenhash(work);
+			break;
+		case KL_X13MOD:
+			marucoin_regenhash(work);
+			break;
+		case KL_X15MOD:
+		case KL_NONE:
+		default:
+			regen_hash(work);
+			break;
+	}
+
+	swab256(hash_swap, work->hash);
+	swab256(target_swap, work->target);
+	hash_str = bin2hex(hash_swap, 32);
+	target_str = bin2hex(target_swap, 32);
+
+	applog(LOG_ERR, "nonce : %x(%u) => Hash : %08x : %08x : %08x : %08x : %08x : %08x : %08x : %08x",
+	   					nonce, nonce, ohash[0], ohash[1], ohash[2], ohash[3], ohash[4], ohash[5], ohash[6], ohash[7]);
+	applog(LOG_DEBUG, "COINFLEX Hash  : %s", hash_str);
+	applog(LOG_DEBUG, "COINFLEX Target: %s", target_str);
+
+	free(hash_str);
+	free(target_str);
+}
+#endif
+
