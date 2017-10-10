@@ -14,6 +14,8 @@
 #include "asic_inno_cmd.h"
 #include "asic_inno_clock.h"
 
+#define CMD0D_LEN    		 7
+#define CMD0D_RD_DATA_LEN    (CMD0D_LEN-2)
 
 
 const unsigned short wCRCTalbeAbs[] =
@@ -31,8 +33,7 @@ unsigned short CRC16_2(unsigned char* pchMsg, unsigned short wDataLen)
 	unsigned short i;
 	unsigned char chChar;
 
-	for (i = 0; i < wDataLen; i++)
-	{
+	for (i = 0; i < wDataLen; i++){
 		chChar = *pchMsg++;
 		wCRC = wCRCTalbeAbs[(chChar ^ wCRC) & 15] ^ (wCRC >> 4);
 		wCRC = wCRCTalbeAbs[((chChar >> 4) ^ wCRC) & 15] ^ (wCRC >> 4);
@@ -127,8 +128,7 @@ bool spi_send_data(struct spi_ctx *ctx, uint8_t *txbuf, int len)
 	do{
 		memset(spi_rx, 0, sizeof(spi_rx));
 		ret = spi_write_data(ctx, spi_tx + index, 2);
-		if(!ret)
-		{
+		if(!ret){
 			return false;
 		}		
 		
@@ -155,25 +155,19 @@ bool spi_send_command(struct A1_chain *pChain, uint8_t cmd, uint8_t chip_id, uin
 	spi_tx[0] = cmd;
 	spi_tx[1] = chip_id;
 	
-	if(len > 0)
-	{
+	if(len > 0){
 		memcpy(spi_tx + 2, buff, len);
 	}
 	
 	tx_len = (2 + len + 1) & ~1;
 	//hexdump("send: TX", spi_tx, tx_len);
 
-	if(spi_send_data(ctx, spi_tx, tx_len))
-	{
+	if(spi_send_data(ctx, spi_tx, tx_len)){
 		return true;
-	}
-	else
-	{
+	}else{
 		applog(LOG_WARNING, "send command fail !");
 		return false;
 	}
-	
-
 }
 
 
@@ -190,24 +184,30 @@ bool spi_poll_result(struct A1_chain *pChain, uint8_t cmd, uint8_t chip_id, uint
 	memset(spi_tx, 0, sizeof(spi_tx));
 	memset(spi_rx, 0, sizeof(spi_rx));
 	
-	tx_len = ASIC_CHIP_NUM*4;
-
-	for(tmp_len = 0; tmp_len < tx_len; tmp_len += 2)
+	//tx_len = ASIC_CHIP_NUM*4;
+	
+	if(chip_id!=0)//individual command
+		tx_len =  2*(chip_id*2 - 1);
+	else		  //broadcast command
 	{
-		if(!spi_read_data(ctx, spi_rx, 2))
-		//if(!spi_transfer(ctx, spi_tx, spi_rx, 2))
-		{
+		if(pChain->num_chips == 0)
+			tx_len =  ASIC_CHIP_NUM*4;
+		else
+			tx_len =  pChain->num_chips*4;
+			
+	}
+	
+	for(tmp_len = 0; tmp_len < tx_len; tmp_len += 2){
+		if(!spi_read_data(ctx, spi_rx, 2)){
 			applog(LOG_WARNING, "poll result: transfer fail !");
 			return false;
 		}
 		//hexdump("poll: RX", spi_rx, 2);
-		if(spi_rx[0] == cmd)
-		{
+		if(spi_rx[0] == cmd){
 			index = 0;	
 			do{
 				ret = spi_read_data(ctx, spi_rx + 2 + index, 2);
-				if(!ret)
-				{
+				if(!ret){
 					return false;
 				}					
 				index = index + 2;
@@ -229,27 +229,23 @@ bool inno_cmd_reset(struct A1_chain *pChain, uint8_t chip_id)
 	uint8_t spi_rx[MAX_CMD_LENGTH];
 	//uint8_t tmp_reg[12] = {0x02,0x50,0x41,0xc2,0x00,0x00,0x00,0xa7,0xff,0x24,0x00,0x00};
 	
-	printf("send command [reset] \n");
+	applog(LOG_WARNING,"send command [reset] \n");
 
 	memset(spi_tx, 0, sizeof(spi_tx));
 
- //inno_cmd_write_reg(pChain, ADDR_BROADCAST, tmp_reg);
+ 	//inno_cmd_write_reg(pChain, ADDR_BROADCAST, tmp_reg);
 
-	
-#if 1
-	if(!spi_send_command(pChain, CMD_RESET, chip_id, spi_tx, 2))
-	{
+	if(!spi_send_command(pChain, CMD_RESET, chip_id, spi_tx, 2)){
 		applog(LOG_WARNING, "cmd reset: send fail !");
 		return false;
 	}
 
 	memset(spi_rx, 0, sizeof(spi_rx));
-	if(!spi_poll_result(pChain, CMD_RESET|0xB0, chip_id, spi_rx, 4))
-	{
+	if(!spi_poll_result(pChain, CMD_RESET|0xB0, chip_id, spi_rx, 4)){
 		applog(LOG_WARNING, "cmd reset: poll fail !");
 		return false;
 	}
-#endif
+
 	return true;
 }
 
@@ -302,11 +298,10 @@ bool inno_cmd_bist_start(struct A1_chain *pChain, uint8_t chip_id, uint8_t *num)
 	uint8_t spi_tx[MAX_CMD_LENGTH];
 	uint8_t spi_rx[MAX_CMD_LENGTH];
 	
-	printf("send command [bist_start] \n");
+	applog(LOG_WARNING,"send command [bist_start] \n");
 
 	memset(spi_tx, 0, sizeof(spi_tx));
-	if(!spi_send_command(pChain, CMD_BIST_START, chip_id, spi_tx, 2))
-	{
+	if(!spi_send_command(pChain, CMD_BIST_START, chip_id, spi_tx, 2)){
 		applog(LOG_WARNING, "cmd bist start: send fail !");
 		return false;
 	}
@@ -329,14 +324,12 @@ bool inno_cmd_bist_collect(struct A1_chain *pChain, uint8_t chip_id)
 	printf("send command [bist_collect] \n");
 
 	memset(spi_tx, 0, sizeof(spi_tx));
-	if(!spi_send_command(pChain, CMD_BIST_COLLECT, chip_id, spi_tx, 2))
-	{
+	if(!spi_send_command(pChain, CMD_BIST_COLLECT, chip_id, spi_tx, 2)){
 		return false;
 	}
 
 	memset(spi_rx, 0, sizeof(spi_rx));
-	if(!spi_poll_result(pChain, CMD_BIST_COLLECT, chip_id, spi_rx, 4))
-	{
+	if(!spi_poll_result(pChain, CMD_BIST_COLLECT, chip_id, spi_rx, 4)){
 		return false;
 	}
 
@@ -349,7 +342,7 @@ bool inno_cmd_bist_fix(struct A1_chain *pChain, uint8_t chip_id)
 	uint8_t spi_tx[MAX_CMD_LENGTH];
 	uint8_t spi_rx[MAX_CMD_LENGTH];
 	
-	printf("send command [bist_fix] \n");
+	applog(LOG_WARNING,"send command [bist_fix] \n");
 
 	memset(spi_tx, 0, sizeof(spi_tx));
 	if(!spi_send_command(pChain, CMD_BIST_FIX, chip_id, spi_tx, 2))
@@ -376,7 +369,7 @@ bool inno_cmd_write_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg)
 	uint16_t clc_crc;
 	uint8_t j;
 	
-	printf("send command [write_reg] \n");
+	applog(LOG_WARNING,"send command [write_reg] \n");
 	assert(reg != NULL);
 
 	memset(spi_tx, 0, sizeof(spi_tx));
@@ -396,15 +389,15 @@ bool inno_cmd_write_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg)
 	spi_tx[REG_LENGTH+0] = (uint8_t)(clc_crc >> 8);
 	spi_tx[REG_LENGTH+1] = (uint8_t)(clc_crc);
 
-	hexdump("write reg", spi_tx, REG_LENGTH+2);
+	//hexdump("write reg", spi_tx, REG_LENGTH+2);
 	if(!spi_write_data(pChain->spi_ctx, spi_tx, 16))
 	{
 		applog(LOG_WARNING, "send command fail !");
 		return false;
 	}
-printf("reg:0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x\n",spi_tx[0],spi_tx[1],spi_tx[2],spi_tx[3],spi_tx[4],spi_tx[5],spi_tx[6],spi_tx[7],spi_tx[8],spi_tx[9],spi_tx[10],spi_tx[11],spi_tx[12],spi_tx[13],spi_tx[14],spi_tx[15],spi_tx[16],spi_tx[17]);
+//printf("reg:0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x\n",spi_tx[0],spi_tx[1],spi_tx[2],spi_tx[3],spi_tx[4],spi_tx[5],spi_tx[6],spi_tx[7],spi_tx[8],spi_tx[9],spi_tx[10],spi_tx[11],spi_tx[12],spi_tx[13],spi_tx[14],spi_tx[15],spi_tx[16],spi_tx[17]);
 	memset(spi_rx, 0, sizeof(spi_rx));
-	if(!spi_poll_result(pChain, CMD_WRITE_REG, chip_id, spi_rx, REG_LENGTH))
+	if(!spi_poll_result(pChain, CMD_WRITE_REG, chip_id, spi_rx, REG_LENGTH+4))
 	{
 		applog(LOG_WARNING, "cmd write reg: poll fail !");
 		return false;
@@ -413,7 +406,55 @@ printf("reg:0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%
 	return true;
 }
 
-#if 1
+bool inno_cmd_write_sec_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg)
+{
+		int tx_len;
+		uint8_t spi_tx[MAX_CMD_LENGTH];
+		uint8_t spi_rx[MAX_CMD_LENGTH];
+		uint8_t tmp_buf[MAX_CMD_LENGTH];
+		uint16_t clc_crc;
+		uint8_t j;
+		
+		applog(LOG_WARNING,"send command [write_reg] \n");
+		assert(reg != NULL);
+	
+		memset(spi_tx, 0, sizeof(spi_tx));
+		
+		spi_tx[0] = CMD_READ_SEC_REG;
+		spi_tx[1] = chip_id;
+		memcpy(spi_tx+2, reg, REG_LENGTH-2);
+	
+		memset(tmp_buf, 0, sizeof(tmp_buf));
+		#if 0
+		for(j = 0; j < REG_LENGTH; j = j + 2)
+		{
+			tmp_buf[j + 0] = spi_tx[j + 1];
+			tmp_buf[j + 1] = spi_tx[j + 0]; 	
+		}
+		#endif
+		clc_crc = CRC16_2(tmp_buf, REG_LENGTH);
+	
+		spi_tx[REG_LENGTH+0] = (uint8_t)(clc_crc >> 8);
+		spi_tx[REG_LENGTH+1] = (uint8_t)(clc_crc);
+	
+		//hexdump("write reg", spi_tx, REG_LENGTH+2);
+		if(!spi_write_data(pChain->spi_ctx, spi_tx, 16))
+		{
+			applog(LOG_WARNING, "send command fail !");
+			return false;
+		}
+		//printf("reg:0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x\n",spi_tx[0],spi_tx[1],spi_tx[2],spi_tx[3],spi_tx[4],spi_tx[5],spi_tx[6],spi_tx[7],spi_tx[8],spi_tx[9],spi_tx[10],spi_tx[11],spi_tx[12],spi_tx[13],spi_tx[14],spi_tx[15],spi_tx[16],spi_tx[17]);
+		memset(spi_rx, 0, sizeof(spi_rx));
+		if(!spi_poll_result(pChain, CMD_READ_SEC_REG, chip_id, spi_rx, REG_LENGTH+4))
+		{
+			applog(LOG_WARNING, "cmd write reg: poll fail !");
+			return false;
+		}
+	
+		return true;
+}
+
+
 bool inno_cmd_read_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg)
 {
 	int i,j;
@@ -424,57 +465,48 @@ bool inno_cmd_read_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg)
 	uint8_t tmp_rx[MAX_CMD_LENGTH];
 	
 	struct spi_ctx *ctx = pChain->spi_ctx;
-	
 	//printf("send command [read_reg] \r\n");
 	assert(reg != NULL);
 
-	
 	memset(spi_tx, 0, sizeof(spi_tx));
 	spi_tx[0] = CMD_READ_REG;
 	spi_tx[1] = chip_id;
 	
-	if(!spi_write_data(ctx, spi_tx, 2))
-	{
+	if(!spi_write_data(ctx, spi_tx, 2)){
 		return false;
 	}
 
 	tx_len = ASIC_CHIP_NUM*4;
 	memset(spi_rx, 0, sizeof(spi_rx));
-	for(i = 0; i < tx_len; i = i + 2)
-	{
-		if(!spi_read_data(ctx, spi_rx, 2))
-		//if(!spi_transfer(ctx, spi_tx, spi_rx, 2))
-		{
+	for(i = 0; i < tx_len; i = i + 2){
+		if(!spi_read_data(ctx, spi_rx, 2)){
 			applog(LOG_WARNING, "poll result: transfer fail !");
 			return false;
 		}
 	//	hexdump("poll: RX", spi_rx, 2);
-		if(spi_rx[0] == CMD_READ_REG_RESP)
-		{		
+		if(spi_rx[0] == CMD_READ_REG_RESP){		
 			index = 0;	
 			do{
 				ret = spi_read_data(ctx, spi_rx + 2 + index, 2);
-				if(!ret)
-				{
+				if(!ret){
 					return false;
 				}					
 				index = index + 2;
 			}while(index < REG_LENGTH);
 			//hexdump("poll: reg", spi_rx + 2, REG_LENGTH);
 		
-//printf("rd reg:0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x\n",spi_rx[0],spi_rx[1],spi_rx[2],spi_rx[3],spi_rx[4],spi_rx[5],spi_rx[6],spi_rx[7],spi_rx[8],spi_rx[9],spi_rx[10],spi_rx[11],spi_rx[12],spi_rx[13],spi_rx[14],spi_rx[15],spi_rx[16],spi_rx[17]);
+			//printf("rd reg:0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x\n",spi_rx[0],spi_rx[1],spi_rx[2],spi_rx[3],spi_rx[4],spi_rx[5],spi_rx[6],spi_rx[7],spi_rx[8],spi_rx[9],spi_rx[10],spi_rx[11],spi_rx[12],spi_rx[13],spi_rx[14],spi_rx[15],spi_rx[16],spi_rx[17]);
             
-			    memset(tmp_rx, 0, sizeof(tmp_rx));
-				for(j = 0; j < REG_LENGTH+2; j = j + 2)
-				{
-					tmp_rx[j + 0] = spi_rx[j + 1];
-					tmp_rx[j + 1] = spi_rx[j + 0];
-				}
-//printf("tmp_rx:0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x\n",tmp_rx[0],tmp_rx[1],tmp_rx[2],tmp_rx[3],tmp_rx[4],tmp_rx[5],tmp_rx[6],tmp_rx[7],tmp_rx[8],tmp_rx[9],tmp_rx[10],tmp_rx[11],tmp_rx[12],tmp_rx[13],tmp_rx[14],tmp_rx[15],tmp_rx[16],tmp_rx[17]);
+			memset(tmp_rx, 0, sizeof(tmp_rx));
+			for(j = 0; j < REG_LENGTH+2; j = j + 2){
+				tmp_rx[j + 0] = spi_rx[j + 1];
+				tmp_rx[j + 1] = spi_rx[j + 0];
+			}
+			//printf("tmp_rx:0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x\n",tmp_rx[0],tmp_rx[1],tmp_rx[2],tmp_rx[3],tmp_rx[4],tmp_rx[5],tmp_rx[6],tmp_rx[7],tmp_rx[8],tmp_rx[9],tmp_rx[10],tmp_rx[11],tmp_rx[12],tmp_rx[13],tmp_rx[14],tmp_rx[15],tmp_rx[16],tmp_rx[17]);
 			clc_crc = CRC16_2(tmp_rx, REG_LENGTH);
 			if(clc_crc != ((spi_rx[14]<<8)|spi_rx[15])){
-			printf("crc:%x,%x\n",clc_crc,(spi_rx[14]<<8)|spi_rx[15]);
-			 return false;
+				printf("crc:%x,%x\n",clc_crc,(spi_rx[14]<<8)|spi_rx[15]);
+			 	return false;
 			}
 			
 			memcpy(reg, spi_rx + 2, REG_LENGTH);
@@ -484,71 +516,6 @@ bool inno_cmd_read_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg)
 	
 	return false;
 }
-#else
-bool inno_cmd_read_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg)
-{
-	int tx_len;
-	int tmp_len;
-	uint8_t spi_tx[MAX_CMD_LENGTH];
-	uint8_t spi_rx[MAX_CMD_LENGTH];
-	struct spi_ctx *ctx = pChain->spi_ctx;
-	
-	printf("send command [read_reg] \r\n");
-	assert(reg != NULL);
-
-	memset(spi_tx, 0, sizeof(spi_tx));
-	if(!spi_send_command(pChain, CMD_READ_REG, chip_id, spi_tx, 2))
-	{
-		return false;
-	}
-
-	tx_len = 4 * ASIC_CHIP_NUM;
-	memset(spi_rx, 0, sizeof(spi_rx));
-	for(tmp_len = 0; tmp_len < tx_len; tmp_len += 2)
-	{
-		if(!spi_transfer(ctx, spi_tx, spi_rx, 2))
-		{
-			applog(LOG_WARNING, "poll result: transfer fail !");
-			return false;
-		}
-		hexdump("poll: RX", spi_rx, 2);
-		if(spi_rx[0] == CMD_READ_REG_RESP)
-		{
-			if(!spi_transfer(ctx, spi_tx, spi_rx + 2, REG_LENGTH))
-			{
-				applog(LOG_WARNING, "poll-result: transfer fail !");
-				return false;
-			}
-			hexdump("poll: reg", spi_rx + 2, REG_LENGTH);
-			memcpy(reg, spi_rx, REG_LENGTH);
-			return true;;
-		}
-	}
-	
-
-#if 0
-	if(!spi_transfer(ctx, spi_tx, spi_rx, tx_len))
-	{
-		return false;
-	}
-
-	hexdump("read: RX", spi_rx, tx_len);
-	if(spi_rx[tx_len-2] == CMD_READ_REG_RESP)
-	{
-		if(!spi_transfer(ctx, spi_tx, spi_rx + tx_len, REG_LENGTH))
-		{
-			return false;
-		}
-
-		hexdump("reg: RX", spi_rx + tx_len, REG_LENGTH);
-		memcpy(reg, spi_rx + tx_len, REG_LENGTH);
-		return true;
-	}
-#endif
-	return false;
-}
-#endif
-
 bool inno_cmd_read_result(struct A1_chain *pChain, uint8_t chip_id, uint8_t *res)
 {
 	int i,j;
@@ -603,8 +570,8 @@ bool inno_cmd_read_result(struct A1_chain *pChain, uint8_t chip_id, uint8_t *res
 				tmp_buf[j + 0] = spi_rx[j + 1];
 				tmp_buf[j + 1] = spi_rx[j + 0];
 			}
-	printf("spi:0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n",spi_rx[0],spi_rx[1],spi_rx[2],spi_rx[3],spi_rx[4],spi_rx[5],spi_rx[6],spi_rx[7]);
-	printf("id:0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n",tmp_buf[0],tmp_buf[1],tmp_buf[2],tmp_buf[3],tmp_buf[4],tmp_buf[5]);
+	//printf("spi:0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n",spi_rx[0],spi_rx[1],spi_rx[2],spi_rx[3],spi_rx[4],spi_rx[5],spi_rx[6],spi_rx[7]);
+	//printf("id:0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n",tmp_buf[0],tmp_buf[1],tmp_buf[2],tmp_buf[3],tmp_buf[4],tmp_buf[5]);
 			clc_crc = CRC16_2(tmp_buf, ASIC_RESULT_LEN);
 			res_crc = (spi_rx[ASIC_RESULT_LEN] << 8) + (spi_rx[ASIC_RESULT_LEN+1] << 0);
 
@@ -616,8 +583,8 @@ bool inno_cmd_read_result(struct A1_chain *pChain, uint8_t chip_id, uint8_t *res
 			}
 			else
 			{
-		printf("crc is error! \r\n");
-		printf("the calculate crc is 0x%4x \r\n", clc_crc);
+				printf("crc is error! \r\n");
+				printf("the calculate crc is 0x%4x \r\n", clc_crc);
 				return false;
 			}				
 		}
@@ -680,6 +647,7 @@ bool inno_cmd_write_job(struct A1_chain *pChain, uint8_t chip_id, uint8_t *job)
 
    if(!spi_write_data(ctx, spi_tx, JOB_LENGTH))
    {
+   	   printf("spi_write_data JOB Failed......\n");
 	   return false;
    }
 
@@ -691,6 +659,7 @@ bool inno_cmd_write_job(struct A1_chain *pChain, uint8_t chip_id, uint8_t *job)
 
 	if(inno_cmd_isBusy(pChain, chip_id) != WORK_BUSY)
 	{
+		printf("wirte Job ,but inno_cmd_isBusy......\n");
 		return false;
 	}
 

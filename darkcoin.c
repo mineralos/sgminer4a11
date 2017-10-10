@@ -103,11 +103,13 @@ inline void xhash(void *state, const void *input)
     uint32_t hashA[16], hashB[16];  
     //blake-bmw-groestl-sken-jh-meccak-luffa-cubehash-shivite-simd-echo
     memcpy(&ctx, &base_contexts, sizeof(base_contexts));
+	#if 0
     uint8_t i;
     for(i=0;i<80;i=i+4)
     {
      printf("input:0x%02x%02x%02x%02x\n",output[i+0],output[i+1],output[i+2],output[i+3]);
     }
+	#endif
     
     sph_blake512 (&ctx.blake1, input, 80);
     sph_blake512_close (&ctx.blake1, hashA);        

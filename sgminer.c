@@ -28,6 +28,10 @@
 #include <assert.h>
 #include <signal.h>
 #include <limits.h>
+#include "asic_inno_cmd.h"
+#include "asic_inno.h"
+#include "asic_inno_clock.h"
+
 
 #ifdef USE_USBUTILS
 #include <semaphore.h>
@@ -98,6 +102,7 @@ int opt_A1Pll6=120; // -1 Default
 
 #endif
 
+int opt_voltage = 8;
 
 
 
@@ -388,6 +393,13 @@ struct schedtime {
 struct schedtime schedstart;
 struct schedtime schedstop;
 bool sched_paused;
+
+
+extern uint8_t A1Pll1;
+extern struct A1_chain *chain[ASIC_CHAIN_NUM];
+extern const struct PLL_Clock PLL_Clk_12Mhz[119];
+
+
 
 static bool time_before(struct tm *tm1, struct tm *tm2)
 {
@@ -694,6 +706,10 @@ static char *set_int_1_to_65535(const char *arg, int *i)
 static char *set_int_0_to_10(const char *arg, int *i)
 {
 	return set_int_range(arg, i, 0, 10);
+}
+static char *set_int_0_to_31(const char *arg, int *i)
+{
+	return set_int_range(arg, i, 0, 31);
 }
 
 static char *set_int_0_to_100(const char *arg, int *i)
@@ -1138,6 +1154,36 @@ static struct opt_table opt_config_table[] = {
 		     opt_set_charp, NULL, &opt_btc_sig,
 		     "Set signature to add to coinbase when solo mining (optional)"),
 #endif
+
+
+	OPT_WITH_ARG("--bitmine-a1-options",
+		     opt_set_charp, NULL, &opt_bitmine_a1_options,
+		     "Bitmine A1 options ref_clk_khz:sys_clk_khz:spi_clk_khz:override_chip_num"),
+
+	OPT_WITH_ARG("--A1Pll1",
+			 set_int_0_to_9999, opt_show_intval, &opt_A1Pll1,
+			 "Set PLL Clock in bitmine A1 broad 1 chip (-1: 1000MHz, >0:Look PLL table)"),
+	OPT_WITH_ARG("--A1Pll2",
+             set_int_0_to_9999, opt_show_intval, &opt_A1Pll2,
+             "Set PLL Clock in bitmine A1 broad 2 chip (-1: 1000MHz, >0:Look PLL table)"),
+	OPT_WITH_ARG("--A1Pll3",
+             set_int_0_to_9999, opt_show_intval, &opt_A1Pll3,
+             "Set PLL Clock in bitmine A1 broad 3 chip (-1: 1000MHz, >0:Look PLL table)"),
+	OPT_WITH_ARG("--A1Pll4",
+             set_int_0_to_9999, opt_show_intval, &opt_A1Pll4,
+             "Set PLL Clock in bitmine A1 broad 4 chip (-1: 1000MHz, >0:Look PLL table)"),
+	OPT_WITH_ARG("--A1Pll5",
+             set_int_0_to_9999, opt_show_intval, &opt_A1Pll5,
+             "Set PLL Clock in bitmine A1 broad 5 chip (-1: 1000MHz, >0:Look PLL table)"),
+	OPT_WITH_ARG("--A1Pll6",
+             set_int_0_to_9999, opt_show_intval, &opt_A1Pll6,
+             "Set PLL Clock in bitmine A1 broad 6 chip (-1: 1000MHz, >0:Look PLL table)"),
+		     
+	OPT_WITH_ARG("--A1Vol",
+		     set_int_0_to_31, opt_show_intval, &opt_voltage,
+		     "set voltage (1 ~ 31)"),
+
+
 #ifdef HAVE_CURSES
 	OPT_WITHOUT_ARG("--compact",
 			opt_set_bool, &opt_compact,
@@ -7280,6 +7326,7 @@ static void submit_work_async(struct work *work)
 	struct pool *pool = work->pool;
 	pthread_t submit_thread;
 	uint8_t i;
+	#if 0
 	for(i=0;i<32;i=i+4)
 	{
       printf("hash:0x%02x,0x%02x,0x%02x,0x%02x\n",work->hash[i+0],work->hash[i+1],work->hash[i+2],work->hash[i+3]);
@@ -7289,7 +7336,7 @@ static void submit_work_async(struct work *work)
 	{
       printf("data:0x%02x,0x%02x,0x%02x,0x%02x\n",work->data[i+0],work->data[i+1],work->data[i+2],work->data[i+3]);
     }
-    
+    #endif
 	cgtime(&work->tv_work_found);
 	if (opt_benchmark) {
 		struct cgpu_info *cgpu = get_thr_cgpu(work->thr_id);
@@ -7403,7 +7450,7 @@ bool test_nonce(struct work *work, uint32_t nonce)
 			break;
 	}
 //	if(le32toh(*hash_32) <= diff1targ)
-	printf("hash:0x%08x,0x%08x\n",le32toh(*hash_32),*hash_32);
+	//printf("hash:0x%08x,0x%08x\n",le32toh(*hash_32),*hash_32);
 	
 	return (le32toh(*hash_32) <= diff1targ);
 #else
@@ -7569,8 +7616,7 @@ static inline bool abandon_work(struct work *work, struct timeval *wdiff, uint64
 	return false;
 }
 
-static void mt_disable(struct thr_info *mythr, const int thr_id,
-		       struct device_drv *drv)
+static void mt_disable(struct thr_info *mythr, const int thr_id,struct device_drv *drv)
 {
 	applog(LOG_WARNING, "Thread %d being disabled", thr_id);
 	mythr->cgpu->rolling = 0;
@@ -7993,8 +8039,7 @@ void hash_queued_work(struct thr_info *mythr)
 	const int thr_id = mythr->id;
 	int64_t hashes_done = 0;
 
-	while (likely(!cgpu->shutdown))
-	{
+	while (likely(!cgpu->shutdown)){
 		struct timeval diff;
 		int64_t hashes;
 
@@ -8007,8 +8052,7 @@ void hash_queued_work(struct thr_info *mythr)
 		/* Reset the bool here in case the driver looks for it synchronously in the scanwork loop. */
 		mythr->work_restart = false;
 
-		if (unlikely(hashes == -1 ))
-		{
+		if (unlikely(hashes == -1 )){
 			applog(LOG_ERR, "%s %d failure, disabling!", drv->name, cgpu->device_id);
 			cgpu->deven = DEV_DISABLED;
 			dev_error(cgpu, REASON_THREAD_ZERO_HASH);
@@ -8020,18 +8064,19 @@ void hash_queued_work(struct thr_info *mythr)
 		timersub(&tv_end, &tv_start, &diff);
 
 		/* Update the hashmeter at most 5 times per second */
-		if ((hashes_done && (diff.tv_sec > 0 || diff.tv_usec > 200000)) || (diff.tv_sec >= opt_log_interval))
-		{
+		if ((hashes_done && (diff.tv_sec > 0 || diff.tv_usec > 200000)) || (diff.tv_sec >= opt_log_interval)){
 			hashmeter(thr_id, hashes_done);
 			hashes_done = 0;
 			copy_time(&tv_start, &tv_end);
 		}
 
-		if (unlikely(mythr->pause || cgpu->deven != DEV_ENABLED))
+		if (unlikely(mythr->pause || cgpu->deven != DEV_ENABLED)){
 			mt_disable(mythr, thr_id, drv);
+		}
 
-		if (mythr->work_update)
+		if (mythr->work_update){
 			drv->update_work(cgpu);
+		}
 	}
 
 	cgpu->deven = DEV_DISABLED;
@@ -9296,9 +9341,9 @@ bool add_cgpu(struct cgpu_info *cgpu)
 	struct _cgpu_devid_counter *d;
 
 	HASH_FIND_STR(devids, cgpu->drv->name, d);
-	if (d)
+	if (d){
 		cgpu->device_id = ++d->lastid;
-	else {
+	}else{
 		d = malloc(sizeof(*d));
 		memcpy(d->name, cgpu->drv->name, sizeof(d->name));
 		cgpu->device_id = d->lastid = 0;
@@ -9313,10 +9358,11 @@ bool add_cgpu(struct cgpu_info *cgpu)
 	cgpu->last_device_valid_work = time(NULL);
 	mutex_unlock(&stats_lock);
 
-	if (hotplug_mode)
+	if (hotplug_mode){
 		devices[total_devices + new_devices++] = cgpu;
-	else
+	}else{
 		devices[total_devices++] = cgpu;
+	}
 
 	adjust_mostdevs();
 #ifdef USE_USBUTILS
@@ -9516,8 +9562,9 @@ int main(int argc, char *argv[])
 
 	/* This dangerous functions tramples random dynamically allocated
 	 * variables so do it before anything at all */
-	if (unlikely(curl_global_init(CURL_GLOBAL_ALL)))
+	if (unlikely(curl_global_init(CURL_GLOBAL_ALL))){
 		early_quit(1, "Failed to curl_global_init");
+	}
 
 #if LOCK_TRACKING
 	// Must be first
@@ -9526,8 +9573,9 @@ int main(int argc, char *argv[])
 #endif
 
 	initial_args = malloc(sizeof(char *) * (argc + 1));
-	for  (i = 0; i < argc; i++)
+	for  (i = 0; i < argc; i++){
 		initial_args[i] = strdup(argv[i]);
+	}
 	initial_args[argc] = NULL;
 
 	mutex_init(&hash_lock);
@@ -9543,20 +9591,24 @@ int main(int argc, char *argv[])
 	rwlock_init(&devices_lock);
 
 	mutex_init(&lp_lock);
-	if (unlikely(pthread_cond_init(&lp_cond, NULL)))
+	if (unlikely(pthread_cond_init(&lp_cond, NULL))){
 		early_quit(1, "Failed to pthread_cond_init lp_cond");
+	}
 
 	mutex_init(&restart_lock);
-	if (unlikely(pthread_cond_init(&restart_cond, NULL)))
+	if (unlikely(pthread_cond_init(&restart_cond, NULL))){
 		early_quit(1, "Failed to pthread_cond_init restart_cond");
+	}
 
-	if (unlikely(pthread_cond_init(&gws_cond, NULL)))
+	if (unlikely(pthread_cond_init(&gws_cond, NULL))){
 		early_quit(1, "Failed to pthread_cond_init gws_cond");
+	}
 
 	/* Create a unique get work queue */
 	getq = tq_new();
-	if (!getq)
+	if (!getq){
 		early_quit(1, "Failed to create getq");
+	}
 	/* We use the getq mutex as the staged lock */
 	stgd_lock = &getq->mutex;
 
@@ -9588,37 +9640,40 @@ int main(int argc, char *argv[])
 	logcursor = logstart + 1;
 
 	block = calloc(sizeof(struct block), 1);
-	if (unlikely(!block))
+	if (unlikely(!block)){
 		quit (1, "main OOM");
-	for (i = 0; i < 36; i++)
+	}
+	for (i = 0; i < 36; i++){
 		strcat(block->hash, "0");
+	}
 	HASH_ADD_STR(blocks, hash, block);
 	strcpy(current_hash, block->hash);
 
 	INIT_LIST_HEAD(&scan_devices);
 
 	/* parse command line */
-	opt_register_table(opt_config_table,
-			   "Options for both config file and command line");
-	opt_register_table(opt_cmdline_table,
-			   "Options for command line only");
+	opt_register_table(opt_config_table, "Options for both config file and command line");
+	opt_register_table(opt_cmdline_table,"Options for command line only");
 
 	opt_parse(&argc, argv, applog_and_exit);
-	if (argc != 1)
+	if (argc != 1){
 		early_quit(1, "Unexpected extra commandline arguments");
+	}
 
-	if (!config_loaded)
+	if (!config_loaded){
 		load_default_config();
+	}
 
 	if (opt_benchmark || opt_benchfile) {
 		struct pool *pool;
 
 		pool = add_pool();
 		pool->rpc_url = malloc(255);
-		if (opt_benchfile)
+		if (opt_benchfile){
 			strcpy(pool->rpc_url, "Benchfile");
-		else
+		}else{
 			strcpy(pool->rpc_url, "Benchmark");
+		}
 		pool->rpc_user = pool->rpc_url;
 		pool->rpc_pass = pool->rpc_url;
 		enable_pool(pool);
@@ -9650,8 +9705,9 @@ int main(int argc, char *argv[])
 				break;
 			case -1:
 				applog(LOG_WARNING, "Error in configuration file, partially loaded.");
-				if (use_curses)
+				if (use_curses){
 					applog(LOG_WARNING, "Start sgminer with -T to see what failed to load.");
+				}
 				break;
 			default:
 				break;
@@ -9662,31 +9718,27 @@ int main(int argc, char *argv[])
 
 	strcat(opt_kernel_path, "/");
 
-	if (want_per_device_stats)
+	if (want_per_device_stats){
 		opt_log_output = true;
+	}
 
-	if(opt_scantime < 0)
-	{
+	if(opt_scantime < 0){
 		struct cgpu_info 		*cgpu;
 		struct coinflex_info	*info_coinflex;
 		struct ltctech_info		*info_ltctech;
-
-		int					selected, mt;
-
-		
+		int					selected, mt;	
 // Changed by HKS:
 #if defined(USE_COINFLEX)
-				mt = mining_threads;
-				opt_scantime = COINFLEX_SCANTIME_DEF;
-				
-#endif
-			
+		mt = mining_threads;
+		opt_scantime = COINFLEX_SCANTIME_DEF;		
+#endif		
 	}
 
 	total_control_threads = 8;
 	control_thr = calloc(total_control_threads, sizeof(*thr));
-	if (!control_thr)
+	if (!control_thr){
 		early_quit(1, "Failed to calloc control_thr");
+	}
 
 	gwsched_thr_id = 0;
 
@@ -9697,8 +9749,9 @@ int main(int argc, char *argv[])
 	cgsem_init(&usb_resource_sem);
 	usbres_thr_id = 1;
 	thr = &control_thr[usbres_thr_id];
-	if (thr_info_create(thr, NULL, usb_resource_thread, thr))
+	if (thr_info_create(thr, NULL, usb_resource_thread, thr)){
 		early_quit(1, "usb resource thread create failed");
+	}
 	pthread_detach(thr->pth);
 #endif
 
@@ -9721,8 +9774,9 @@ int main(int argc, char *argv[])
 	}
 
 	mining_threads = 0;
-	for (i = 0; i < total_devices; ++i)
+	for (i = 0; i < total_devices; ++i){
 		enable_device(devices[i]);
+	}
 
 #ifdef USE_USBUTILS
 	if (!total_devices) {
@@ -9730,16 +9784,17 @@ int main(int argc, char *argv[])
 		applog(LOG_WARNING, "Waiting for USB hotplug devices or press q to quit");
 	}
 #else
-	if (!total_devices)
+	if (!total_devices){
 		early_quit(1, "All devices disabled, cannot mine!");
+	}
 #endif
 
 	most_devices = total_devices;
-
 	load_temp_cutoffs();
 
-	for (i = 0; i < total_devices; ++i)
+	for (i = 0; i < total_devices; ++i){
 		devices[i]->sgminer_stats.getwork_wait_min.tv_sec = MIN_SEC_UNSET;
+	}
 
 	if (!opt_compact) {
 		logstart += most_devices;

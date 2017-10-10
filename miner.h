@@ -236,9 +236,11 @@ extern int opt_A1Pll6;
  * listed driver. */
 #define FPGA_PARSE_COMMANDS(DRIVER_ADD_COMMAND) \
 	DRIVER_ADD_COMMAND(ltctech) \
+	//DRIVER_ADD_COMMAND(coinflex)
+
+#define ASIC_PARSE_COMMANDS(DRIVER_ADD_COMMAND) \
 	DRIVER_ADD_COMMAND(coinflex)
 
-#define ASIC_PARSE_COMMANDS(DRIVER_ADD_COMMAND)
 
 #define DRIVER_PARSE_COMMANDS(DRIVER_ADD_COMMAND) \
 	FPGA_PARSE_COMMANDS(DRIVER_ADD_COMMAND) \
@@ -481,6 +483,13 @@ struct cgpu_info {
 	bool new_work;
 
 	double temp;
+	//add by witt
+	double temp_max;
+	double temp_min;
+	int chip_num;
+//	int core_num;
+	int fan_duty;
+	
 	int cutofftemp;
 
 	double diff1;

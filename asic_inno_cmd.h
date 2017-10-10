@@ -11,15 +11,17 @@
 #define CMD_BIST_COLLECT	0x0b
 #define CMD_BIST_FIX		0x03
 #define CMD_RESET			0x04
-//#define CMD_RESETBC			0x05
+#define CMD_RESETBC			0x05
 #define CMD_WRITE_JOB		0x07
 #define CMD_READ_RESULT		0x08
 #define CMD_WRITE_REG		0x09
 #define CMD_READ_REG		0x0a
 #define CMD_READ_REG_RESP	0x1a
-//#define CMD_POWER_ON		0x02
-//#define CMD_POWER_OFF		0x06
-//#define CMD_POWER_RESET 	0x0c
+#define CMD_POWER_ON		0x02
+#define CMD_POWER_OFF		0x06
+#define CMD_POWER_RESET 	0x0c
+#define CMD_READ_SEC_REG    0x0d
+
 
 #define ADDR_BROADCAST		0x00
 
@@ -51,7 +53,7 @@
 
 //#endif
 
-#define MAX_CHAIN_LENGTH	72
+#define MAX_CHAIN_LENGTH	33
 #define MAX_CMD_LENGTH		(JOB_LENGTH + MAX_CHAIN_LENGTH * 2 * 2)
 
 #define WORK_BUSY 0
@@ -83,6 +85,7 @@ struct A1_chip {
 	int cooldown_begin;
 	/* number of consecutive failures to access the chip */
 	int fail_count;
+	int fail_reset;
 	/* mark chip disabled, do not try to re-enable it */
 	bool disabled;
 
