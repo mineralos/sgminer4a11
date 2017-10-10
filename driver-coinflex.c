@@ -404,8 +404,6 @@ struct A1_chain *init_A1_chain(struct spi_ctx *ctx, int chain_id)
 	inno_configure_tvsensor(a1,ADDR_BROADCAST,0);
 
 	for (i = 0; i < a1->num_active_chips; i++){
-		check_chip(a1, i);
-
         inno_check_voltage(a1, i+1, &s_reg_ctrl);
         //inno_fan_temp_add(&s_fan_ctrl, chain_id, a1->chips[i].temp, true);
     }
