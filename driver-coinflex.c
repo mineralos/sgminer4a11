@@ -682,7 +682,7 @@ static bool coinflex_get_result(struct cgpu_info *coinflex, char *data, int len)
 	return (true);
 }
 
-#define VOLTAGE_UPDATE_INT  1200
+#define VOLTAGE_UPDATE_INT  6000
 
 static int64_t coinflex_scanwork(struct thr_info *thr)
 {
