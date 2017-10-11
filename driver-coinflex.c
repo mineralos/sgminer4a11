@@ -482,7 +482,7 @@ static bool detect_A1_chain(void)
 		usleep(500000);
 		asic_gpio_write(spi[i]->reset, 1);	
 	}
-
+#if 0
 	//divide the init to break two part
 	if(opt_voltage > 8){
 		for(i=9; i<=opt_voltage; i++){
@@ -497,7 +497,7 @@ static bool detect_A1_chain(void)
 			usleep(200000);
 		}
 	}
-
+#endif
 
 	for(i = 0; i < ASIC_CHAIN_NUM; i++)
 	{
@@ -682,7 +682,7 @@ static bool coinflex_get_result(struct cgpu_info *coinflex, char *data, int len)
 	return (true);
 }
 
-#define VOLTAGE_UPDATE_INT  120
+#define VOLTAGE_UPDATE_INT  1200
 
 static int64_t coinflex_scanwork(struct thr_info *thr)
 {
@@ -813,7 +813,13 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 					uint8_t c=i;
 					struct A1_chip *chip = &a1->chips[i - 1];
 					struct work *work = wq_dequeue(&a1->active_wq);
-					assert(work != NULL);
+					if(work == NULL)
+					{
+						applog(LOG_ERR, "Alert!Work queue NULL");
+						usleep(500);
+						continue;
+					}
+					//assert(work != NULL);
 
 					if (set_work(a1, c, work, 0))
 					{
@@ -833,8 +839,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 		} 
      }
   }
-          int time_inter[2];
-          time_inter[0] = get_current_ms();
+          //int time_inter[2];
+          //time_inter[0] = get_current_ms();
 	      if(cnt > VOLTAGE_UPDATE_INT){
 
 	   //configure for vsensor
@@ -848,8 +854,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 	inno_configure_tvsensor(a1,ADDR_BROADCAST,1);
 	usleep(200);
 
-			time_inter[1] = get_current_ms();
-			printf("\nv waste time is %d\n",time_inter[1] - time_inter[0]);
+			//time_inter[1] = get_current_ms();
+			//printf("\nv waste time is %d\n",time_inter[1] - time_inter[0]);
 	}
 	
 	switch(cid){
