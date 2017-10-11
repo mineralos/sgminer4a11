@@ -105,7 +105,7 @@ void inno_fan_temp_add(INNO_FAN_CTRL_T *fan_ctrl, int chain_id, int temp, bool w
 
     index = fan_ctrl->index[chain_id];
 
-    applog(LOG_NOTICE, "inno_fan_temp_add:chain_%d,chip_%d,temp:%7.4f(%d)", chain_id, index, inno_fan_temp_to_float(fan_ctrl, temp), temp);
+    applog(LOG_INFO, "inno_fan_temp_add:chain_%d,chip_%d,temp:%7.4f(%d)", chain_id, index, inno_fan_temp_to_float(fan_ctrl, temp), temp);
     fan_ctrl->temp[chain_id][index] = temp;
     index++;
     fan_ctrl->index[chain_id] = index; 
@@ -376,7 +376,7 @@ void inno_fan_speed_update(INNO_FAN_CTRL_T *fan_ctrl, int chain_id, struct cgpu_
     cgpu->chip_num = a1->num_active_chips;
     cgpu->core_num = a1->num_cores; 
 
-    applog(LOG_ERR, "%s n:arv:%5.2f, lest:%5.2f, hest:%5.2f", __func__, arvarge_f, lowest_f, highest_f);
+    applog(LOG_INFO, "%s n:arv:%5.2f, lest:%5.2f, hest:%5.2f", __func__, arvarge_f, lowest_f, highest_f);
 }
 
 static void inno_fan_speed_max(INNO_FAN_CTRL_T *fan_ctrl)

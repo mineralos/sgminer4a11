@@ -229,7 +229,7 @@ bool inno_cmd_reset(struct A1_chain *pChain, uint8_t chip_id)
 	uint8_t spi_rx[MAX_CMD_LENGTH];
 	//uint8_t tmp_reg[12] = {0x02,0x50,0x41,0xc2,0x00,0x00,0x00,0xa7,0xff,0x24,0x00,0x00};
 	
-	applog(LOG_WARNING,"send command [reset] \n");
+	applog(LOG_INFO,"send command [reset] \n");
 
 	memset(spi_tx, 0, sizeof(spi_tx));
 
@@ -369,7 +369,7 @@ bool inno_cmd_write_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg)
 	uint16_t clc_crc;
 	uint8_t j;
 	
-	applog(LOG_WARNING,"send command [write_reg] \n");
+	applog(LOG_INFO,"send command [write_reg] \n");
 	assert(reg != NULL);
 
 	memset(spi_tx, 0, sizeof(spi_tx));
@@ -415,7 +415,7 @@ bool inno_cmd_write_sec_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *r
 		uint16_t clc_crc;
 		uint8_t j;
 		
-		applog(LOG_WARNING,"send command [write_reg] \n");
+		applog(LOG_INFO,"send command [write_reg] \n");
 		assert(reg != NULL);
 	
 		memset(spi_tx, 0, sizeof(spi_tx));
@@ -529,7 +529,7 @@ bool inno_cmd_read_result(struct A1_chain *pChain, uint8_t chip_id, uint8_t *res
 	struct spi_ctx *ctx = pChain->spi_ctx;
 	//applog(LOG_DEBUG,"%s,%d\n",__FUNCTION__,__LINE__);
 
-	applog(LOG_DEBUG,"send command [read_result] \r\n");
+	applog(LOG_INFO,"send command [read_result] \r\n");
 	assert(res != NULL);
 	
 	memset(spi_tx, 0, sizeof(spi_tx));
