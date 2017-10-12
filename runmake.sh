@@ -13,3 +13,5 @@ CFLAGS=-I${ROOTFS_DIR}/include \
 
 make -j${MAKE_JOBS}
 
+cp sgminer innominer_T3
+
