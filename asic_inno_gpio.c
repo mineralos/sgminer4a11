@@ -50,6 +50,11 @@ void set_vid_value(int level)
         return;
     }
     close(fd);	
+
+	//add for A7
+	asic_spi_init();
+
+	set_spi_speed(1500000);
 }
 
 void asic_spi_init(void)

@@ -170,7 +170,6 @@ bool spi_send_command(struct A1_chain *pChain, uint8_t cmd, uint8_t chip_id, uin
 	}
 }
 
-
 bool spi_poll_result(struct A1_chain *pChain, uint8_t cmd, uint8_t chip_id, uint8_t *buff, int len)
 {
 	int ret1, ret2;
@@ -190,10 +189,12 @@ bool spi_poll_result(struct A1_chain *pChain, uint8_t cmd, uint8_t chip_id, uint
 		tx_len =  2*(chip_id*2 - 1);
 	else		  //broadcast command
 	{
-		if(pChain->num_chips == 0)
+		if(pChain->num_chips == 0){
 			tx_len =  ASIC_CHIP_NUM*4;
-		else
+		}else{
 			tx_len =  pChain->num_chips*4;
+			applog(LOG_WARNING, "[clk]pChain->num_chips=%d,%d",pChain->num_chips,tx_len);
+		}
 			
 	}
 	
@@ -202,7 +203,7 @@ bool spi_poll_result(struct A1_chain *pChain, uint8_t cmd, uint8_t chip_id, uint
 			applog(LOG_WARNING, "poll result: transfer fail !");
 			return false;
 		}
-		//hexdump("poll: RX", spi_rx, 2);
+		//hexdump("[1]poll: RX", spi_rx, 2);
 		if(spi_rx[0] == cmd){
 			index = 0;	
 			do{
@@ -213,7 +214,7 @@ bool spi_poll_result(struct A1_chain *pChain, uint8_t cmd, uint8_t chip_id, uint
 				index = index + 2;
 			}while(index < len);
 
-			//hexdump("poll: RX", spi_rx + 2, len);
+			//hexdump("[2]poll: RX", spi_rx + 2, len);
 			memcpy(buff, spi_rx, len);
 			return true;
 		}
@@ -248,6 +249,39 @@ bool inno_cmd_reset(struct A1_chain *pChain, uint8_t chip_id)
 
 	return true;
 }
+
+bool inno_cmd_resetbist(struct A1_chain *pChain, uint8_t chip_id)
+{
+	uint8_t spi_tx[MAX_CMD_LENGTH];
+	uint8_t spi_rx[MAX_CMD_LENGTH];
+	uint8_t i,tx_len;
+	uint8_t buffer[64];	
+
+	memset(spi_tx, 0, sizeof(spi_tx));
+	memset(spi_rx, 0, sizeof(spi_rx));
+
+	spi_tx[0] = CMD_RESET;
+	spi_tx[1] = chip_id;
+	spi_tx[2] = 0xfb;
+	spi_tx[3] = 0xfb;
+
+	if(!spi_write_data(pChain->spi_ctx, spi_tx, 6))
+	{
+		applog(LOG_WARNING, "[reset]send command fail !");
+		return false;
+	}
+
+	memset(spi_rx, 0, sizeof(spi_rx));
+	
+	if(!spi_poll_result(pChain, CMD_RESET|0xB0, chip_id, spi_rx, 4))
+	{
+		applog(LOG_WARNING, "[reset]cmd reset: poll fail !");
+		return false;
+	}
+
+	return true;
+}
+
 
 bool inno_cmd_resetjob(struct A1_chain *pChain, uint8_t chip_id)
 {
@@ -390,7 +424,7 @@ bool inno_cmd_write_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg)
 	spi_tx[REG_LENGTH+1] = (uint8_t)(clc_crc);
 
 	//hexdump("write reg", spi_tx, REG_LENGTH+2);
-	if(!spi_write_data(pChain->spi_ctx, spi_tx, 16))
+	if(!spi_write_data(pChain->spi_ctx, spi_tx, 18))
 	{
 		applog(LOG_WARNING, "send command fail !");
 		return false;
@@ -432,22 +466,22 @@ bool inno_cmd_write_sec_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *r
 			tmp_buf[j + 1] = spi_tx[j + 0]; 	
 		}
 		#endif
-		clc_crc = CRC16_2(tmp_buf, REG_LENGTH);
+		clc_crc = CRC16_2(spi_tx, REG_LENGTH);
 	
 		spi_tx[REG_LENGTH+0] = (uint8_t)(clc_crc >> 8);
 		spi_tx[REG_LENGTH+1] = (uint8_t)(clc_crc);
 	
-		//hexdump("write reg", spi_tx, REG_LENGTH+2);
+		hexdump("[clk]write reg", spi_tx, REG_LENGTH+2);
 		if(!spi_write_data(pChain->spi_ctx, spi_tx, 16))
 		{
-			applog(LOG_WARNING, "send command fail !");
+			applog(LOG_WARNING, "[clk]send command fail !");
 			return false;
 		}
 		//printf("reg:0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x\n",spi_tx[0],spi_tx[1],spi_tx[2],spi_tx[3],spi_tx[4],spi_tx[5],spi_tx[6],spi_tx[7],spi_tx[8],spi_tx[9],spi_tx[10],spi_tx[11],spi_tx[12],spi_tx[13],spi_tx[14],spi_tx[15],spi_tx[16],spi_tx[17]);
 		memset(spi_rx, 0, sizeof(spi_rx));
 		if(!spi_poll_result(pChain, CMD_READ_SEC_REG, chip_id, spi_rx, REG_LENGTH+4))
 		{
-			applog(LOG_WARNING, "cmd write reg: poll fail !");
+			applog(LOG_WARNING, "[clk]cmd write reg: poll fail !");
 			return false;
 		}
 	

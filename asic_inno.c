@@ -597,7 +597,8 @@ void check_disabled_chips(struct A1_chain *a1, int pllnum)
 			continue;
 		if (chip->cooldown_begin + COOLDOWN_MS > get_current_ms())
 			continue;
-
+		
+		#if 0
 		//if the core in chain least than 630, reinit this chain 
 		if(a1->num_cores <= LEAST_CORE_ONE_CHAIN && chip->fail_reset < RESET_CHAIN_CNT)
 		{
@@ -621,7 +622,7 @@ void check_disabled_chips(struct A1_chain *a1, int pllnum)
 				check_chip(a1, i);
 			}
 		}
-		
+		#endif
 		if (!inno_cmd_read_reg(a1, chip_id, reg)) 
 		{
 			chip->fail_count++;
@@ -755,8 +756,6 @@ bool check_chip(struct A1_chain *a1, int i)
 		a1->chips[i].num_cores = 0;
 		a1->chips[i].disabled = 1;
 		return false;;
-	}else{
-		//hexdump("check chip:", buffer, REG_LENGTH);
 	}
 
 	a1->chips[i].num_cores = buffer[11];
@@ -769,10 +768,6 @@ bool check_chip(struct A1_chain *a1, int i)
 
 	if (a1->chips[i].num_cores < BROKEN_CHIP_THRESHOLD){
 		applog(LOG_NOTICE, "%d: broken chip %d with %d active ""cores (threshold = %d)",cid,chip_id,a1->chips[i].num_cores,BROKEN_CHIP_THRESHOLD);
-
-		//set low pll
-		//A1_SetA1PLLClock(a1, BROKEN_CHIP_SYS_CLK, chip_id);
-		//cmd_READ_REG(a1, chip_id);
 		hexdump_error("new.PLL", a1->spi_rx, 8);
 		a1->chips[i].disabled = true;
 		a1->num_cores -= a1->chips[i].num_cores;
@@ -782,9 +777,6 @@ bool check_chip(struct A1_chain *a1, int i)
 
 	if (a1->chips[i].num_cores < WEAK_CHIP_THRESHOLD) {
 		applog(LOG_NOTICE, "%d: weak chip %d with %d active ""cores (threshold = %d)",cid,chip_id, a1->chips[i].num_cores, WEAK_CHIP_THRESHOLD);
-
-		//A1_SetA1PLLClock(a1, WEAK_CHIP_SYS_CLK, chip_id);
-		//cmd_READ_REG(a1, chip_id);
 		hexdump_error("new.PLL", a1->spi_rx, 8);	
 		return false;
 	}
@@ -792,67 +784,73 @@ bool check_chip(struct A1_chain *a1, int i)
 	return true;
 }
 
+int prechain_detect(struct A1_chain *a1, int idxpll)
+{
+	uint8_t buffer[64];
+	int cid = a1->chain_id;
+	uint8_t temp_reg[REG_LENGTH];
+	int i,nCount = 0;
+
+	//add for A7
+	//asic_spi_init();
+
+	//set_spi_speed(1500000);
+
+	inno_cmd_reset(a1, ADDR_BROADCAST);
+
+	usleep(1000);
+
+	for(i=0; i<idxpll+1; i++)
+	{
+		memcpy(temp_reg, default_reg[i], REG_LENGTH-2);
+		if(!inno_cmd_write_reg(a1, ADDR_BROADCAST, temp_reg))
+		{
+			applog(LOG_WARNING, "Set Default PLL Five Times!");
+			nCount++;
+			while(nCount < 5){
+				if(!inno_cmd_write_reg(a1, ADDR_BROADCAST, temp_reg)){
+					if(nCount >= 5){
+						applog(LOG_WARNING, "set default PLL fail,count = %d",nCount);
+						return -1;
+					}
+					nCount++;
+				}else{
+					applog(LOG_WARNING, "set default PLL  %d Times Success",nCount+1);
+					nCount = 0;
+					break;
+				}
+			}
+		}
+		applog(LOG_WARNING, "set default %d PLL success", i);
+
+		usleep(120000);
+	}
+	return 0;
+}
+
+
 /*
  * BIST_START works only once after HW reset, on subsequent calls it
  * returns 0 as number of chips.
  */
-int chain_detect(struct A1_chain *a1, int idxpll)
+int chain_detect(struct A1_chain *a1)
 {
 	uint8_t buffer[64];
 	int cid = a1->chain_id;
 	uint8_t temp_reg[REG_LENGTH];
 	int i;
 
-	//add for A6
-	asic_spi_init();
-
-	set_spi_speed(1500000);
-
-	inno_cmd_reset(a1, ADDR_BROADCAST);
-
-	usleep(1000);
-#if 1
-	for(i=0; i<idxpll+1; i++)
-	{
-		memcpy(temp_reg, default_reg[i], REG_LENGTH-2);
-		if(!inno_cmd_write_reg(a1, ADDR_BROADCAST, temp_reg))
-		{
-			applog(LOG_WARNING, "set default PLL fail");
-			return -1;
-		}
-		applog(LOG_WARNING, "set default %d PLL success", i);
-
-		usleep(100000);
-	}
-#endif
-	set_spi_speed(5000000);
-	//set_spi_speed(3500000);
-
-	//set_spi_speed(4000000);
-	usleep(10000);
-
 	memset(buffer, 0, sizeof(buffer));
 	if(!inno_cmd_bist_start(a1, ADDR_BROADCAST, buffer)){
 		applog(LOG_WARNING, "bist start fail");
 		return -1;
 	}
-	//printf("bist start:%0x,%0x,%0x,%0x,%0x,%0x,%0x\n",buffer[0],buffer[1],buffer[2],buffer[3],buffer[4],buffer[5]);
+
 	a1->num_chips = buffer[3]; 
 	applog(LOG_WARNING, "%d: detected %d chips", cid, a1->num_chips);
 
-	usleep(10000);
-
-	if(!inno_cmd_bist_collect(a1, ADDR_BROADCAST)){
-		applog(LOG_NOTICE, "bist collect fail");
-		return -1;
-	}
-
-	applog(LOG_NOTICE, "collect core success");
-	applog(LOG_NOTICE, "%d:  A1 chip-chain detected", cid);
 	return a1->num_chips;
 }
-
-
 
 //add 0922
 void inno_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor)

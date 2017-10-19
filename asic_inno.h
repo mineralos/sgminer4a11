@@ -1,7 +1,7 @@
 #ifndef _ASIC_INNO_
 #define _ASIC_INNO_
 
-#define ASIC_CHAIN_NUM		3///3
+#define ASIC_CHAIN_NUM		3
 #define ASIC_CHIP_NUM		33
 
 #define ASIC_CHIP_A_BUCKET              (ASIC_CHAIN_NUM * ASIC_CHIP_NUM)
@@ -47,7 +47,7 @@ void inno_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor);
 
 
 bool check_chip(struct A1_chain *a1, int i);
-int chain_detect(struct A1_chain *a1, int idxpll);
+int chain_detect(struct A1_chain *a1);
 bool abort_work(struct A1_chain *a1);
 
 int get_current_ms(void);
@@ -57,6 +57,7 @@ void disable_chip(struct A1_chain *a1, uint8_t chip_id);
 bool get_nonce(struct A1_chain *a1, uint8_t *nonce, uint8_t *chip_id, uint8_t *job_id);
 bool set_work(struct A1_chain *a1, uint8_t chip_id, struct work *work, uint8_t queue_states);
 void check_disabled_chips(struct A1_chain *a1, int pllnum);
+int prechain_detect(struct A1_chain *a1, int idxpll);
 
 #endif
 

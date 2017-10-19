@@ -9,6 +9,7 @@
 #include <linux/ioctl.h>
 
 #include "inno_fan.h"
+#include "asic_inno_cmd.h"
 
 #define MAGIC_NUM  100 
 #define IOCTL_SET_FREQ_0 _IOR(MAGIC_NUM, 0, char *)
@@ -109,7 +110,6 @@ void inno_fan_temp_add(INNO_FAN_CTRL_T *fan_ctrl, int chain_id, int temp, bool w
     fan_ctrl->temp[chain_id][index] = temp;
     index++;
     fan_ctrl->index[chain_id] = index; 
-    //printf("fan_ctrl id:%d index:%d\n",chain_id,fan_ctrl->index[chain_id]);
 
     if(!warn_on)
     {
@@ -402,7 +402,6 @@ float inno_fan_temp_to_float(INNO_FAN_CTRL_T *fan_ctrl, int temp)
     int temp_v_end = 0;
     float temp_f = 0.0f;
 
-    /* ±‹√‚‘ΩΩÁ */
     if(temp < fan_ctrl->temp_v_min)
     {
         return 9999.0f;
@@ -446,3 +445,39 @@ float inno_fan_temp_to_float(INNO_FAN_CTRL_T *fan_ctrl, int temp)
     return temp_f;
 }
 
+void inno_temp_contrl(INNO_FAN_CTRL_T *fan_ctrl, struct A1_chain *a1, int chain_id)
+{
+	int i;
+	int arvarge = 0;
+    float arvarge_f = 0.0f; 
+	uint8_t reg[REG_LENGTH];
+
+	arvarge_f = inno_fan_temp_to_float(fan_ctrl, fan_ctrl->temp_arvarge[chain_id]);
+	applog(LOG_ERR,"---Read Temp:%.2f\n",arvarge_f);
+	if(arvarge_f >= 25.0){
+		return;
+	}
+
+	while(arvarge_f < 25.0){
+		for (i = a1->num_active_chips; i > 0; i--){	
+			if (!inno_cmd_read_reg(a1, i, reg)){
+				applog(LOG_ERR, "%d: Failed to read temperature sensor register for chip %d ", a1->chain_id, i);
+				continue;
+			}
+			/* update temp database */
+            uint32_t temp = 0;
+            float    temp_f = 0.0f;
+
+            temp = 0x000003ff & ((reg[7] << 8) | reg[8]);
+            inno_fan_temp_add(fan_ctrl, a1->chain_id, temp, false);
+		} 
+
+		inno_fan_temp_init(fan_ctrl, a1->chain_id);
+		arvarge_f = inno_fan_temp_to_float(fan_ctrl, fan_ctrl->temp_arvarge[a1->chain_id]);
+		applog(LOG_WARNING, "%s +:arv:%7.4f. \t \n", __func__, arvarge_f);
+		inno_fan_pwm_set(fan_ctrl, 100);
+		sleep(1);
+	}
+	
+	inno_fan_pwm_set(fan_ctrl, 10);
+}
