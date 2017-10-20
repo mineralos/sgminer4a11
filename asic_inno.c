@@ -692,7 +692,6 @@ bool set_work(struct A1_chain *a1, uint8_t chip_id, struct work *work, uint8_t q
 
 
 bool get_nonce(struct A1_chain *a1, uint8_t *nonce, uint8_t *chip_id, uint8_t *job_id)
-
 {
 	uint8_t buffer[64];
     uint8_t tmp_nonce[4];
@@ -790,11 +789,6 @@ int prechain_detect(struct A1_chain *a1, int idxpll)
 	int cid = a1->chain_id;
 	uint8_t temp_reg[REG_LENGTH];
 	int i,nCount = 0;
-
-	//add for A7
-	//asic_spi_init();
-
-	//set_spi_speed(1500000);
 
 	inno_cmd_reset(a1, ADDR_BROADCAST);
 

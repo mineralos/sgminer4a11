@@ -315,6 +315,9 @@ void exit_A1_chain(struct A1_chain *a1)
 		return;
 	}
 	free(a1->chips);
+
+	asic_gpio_write(a1->spi_ctx->led, 1);
+
 	a1->chips = NULL;
 	a1->spi_ctx = NULL;
 	free(a1);
@@ -541,7 +544,7 @@ static int inno_preinit(struct A1_chain *a1, int chain_id)
 
 static bool detect_A1_chain(void)
 {
-	int i,j,ret;
+	int i,j,ret,res = 0;
 	applog(LOG_WARNING, "A1: checking A1 chain");
 
 	for(i = 0; i < ASIC_CHAIN_NUM; i++)
@@ -563,10 +566,14 @@ static bool detect_A1_chain(void)
 		spi[i]->power_en = SPI_PIN_POWER_EN[i];		
 		spi[i]->start_en = SPI_PIN_START_EN[i];		
 		spi[i]->reset = SPI_PIN_RESET[i];
+		spi[i]->led   = SPI_PIN_LED[i];
+		spi[i]->plug  = SPI_PIN_PLUG[i];
 
 		asic_gpio_init(spi[i]->power_en, 0);
 		asic_gpio_init(spi[i]->start_en, 0);
 		asic_gpio_init(spi[i]->reset, 0);
+		asic_gpio_init(spi[i]->led, 0);
+		asic_gpio_init(spi[i]->plug, 1);
 
 		update_temp[i] = 0;
 		show_log[i] = 0;
@@ -588,11 +595,13 @@ static bool detect_A1_chain(void)
 		chain[i] = init_A1_chain(spi[i], i);
 		if (chain[i] == NULL){
 			applog(LOG_ERR, "init a1 chain fail");
-			return false;
+			continue;
+		}else{
+			res++;
 		}
 		applog(LOG_WARNING, "Detected the %d A1 chain with %d chips",i, chain[i]->num_active_chips);
 	}
-	
+
 	for(i = 0; i < ASIC_CHAIN_NUM; i++)
 	{		
 		ret = inno_preinit(chain[i], i);
@@ -627,7 +636,7 @@ static bool detect_A1_chain(void)
 		ret = init_A1_chain_reload(chain[i], i);
 		if (false == ret){
 			applog(LOG_ERR, "reload init a1 chain fail");
-			return false;
+			continue;//return false;
 		}
 
 		struct cgpu_info *cgpu = malloc(sizeof(*cgpu));
@@ -643,10 +652,12 @@ static bool detect_A1_chain(void)
 		chain[i]->cgpu = cgpu;
 		add_cgpu(cgpu);
 
+		asic_gpio_write(chain[i]->spi_ctx->led, 0);
+
 		applog(LOG_WARNING, "Detected the %d A1 chain with %d chips / %d cores",i, chain[i]->num_active_chips, chain[i]->num_cores);
 	}
 
-	return true;
+	return (res == 0) ? false : true;
 }
 
 static void coinflex_detect(bool __maybe_unused hotplug)
