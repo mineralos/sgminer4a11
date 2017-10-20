@@ -149,6 +149,8 @@ static uint32_t update_temp[ASIC_CHAIN_NUM];
 #define  DANGEROUS_TMP   445
 #define STD_V          0.84
 
+int spi_plug_status[ASIC_CHAIN_NUM] = {0};
+
 
 extern int opt_voltage;
 
@@ -383,7 +385,9 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 {
 	int i;
 	uint8_t buffer[64];
-	assert(a1 != NULL);
+	if(a1 == NULL){
+		return ;
+	}
 	int cid = a1->chain_id;
 
 	//inno_configure_tvsensor(a1,ADDR_BROADCAST,1);
@@ -413,14 +417,16 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
 {
 	int i;
-	assert(a1 != NULL);
+	if(a1 == NULL){
+		return false;
+	}
 
 	applog(LOG_DEBUG, "%d: A1 init chain reload", chain_id);
 	
 	a1->num_chips =  chain_detect_reload(a1);
 	usleep(10000);
 
-	if (a1->num_chips == 0){
+	if (a1->num_chips < 1){
 		goto failure;
 	}
 
@@ -489,7 +495,7 @@ struct A1_chain *init_A1_chain(struct spi_ctx *ctx, int chain_id)
 	a1->chain_id = chain_id;
 
 	a1->num_chips =  chain_detect(a1);
-	if (a1->num_chips == 0){
+	if (a1->num_chips < 1){
 		goto failure;
 	}
 	usleep(100000);
@@ -525,7 +531,9 @@ failure:
 static int inno_preinit(struct A1_chain *a1, int chain_id)
 {
 	int i,ret;
-	assert(a1 != NULL);
+	if(a1 == NULL){
+		return -1;
+	}
 
 	applog(LOG_INFO, "%d: A1 init chain", chain_id);
 	
@@ -580,7 +588,8 @@ static bool detect_A1_chain(void)
 	}
 
 	set_vid_value(8);
-
+	
+	applog(LOG_ERR, "-----------------------------------------");
 	for(i = 0; i < ASIC_CHAIN_NUM; i++){
 		asic_gpio_write(spi[i]->power_en, 1);
 		asic_gpio_write(spi[i]->start_en, 1);
@@ -588,8 +597,13 @@ static bool detect_A1_chain(void)
 		usleep(500000);
 		asic_gpio_write(spi[i]->reset, 0);
 		usleep(500000);
-		asic_gpio_write(spi[i]->reset, 1);	
+		asic_gpio_write(spi[i]->reset, 1);
+		usleep(500000);
+		spi_plug_status[i] = asic_gpio_read(spi[i]->plug);
+		applog(LOG_ERR, "Plug Status[%d] = %d\n",i,spi_plug_status[i]);
 	}
+	applog(LOG_ERR, "-----------------------------------------");
+
 	
 	for(i = 0; i < ASIC_CHAIN_NUM; i++){
 		chain[i] = init_A1_chain(spi[i], i);
@@ -605,17 +619,20 @@ static bool detect_A1_chain(void)
 	for(i = 0; i < ASIC_CHAIN_NUM; i++)
 	{		
 		ret = inno_preinit(chain[i], i);
-		if (ret < 0){
+		applog(LOG_ERR, "inno_preinit1...");
+		if ((chain[i] != NULL) && (ret < 0)){
 			asic_gpio_init(chain[i]->spi_ctx->power_en, 0);
-			return false;
+			//return false;
 		}
 	}
+	applog(LOG_ERR, "inno_preinit...");
 
 	usleep(200000);
 	
 	for(i = 0; i < ASIC_CHAIN_NUM; i++){
 		init_ReadTemp(chain[i],i);
 	}
+	applog(LOG_ERR, "init_ReadTemp...");
 
 	//divide the init to break two part
 	if(opt_voltage > 8){
@@ -635,7 +652,7 @@ static bool detect_A1_chain(void)
 	for(i = 0; i < ASIC_CHAIN_NUM; i++){
 		ret = init_A1_chain_reload(chain[i], i);
 		if (false == ret){
-			applog(LOG_ERR, "reload init a1 chain fail");
+			applog(LOG_ERR, "reload init a1 chain%d fail",i);
 			continue;//return false;
 		}
 
