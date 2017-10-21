@@ -3,6 +3,14 @@
 
 #define ASIC_CHAIN_NUM		3
 #define ASIC_CHIP_NUM		33
+#define ACTIVE_STAT         3
+
+//set for fan stage
+#define FAN_FIRST_STAGE  25
+#define FAN_SECOND_STAGE 50
+#define FAN_THIRD_STAGE  75
+#define FAN_FOUR_STAGE   100
+#define FAN_DELTA         15
 
 #define ASIC_CHIP_A_BUCKET              (ASIC_CHAIN_NUM * ASIC_CHIP_NUM)
 #define ASIC_INNO_FAN_PWM0_DEVICE_NAME  ("/dev/pwmgen0.0")

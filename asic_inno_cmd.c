@@ -193,7 +193,7 @@ bool spi_poll_result(struct A1_chain *pChain, uint8_t cmd, uint8_t chip_id, uint
 			tx_len =  ASIC_CHIP_NUM*4;
 		}else{
 			tx_len =  pChain->num_chips*4;
-			applog(LOG_WARNING, "[clk]pChain->num_chips=%d,%d",pChain->num_chips,tx_len);
+			//applog(LOG_WARNING, "[clk]pChain->num_chips=%d,%d",pChain->num_chips,tx_len);
 		}
 			
 	}
@@ -471,7 +471,7 @@ bool inno_cmd_write_sec_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *r
 		spi_tx[REG_LENGTH+0] = (uint8_t)(clc_crc >> 8);
 		spi_tx[REG_LENGTH+1] = (uint8_t)(clc_crc);
 	
-		hexdump("[clk]write reg", spi_tx, REG_LENGTH+2);
+		//hexdump("[clk]write reg", spi_tx, REG_LENGTH+2);
 		if(!spi_write_data(pChain->spi_ctx, spi_tx, 16))
 		{
 			applog(LOG_WARNING, "[clk]send command fail !");

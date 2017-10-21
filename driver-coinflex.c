@@ -95,7 +95,7 @@
 #define TEMP_UPDATE_TIME		(5 * 1000)		/* 30sec -> 5sec*/
 
 #define COINFLEX_COM_TIMEOUT_MS		(999)
-#define TEMP_UPDATE_INT_MS	2000
+#define TEMP_UPDATE_INT_MS	10000
 
 // Commands
 enum coinflex_cmd
@@ -468,7 +468,7 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
 	usleep(200000);
 	
 	applog(LOG_WARNING, "[chain_ID:%d]: Found %d Chips With Total %d Active Cores",a1->chain_id, a1->num_active_chips, a1->num_cores);
-	applog(LOG_WARNING, "[chain_ID]445: Temp:%d\n",s_fan_ctrl.temp_highest[chain_id]);
+	applog(LOG_WARNING, "[chain_ID]: Temp:%d\n",s_fan_ctrl.temp_highest[chain_id]);
 
 	if(s_fan_ctrl.temp_highest[chain_id] < DANGEROUS_TMP){
 		asic_gpio_write(spi[a1->chain_id]->power_en, 0);
@@ -589,7 +589,6 @@ static bool detect_A1_chain(void)
 
 	set_vid_value(8);
 	
-	applog(LOG_ERR, "-----------------------------------------");
 	for(i = 0; i < ASIC_CHAIN_NUM; i++){
 		asic_gpio_write(spi[i]->power_en, 1);
 		asic_gpio_write(spi[i]->start_en, 1);
@@ -602,9 +601,7 @@ static bool detect_A1_chain(void)
 		spi_plug_status[i] = asic_gpio_read(spi[i]->plug);
 		applog(LOG_ERR, "Plug Status[%d] = %d\n",i,spi_plug_status[i]);
 	}
-	applog(LOG_ERR, "-----------------------------------------");
 
-	
 	for(i = 0; i < ASIC_CHAIN_NUM; i++){
 		chain[i] = init_A1_chain(spi[i], i);
 		if (chain[i] == NULL){
@@ -882,7 +879,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 			applog(LOG_WARNING, "%d: wrong chip_id %d", cid, chip_id);
 			continue;
 		}
-		if (job_id < 1 && job_id > 4){
+		if (job_id < 1 || job_id > 4){
 			applog(LOG_WARNING, "%d: chip %d: result has wrong ""job_id %d", cid, chip_id, job_id);
 			flush_spi(a1);
 			continue;

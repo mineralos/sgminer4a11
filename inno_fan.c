@@ -184,7 +184,12 @@ static int inno_fan_temp_get_arvarge(INNO_FAN_CTRL_T *fan_ctrl, int chain_id)
 
 static int inno_fan_temp_get_highest(INNO_FAN_CTRL_T *fan_ctrl, int chain_id)
 {
-    return fan_ctrl->temp[chain_id][0];
+    int i;
+    int high_avg;
+    for(i=0; i<ACTIVE_STAT; i++)
+      high_avg += fan_ctrl->temp[chain_id][i];
+    
+    return (high_avg/ACTIVE_STAT);
 }
 
 static int inno_fan_temp_get_lowest(INNO_FAN_CTRL_T *fan_ctrl, int chain_id)
@@ -315,6 +320,7 @@ void inno_fan_speed_down(INNO_FAN_CTRL_T *fan_ctrl)
 void inno_fan_speed_update(INNO_FAN_CTRL_T *fan_ctrl, int chain_id, struct cgpu_info *cgpu)
 {
 	struct A1_chain *a1 = cgpu->device_data;
+	
     int arvarge = 0;       
     int highest = 0;       
     int lowest  = 0;       
@@ -342,32 +348,32 @@ void inno_fan_speed_update(INNO_FAN_CTRL_T *fan_ctrl, int chain_id, struct cgpu_
     lowest_f = inno_fan_temp_to_float(fan_ctrl, (int)lowest);
     highest_f = inno_fan_temp_to_float(fan_ctrl, (int)highest);
 
-    /* 加入整条链Power Down */
-    if(highest_f > ASIC_INNO_FAN_TEMP_MAX_THRESHOLD)
-    {
-        //applog(LOG_ERR, "%s z:arv:%5.2f, lest:%5.2f, hest:%5.2f, power down", __func__, arvarge_f, lowest_f, highest_f);
-    }
+	int delta[5][2]={
+ 		{FAN_DELTA,0},
+ 		{FAN_FIRST_STAGE + FAN_DELTA,FAN_FIRST_STAGE - FAN_DELTA},
+ 		{FAN_SECOND_STAGE + FAN_DELTA,FAN_SECOND_STAGE - FAN_DELTA},
+ 		{FAN_THIRD_STAGE + FAN_DELTA,FAN_THIRD_STAGE - FAN_DELTA},
+ 		{FAN_FOUR_STAGE + FAN_DELTA,FAN_FOUR_STAGE - FAN_DELTA}
+	};
 
-    /* 温度过高 */
-    if(highest_f > ASIC_INNO_FAN_TEMP_UP_THRESHOLD)
-    {
-        if(0 != fan_ctrl->duty)
-        {
-            inno_fan_pwm_set(fan_ctrl, 0);
-            applog(LOG_ERR, "%s +:arv:%5.2f, lest:%5.2f, hest:%5.2f, speed:%d%%", __func__, arvarge_f, lowest_f, highest_f, 100 - fan_ctrl->duty);
-        } 
-    }
+	int fan_duty[5]={80,30,20,10,0};
+ 	applog(LOG_ERR, "Read:fan_ctrl->last_fan_tem = %d", fan_ctrl->last_fan_temp);
 
-    /* 温度已经恢复低温 */
-    if(highest_f < ASIC_INNO_FAN_TEMP_DOWN_THRESHOLD)
-    {
-        if(40 != fan_ctrl->duty) 
-        {
-            inno_fan_pwm_set(fan_ctrl, 40);
-            applog(LOG_ERR, "%s -:arv:%5.2f, lest:%5.2f, hest:%5.2f, speed:%d%%", __func__, arvarge_f, lowest_f, highest_f, 100 - fan_ctrl->duty);
-        }
-    } 
-
+ 	if(highest_f > delta[fan_ctrl->last_fan_temp][0])
+ 	{
+ 		if(fan_ctrl->last_fan_temp < 4){
+    		fan_ctrl->last_fan_temp += 1;
+ 		}
+		inno_fan_pwm_set(fan_ctrl, fan_duty[fan_ctrl->last_fan_temp]);
+		applog(LOG_ERR, "%s +:arv:%5.2f, lest:%5.2f, hest:%5.2f, speed:%d%%", __func__, arvarge_f, lowest_f, highest_f, 100 - fan_ctrl->duty); 
+ 	}else if (highest_f < delta[fan_ctrl->last_fan_temp][1]){
+ 		if(fan_ctrl->last_fan_temp > 0){
+			fan_ctrl->last_fan_temp -= 1;
+		}
+	 	inno_fan_pwm_set(fan_ctrl, fan_duty[fan_ctrl->last_fan_temp]);
+	 	applog(LOG_ERR, "%s +:arv:%5.2f, lest:%5.2f, hest:%5.2f, speed:%d%%", __func__, arvarge_f, lowest_f, highest_f, 100 - fan_ctrl->duty);
+	}
+ 
     cgpu->temp = arvarge_f;
     cgpu->temp_max = highest_f;
     cgpu->temp_min = lowest_f;
@@ -451,6 +457,8 @@ void inno_temp_contrl(INNO_FAN_CTRL_T *fan_ctrl, struct A1_chain *a1, int chain_
 	int arvarge = 0;
     float arvarge_f = 0.0f; 
 	uint8_t reg[REG_LENGTH];
+	
+	fan_ctrl->last_fan_temp = 3;
 
 	arvarge_f = inno_fan_temp_to_float(fan_ctrl, fan_ctrl->temp_arvarge[chain_id]);
 	applog(LOG_ERR,"---Read Temp:%.2f\n",arvarge_f);
@@ -479,5 +487,5 @@ void inno_temp_contrl(INNO_FAN_CTRL_T *fan_ctrl, struct A1_chain *a1, int chain_
 		sleep(1);
 	}
 	
-	inno_fan_pwm_set(fan_ctrl, 10);
+	inno_fan_pwm_set(fan_ctrl, 20);
 }

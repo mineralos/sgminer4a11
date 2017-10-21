@@ -20,7 +20,7 @@ typedef struct INNO_FAN_CTRL_tag{
     int temp_init[ASIC_CHAIN_NUM];             
     int temp_highest[ASIC_CHAIN_NUM];          
     int temp_lowest[ASIC_CHAIN_NUM];           
-
+    int last_fan_temp;
 	pthread_mutex_t lock;                       /* lock */
   
     int temp_nums;                
