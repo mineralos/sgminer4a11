@@ -357,7 +357,7 @@ void inno_fan_speed_update(INNO_FAN_CTRL_T *fan_ctrl, int chain_id, struct cgpu_
 	};
 
 	int fan_duty[5]={80,30,20,10,0};
- 	applog(LOG_ERR, "Read:fan_ctrl->last_fan_tem = %d", fan_ctrl->last_fan_temp);
+ 	//applog(LOG_ERR, "Read:fan_ctrl->last_fan_tem = %d", fan_ctrl->last_fan_temp);
 
  	if(highest_f > delta[fan_ctrl->last_fan_temp][0])
  	{
