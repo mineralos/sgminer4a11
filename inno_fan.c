@@ -356,7 +356,7 @@ void inno_fan_speed_update(INNO_FAN_CTRL_T *fan_ctrl, int chain_id, struct cgpu_
  		{FAN_FOUR_STAGE + FAN_DELTA,FAN_FOUR_STAGE - FAN_DELTA}
 	};
 
-	int fan_duty[5]={80,30,20,10,0};
+	int fan_duty[5]={100,40,20,10,0};
  	//applog(LOG_ERR, "Read:fan_ctrl->last_fan_tem = %d", fan_ctrl->last_fan_temp);
 
  	if(highest_f > delta[fan_ctrl->last_fan_temp][0])
@@ -458,7 +458,7 @@ void inno_temp_contrl(INNO_FAN_CTRL_T *fan_ctrl, struct A1_chain *a1, int chain_
     float arvarge_f = 0.0f; 
 	uint8_t reg[REG_LENGTH];
 	
-	fan_ctrl->last_fan_temp = 3;
+	fan_ctrl->last_fan_temp = 2;
 
 	arvarge_f = inno_fan_temp_to_float(fan_ctrl, fan_ctrl->temp_arvarge[chain_id]);
 	applog(LOG_ERR,"---Read Temp:%.2f\n",arvarge_f);
@@ -487,5 +487,5 @@ void inno_temp_contrl(INNO_FAN_CTRL_T *fan_ctrl, struct A1_chain *a1, int chain_
 		sleep(1);
 	}
 	
-	inno_fan_pwm_set(fan_ctrl, 20);
+	//no_fan_pwm_set(fan_ctrl, 20);
 }

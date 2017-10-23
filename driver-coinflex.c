@@ -97,6 +97,16 @@
 #define COINFLEX_COM_TIMEOUT_MS		(999)
 #define TEMP_UPDATE_INT_MS	10000
 
+
+struct Test_bench Test_bench_Array[5]={
+	{1100,	0,	0,	0},
+	{1100,	0,	0,	0},
+	{1100,	0,	0,	0},
+	{1100,	0,	0,	0},
+	{1100,	0,	0,	0},
+};
+
+
 // Commands
 enum coinflex_cmd
 {
@@ -550,6 +560,8 @@ static int inno_preinit(struct A1_chain *a1, int chain_id)
 	return ret;
 }
 
+int chain_flag[3] = {0};
+
 static bool detect_A1_chain(void)
 {
 	int i,j,ret,res = 0;
@@ -616,13 +628,10 @@ static bool detect_A1_chain(void)
 	for(i = 0; i < ASIC_CHAIN_NUM; i++)
 	{		
 		ret = inno_preinit(chain[i], i);
-		applog(LOG_ERR, "inno_preinit1...");
 		if ((chain[i] != NULL) && (ret < 0)){
 			asic_gpio_init(chain[i]->spi_ctx->power_en, 0);
-			//return false;
 		}
 	}
-	applog(LOG_ERR, "inno_preinit...");
 
 	usleep(200000);
 	
@@ -650,7 +659,7 @@ static bool detect_A1_chain(void)
 		ret = init_A1_chain_reload(chain[i], i);
 		if (false == ret){
 			applog(LOG_ERR, "reload init a1 chain%d fail",i);
-			continue;//return false;
+			continue;
 		}
 
 		struct cgpu_info *cgpu = malloc(sizeof(*cgpu));
@@ -670,6 +679,96 @@ static bool detect_A1_chain(void)
 
 		applog(LOG_WARNING, "Detected the %d A1 chain with %d chips / %d cores",i, chain[i]->num_active_chips, chain[i]->num_cores);
 	}
+
+
+	Test_bench_Array[0].uiVol = opt_voltage;
+	for(i = 0; i < ASIC_CHAIN_NUM; i++)
+	{
+		if(chain_flag[i] != 1)
+		{
+			continue;
+		}
+		Test_bench_Array[0].uiScore += inno_cmd_test_chip(chain[i]);
+		Test_bench_Array[0].uiCoreNum += chain[i]->num_cores;
+	}
+
+	for(i = 1; i < 3; i++)
+	{
+		if(Test_bench_Array[0].uiVol - i < 1)
+		{
+			continue;
+		}
+		sleep(1);
+		set_vid_value(Test_bench_Array[0].uiVol - i);
+		Test_bench_Array[i].uiVol = Test_bench_Array[0].uiVol - i;
+		sleep(1);
+		for(j = 0; j < ASIC_CHAIN_NUM; j++)
+		{	
+			if(chain_flag[j] != 1)
+			{
+				continue;
+			}
+			Test_bench_Array[i].uiScore += inno_cmd_test_chip(chain[j]);
+	    	Test_bench_Array[i].uiCoreNum += chain[j]->num_cores;
+		}
+	}
+
+	for(i = 1; i >= 0; i--)
+	{
+		set_vid_value(Test_bench_Array[0].uiVol - i);
+		sleep(1);
+	}
+	
+	for(i = 3; i < 5; i++)
+	{
+		if(Test_bench_Array[0].uiVol + i - 2 > 31)
+		{
+			continue;
+		}
+		sleep(1);
+		set_vid_value(Test_bench_Array[0].uiVol + i - 2);
+		Test_bench_Array[i].uiVol = Test_bench_Array[0].uiVol + i - 2;
+		sleep(1);
+		for(j = 0; j < ASIC_CHAIN_NUM; j++)
+		{
+			if(chain_flag[j] != 1)
+			{
+				continue;
+			}
+			Test_bench_Array[i].uiScore += inno_cmd_test_chip(chain[j]);
+	    	Test_bench_Array[i].uiCoreNum += chain[j]->num_cores;
+		}
+	}
+
+	for(j = 0; j < 5; j++)
+	{
+		printf("after pll_vid_test_bench Test_bench_Array[%d].uiScore=%d,Test_bench_Array[%d].uiCoreNum=%d. \n", j, Test_bench_Array[j].uiScore, j, Test_bench_Array[j].uiCoreNum);
+	}
+
+	int index = 0;
+	uint32_t cur= 0;
+	for(j = 1; j < 5; j++)
+	{
+		cur = Test_bench_Array[j].uiScore + 5 * (Test_bench_Array[j].uiVol - Test_bench_Array[index].uiVol);
+		
+		if(cur > Test_bench_Array[index].uiScore)
+		{
+			index = j;
+		}
+
+		if((cur == Test_bench_Array[index].uiScore) && (Test_bench_Array[j].uiVol > Test_bench_Array[index].uiVol))
+		{
+			index = j;
+		}
+	}
+
+	printf("The best group is %d. vid is %d! \t \n", index, Test_bench_Array[index].uiVol);
+	
+	for(i=Test_bench_Array[0].uiVol + 2; i>=Test_bench_Array[index].uiVol; i--){
+		set_vid_value(i);
+		usleep(500000);
+	}
+	opt_voltage = Test_bench_Array[index].uiVol;
 
 	return (res == 0) ? false : true;
 }
@@ -974,7 +1073,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 
 					if(show_log[cid] > 0)					
 					{						
-						applog(LOG_INFO, "%d: chip %d: job done: %d/%d/%d/%d/%d/%5.2f",
+						applog(LOG_ERR, "%d: chip %02d: job done: %03d/%03d/%03d/%03d/%03d/%5.2f",
                                cid, c, chip->nonce_ranges_done, chip->nonces_found, 
                                chip->hw_errors, chip->stales,chip->temp, inno_fan_temp_to_float(&s_fan_ctrl,chip->temp));
 						

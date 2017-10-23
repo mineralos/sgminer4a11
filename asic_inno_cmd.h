@@ -53,6 +53,14 @@
 
 //#endif
 
+struct Test_bench {
+	uint32_t uiPll; 
+	int uiVol;
+	uint32_t uiScore;
+	uint32_t uiCoreNum;
+};
+
+
 #define MAX_CHAIN_LENGTH	33
 #define MAX_CMD_LENGTH		(JOB_LENGTH + MAX_CHAIN_LENGTH * 2 * 2)
 
@@ -141,6 +149,7 @@ extern bool inno_cmd_read_result(struct A1_chain *pChain, uint8_t chip_id, uint8
 extern bool inno_cmd_write_job(struct A1_chain *pChain, uint8_t chip_id, uint8_t *job);
 
 extern uint8_t inno_cmd_isBusy(struct A1_chain *pChain, uint8_t chip_id);
+extern uint32_t inno_cmd_test_chip(struct A1_chain *pChain);
 
 
 void flush_spi(struct A1_chain *pChain);
