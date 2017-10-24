@@ -1073,7 +1073,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 
 					if(show_log[cid] > 0)					
 					{						
-						applog(LOG_ERR, "%d: chip %02d: job done: %03d/%03d/%03d/%03d/%03d/%5.2f",
+						applog(LOG_INFO, "%d: chip %d: job done: %d/%d/%d/%d/%d/%5.2f",
                                cid, c, chip->nonce_ranges_done, chip->nonces_found, 
                                chip->hw_errors, chip->stales,chip->temp, inno_fan_temp_to_float(&s_fan_ctrl,chip->temp));
 						

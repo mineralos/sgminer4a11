@@ -486,6 +486,6 @@ void inno_temp_contrl(INNO_FAN_CTRL_T *fan_ctrl, struct A1_chain *a1, int chain_
 		inno_fan_pwm_set(fan_ctrl, 100);
 		sleep(1);
 	}
-	
+	fan_ctrl->last_fan_temp = 0;
 	//no_fan_pwm_set(fan_ctrl, 20);
 }
