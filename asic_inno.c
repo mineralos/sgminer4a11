@@ -59,7 +59,8 @@ static const float inno_vsadc_table[] = {
 extern int opt_voltage;
 extern inno_reg_ctrl_t s_reg_ctrl;
 
-
+int nReadVolTimes = 0;
+int nVolTotal = 0;
 int opt_diff=15;
 
 static const uint8_t difficult_Tbl[24][4] = {
@@ -997,23 +998,12 @@ bool inno_check_voltage(struct A1_chain *a1, int chip_id, inno_reg_ctrl_t *s_reg
 		a1->chips[chip_id].disabled = 1;
 		return false;
 	}else{
-	//	hexdump("check chip:", reg, REG_LENGTH);
-	
-		usleep(2000);
-		//printf("after set tvsensor\n");
-		#if 0
-		if (!inno_cmd_read_reg(a1, chip_id, reg)) {
-			applog(LOG_NOTICE, "%d: Failed to read register for ""chip %d -> disabling", a1->chain_id, chip_id);
-			a1->chips[chip_id].num_cores = 0;
-			a1->chips[chip_id].disabled = 1;
-			return false;
-		}else{
-		#endif
+		  usleep(2000);
+
 			/* update temp database */
 			uint32_t rd_v = 0;
 			rd_v = 0x000003ff & ((reg[7] << 8) | reg[8]);
 			float tmp_v = (float)(rd_v * MUL_COEF)/1024;
-			//printf("[Read VOL %s:%d]rd_v = %d, tmp_v = %f\n",__FUNCTION__,__LINE__,rd_v,tmp_v);
 			
 			s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1]++;
 			
@@ -1031,18 +1021,26 @@ bool inno_check_voltage(struct A1_chain *a1, int chip_id, inno_reg_ctrl_t *s_reg
 	           }
 	    	s_reg_ctrl->avarge_vol[a1->chain_id][chip_id-1] = (s_reg_ctrl->avarge_vol[a1->chain_id][chip_id-1]*(s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1]-1) + tmp_v)/s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1];
 	       }
-       
+       		
 			applog(LOG_WARNING,"read tmp %f/%d form chain %d,chip %d h:%f,l:%f,av:%f,cnt:%d\n",tmp_v,rd_v,a1->chain_id, chip_id,s_reg_ctrl->highest_vol[a1->chain_id][chip_id-1],s_reg_ctrl->lowest_vol[a1->chain_id][chip_id-1],s_reg_ctrl->avarge_vol[a1->chain_id][chip_id-1],s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1]);
-		
-			//if read valtage higher than standard 8% or less than 8%,we think the chain has some problem
-			//if((tmp_v > (1.08 * inno_vsadc_table[opt_voltage])) || (tmp_v < (0.92 * inno_vsadc_table[opt_voltage]))){ 
+			nReadVolTimes++;
+						
 			if((tmp_v > 0.55) || (tmp_v < 0.45)){
-				applog(LOG_ERR,"Notice chain %d maybe has some promble in voltage\n",a1->chain_id);
+				nVolTotal++;
+			}
+			//applog(LOG_ERR,"nReadVolTimes = %d,nVolTotal = %d",nReadVolTimes,nVolTotal);
+			
+			if(nVolTotal >= 3){
+				applog(LOG_ERR,"Notice chain %d  chip %d maybe has some promble in voltage\n",a1->chain_id,chip_id);
+				nVolTotal = 0;
+				nReadVolTimes = 0;
 				asic_gpio_write(a1->spi_ctx->power_en, 0);
-				//asic_gpio_write(GPIO_RED, 1);
 	 			early_quit(1,"Notice chain %d maybe has some promble in voltage\n",a1->chain_id);
 			}
-  		//}
+			if(nReadVolTimes == 3){
+				nReadVolTimes = 0;
+				nVolTotal = 0;
+			}
 			
    }
 }
