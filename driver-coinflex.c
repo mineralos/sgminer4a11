@@ -621,6 +621,7 @@ static bool detect_A1_chain(void)
 			continue;
 		}else{
 			res++;
+			chain_flag[i] = 1;
 		}
 		applog(LOG_WARNING, "Detected the %d A1 chain with %d chips",i, chain[i]->num_active_chips);
 	}
