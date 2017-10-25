@@ -601,6 +601,8 @@ static bool detect_A1_chain(void)
 
 	set_vid_value(8);
 	
+	sleep(2);
+	
 	for(i = 0; i < ASIC_CHAIN_NUM; i++){
 		asic_gpio_write(spi[i]->power_en, 1);
 		asic_gpio_write(spi[i]->start_en, 1);
