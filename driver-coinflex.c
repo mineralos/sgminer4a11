@@ -161,6 +161,10 @@ static uint32_t update_temp[ASIC_CHAIN_NUM];
 
 int spi_plug_status[ASIC_CHAIN_NUM] = {0};
 
+int szShowLog[ASIC_CHAIN_NUM][ASIC_CHIP_NUM][256] = {0};
+FILE* fd0;
+FILE* fd1;
+FILE* fd2;
 
 extern int opt_voltage;
 
@@ -956,10 +960,26 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 
 	mutex_lock(&a1->lock);
     int cid = a1->chain_id;
+
 	if (a1->last_temp_time + TEMP_UPDATE_INT_MS < get_current_ms())
 	{
 		update_temp[cid]++;
 		show_log[cid]++;
+
+		if(cid == 0){
+        	fseek(fd0,0,SEEK_SET);
+        	fwrite(szShowLog[cid],sizeof(szShowLog[0]),1,fd0);
+			fsync(fd0);
+		}else if(cid == 1){
+        	fseek(fd1,0,SEEK_SET);
+        	fwrite(szShowLog[cid],sizeof(szShowLog[0]),1,fd1);
+			fsync(fd1);
+		}else if(cid == 2){
+        	fseek(fd2,0,SEEK_SET);
+        	fwrite(szShowLog[cid],sizeof(szShowLog[0]),1,fd2);
+			fsync(fd2);
+		}
+	
 		a1->last_temp_time = get_current_ms();
 	}
 
@@ -1076,10 +1096,13 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 
 					if(show_log[cid] > 0)					
 					{						
-						applog(LOG_INFO, "%d: chip %d: job done: %d/%d/%d/%d/%d/%5.2f",
-                               cid, c, chip->nonce_ranges_done, chip->nonces_found, 
+						applog(LOG_INFO, "%d: chip:%d ,core:%d ,job done: %d/%d/%d/%d/%d/%5.2f",
+                               cid, c, chip->num_cores,chip->nonce_ranges_done, chip->nonces_found, 
                                chip->hw_errors, chip->stales,chip->temp, inno_fan_temp_to_float(&s_fan_ctrl,chip->temp));
-						
+						sprintf(szShowLog[cid][c-1], "%d/%d/%d/%d/%d/%d/%d/%d\r\n",
+                               chip->nonce_ranges_done, chip->nonces_found, 
+                               chip->hw_errors, chip->stales,chip->temp,chip->num_cores,c-1,cid);
+
 						if(i==1) show_log[cid] = 0;	
 					}
 			}

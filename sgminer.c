@@ -8031,6 +8031,12 @@ void flush_queue(struct cgpu_info *cgpu)
  * perform a full nonce range and need a queue to maintain the device busy.
  * Work creation and destruction is not done from within this function
  * directly. */
+extern FILE* fd0;
+extern FILE* fd1;
+extern FILE* fd2;
+
+#define  LOG_FILE_PREFIX "/home/www/conf/analys"
+
 void hash_queued_work(struct thr_info *mythr)
 {
 	struct timeval tv_start = {0, 0}, tv_end;
@@ -8038,6 +8044,29 @@ void hash_queued_work(struct thr_info *mythr)
 	struct device_drv *drv = cgpu->drv;
 	const int thr_id = mythr->id;
 	int64_t hashes_done = 0;
+	int i;
+
+	char fileName[128] = {0};
+
+	for(i = 0;i < 3;i++){
+		sprintf(fileName, "%s%d.log", LOG_FILE_PREFIX, i);
+		if(i == 0){
+			fd0 = fopen(fileName, "w+");
+			if(fd0 < 0){
+				applog(LOG_ERR,"Open File%d Failed!",i);
+			}
+		}else if( i ==1){
+			fd1 = fopen(fileName, "w+");
+			if(fd1 < 0){
+				applog(LOG_ERR,"Open File%d Failed!",i);
+			}
+		}else if(i == 2){
+			fd2 = fopen(fileName, "w+");
+			if(fd2 < 0){
+				applog(LOG_ERR,"Open File%d Failed!",i);
+			}
+		}
+	}
 
 	while (likely(!cgpu->shutdown)){
 		struct timeval diff;
@@ -8078,6 +8107,10 @@ void hash_queued_work(struct thr_info *mythr)
 			drv->update_work(cgpu);
 		}
 	}
+
+	fclose(fd0);
+	fclose(fd1);
+	fclose(fd2);
 
 	cgpu->deven = DEV_DISABLED;
 }
