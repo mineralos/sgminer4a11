@@ -8107,11 +8107,6 @@ void hash_queued_work(struct thr_info *mythr)
 			drv->update_work(cgpu);
 		}
 	}
-#if 0
-	fclose(fd0);
-	fclose(fd1);
-	fclose(fd2);
-#endif
 
 	cgpu->deven = DEV_DISABLED;
 }
@@ -10175,6 +10170,10 @@ retry:
 		push_curl_entry(ce, pool);
 #endif
 	}
+	
+	fclose(fd0);
+	fclose(fd1);
+	fclose(fd2);
 
 	return 0;
 }
