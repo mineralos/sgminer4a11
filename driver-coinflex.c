@@ -969,17 +969,17 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 		if(cid == 0){
         	fseek(fd0,0,SEEK_SET);
         	fwrite(szShowLog[cid],sizeof(szShowLog[0]),1,fd0);
-			fsync(fd0);
+			fflush(fd0);
 		}else if(cid == 1){
         	fseek(fd1,0,SEEK_SET);
         	fwrite(szShowLog[cid],sizeof(szShowLog[0]),1,fd1);
-			fsync(fd1);
+			fflush(fd1);
 		}else if(cid == 2){
         	fseek(fd2,0,SEEK_SET);
         	fwrite(szShowLog[cid],sizeof(szShowLog[0]),1,fd2);
-			fsync(fd2);
+			fflush(fd2);
 		}
-	
+
 		a1->last_temp_time = get_current_ms();
 	}
 
