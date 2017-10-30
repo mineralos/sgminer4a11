@@ -161,7 +161,7 @@ static uint32_t update_temp[ASIC_CHAIN_NUM];
 
 int spi_plug_status[ASIC_CHAIN_NUM] = {0};
 
-int szShowLog[ASIC_CHAIN_NUM][ASIC_CHIP_NUM][256] = {0};
+char szShowLog[ASIC_CHAIN_NUM][ASIC_CHIP_NUM][256] = {0};
 FILE* fd0;
 FILE* fd1;
 FILE* fd2;
