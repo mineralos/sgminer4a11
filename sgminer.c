@@ -8052,21 +8052,22 @@ void hash_queued_work(struct thr_info *mythr)
 		sprintf(fileName, "%s%d.log", LOG_FILE_PREFIX, i);
 		if(i == 0){
 			fd0 = fopen(fileName, "w+");
-			if(fd0 < 0){
+			if(fd0 == NULL){
 				applog(LOG_ERR,"Open File%d Failed!",i);
 			}
 		}else if( i ==1){
 			fd1 = fopen(fileName, "w+");
-			if(fd1 < 0){
+			if(fd1 == NULL){
 				applog(LOG_ERR,"Open File%d Failed!",i);
 			}
 		}else if(i == 2){
 			fd2 = fopen(fileName, "w+");
-			if(fd2 < 0){
+			if(fd2 == NULL){
 				applog(LOG_ERR,"Open File%d Failed!",i);
 			}
 		}
 	}
+	applog(LOG_ERR,"Open Log File Success!");
 
 	while (likely(!cgpu->shutdown)){
 		struct timeval diff;
@@ -10174,6 +10175,10 @@ retry:
 	fclose(fd0);
 	fclose(fd1);
 	fclose(fd2);
+
+    fd0 = NULL;
+    fd1 = NULL;
+    fd2 = NULL;
 
 	return 0;
 }
