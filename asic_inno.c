@@ -1004,6 +1004,7 @@ bool inno_check_voltage(struct A1_chain *a1, int chip_id, inno_reg_ctrl_t *s_reg
 			uint32_t rd_v = 0;
 			rd_v = 0x000003ff & ((reg[7] << 8) | reg[8]);
 			float tmp_v = (float)(rd_v * MUL_COEF)/1024;
+			a1->chips[chip_id-1].nVol = tmp_v *1000;				
 			
 			s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1]++;
 			

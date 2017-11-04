@@ -162,9 +162,7 @@ static uint32_t update_temp[ASIC_CHAIN_NUM];
 int spi_plug_status[ASIC_CHAIN_NUM] = {0};
 
 char szShowLog[ASIC_CHAIN_NUM][ASIC_CHIP_NUM][256] = {0};
-FILE* fd0;
-FILE* fd1;
-FILE* fd2;
+
 
 extern int opt_voltage;
 
@@ -934,6 +932,58 @@ static bool coinflex_get_result(struct cgpu_info *coinflex, char *data, int len)
 }
 
 #define VOLTAGE_UPDATE_INT  6000
+#define  LOG_FILE_PREFIX "/home/www/conf/analys"
+
+uint8_t cLevelError1[3] = "!";
+uint8_t cLevelError2[3] = "#";
+uint8_t cLevelError3[3] = "$";
+uint8_t cLevelError4[3] = "%";
+uint8_t cLevelError5[3] = "*";
+uint8_t cLevelNormal[3] = "+";
+
+void Inno_Log_Save(struct A1_chip *chip,int nChip,int nChain)
+{
+	uint8_t szInNormal[8] = {0};
+	memset(szInNormal,0, sizeof(szInNormal));
+	if(chip->hw_errors > 0){
+		strcat(szInNormal,cLevelError1);
+	}
+	if(chip->stales > 0){
+		strcat(szInNormal,cLevelError2);
+	}
+	if((chip->temp > 564) || (chip->temp < 445)){
+		strcat(szInNormal,cLevelError3);
+	}
+	if(chip->num_cores < 8){
+		strcat(szInNormal,cLevelError4);
+	}
+	if((chip->nVol > 550) || (chip->nVol < 450)){
+		strcat(szInNormal,cLevelError5);
+	}
+
+	if((chip->hw_errors == 0) && (chip->stales == 0) && ((chip->temp < 564) && (chip->temp > 445)) &&((chip->nVol < 550) && (chip->nVol > 450)) && (chip->num_cores == 8)){
+		strcat(szInNormal,cLevelNormal);
+	}
+	
+	sprintf(szShowLog[nChain][nChip], "\n%-8s|%32d|%8d|%8d|%8d|%8d|%8d|%8d|%8d",szInNormal,chip->nonces_found,
+		chip->hw_errors, chip->stales,chip->temp,chip->nVol,chip->num_cores,nChip,nChain);
+}
+
+void inno_log_print(int cid, void* log, int len)
+{
+	FILE* fd;
+	char fileName[128] = {0};
+	
+	sprintf(fileName, "%s%d.log", LOG_FILE_PREFIX, cid);
+	fd = fopen(fileName, "w+");	
+	if(fd == NULL){				
+		applog(LOG_ERR, "Open log File%d Failed!", cid);
+	}
+
+	fwrite(log, len, 1, fd);
+	fflush(fd);
+	fclose(fd);
+}
 
 static int64_t coinflex_scanwork(struct thr_info *thr)
 {
@@ -946,17 +996,16 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 	//struct A1_chip *a7 = &a1->chips[0];
 	struct work local_work;
 	int32_t nonce_ranges_processed = 0;
+	
+	uint32_t nonce;
+	uint8_t chip_id;
+	uint8_t job_id;
+	bool work_updated = false;
 
 	if (a1->num_cores == 0) {
 		cgpu->deven = DEV_DISABLED;
 		return 0;
 	}
-
-	uint32_t nonce;
-	uint8_t chip_id;
-	uint8_t job_id;
-	bool work_updated = false;
-	//uint8_t reg[REG_LENGTH];
 
 	mutex_lock(&a1->lock);
     int cid = a1->chain_id;
@@ -966,20 +1015,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 		update_temp[cid]++;
 		show_log[cid]++;
 
-		if(cid == 0){
-        	fseek(fd0,0,SEEK_SET);
-        	fwrite(szShowLog[cid],sizeof(szShowLog[0]),1,fd0);
-			fflush(fd0);
-		}else if(cid == 1){
-        	fseek(fd1,0,SEEK_SET);
-        	fwrite(szShowLog[cid],sizeof(szShowLog[0]),1,fd1);
-			fflush(fd1);
-		}else if(cid == 2){
-        	fseek(fd2,0,SEEK_SET);
-        	fwrite(szShowLog[cid],sizeof(szShowLog[0]),1,fd2);
-			fflush(fd2);
-		}
-
+		inno_log_print(cid, szShowLog[cid], sizeof(szShowLog[0]));
+		
 		a1->last_temp_time = get_current_ms();
 	}
 
@@ -1095,14 +1132,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 					}
 
 					if(show_log[cid] > 0)					
-					{						
-						applog(LOG_INFO, "%d: chip:%d ,core:%d ,job done: %d/%d/%d/%d/%d/%5.2f",
-                               cid, c, chip->num_cores,chip->nonce_ranges_done, chip->nonces_found, 
-                               chip->hw_errors, chip->stales,chip->temp, inno_fan_temp_to_float(&s_fan_ctrl,chip->temp));
-						sprintf(szShowLog[cid][c-1], "%d/%d/%d/%d/%d/%d/%d/%d\r\n",
-                               chip->nonce_ranges_done, chip->nonces_found, 
-                               chip->hw_errors, chip->stales,chip->temp,chip->num_cores,c-1,cid);
-
+					{	
+						Inno_Log_Save(chip,c-1,cid);
 						if(i==1) show_log[cid] = 0;	
 					}
 			}
