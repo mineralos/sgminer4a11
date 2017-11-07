@@ -232,7 +232,10 @@ bool inno_cmd_reset(struct A1_chain *pChain, uint8_t chip_id, uint8_t *buff)
 	applog(LOG_INFO,"send command [reset] \n");
 
 	memset(spi_tx, 0, sizeof(spi_tx));
-    memcpy(spi_tx,buff,16);
+	
+	if(buff != NULL)
+		memcpy(spi_tx,buff,2);
+	
  	//inno_cmd_write_reg(pChain, ADDR_BROADCAST, tmp_reg);
 
 	if(!spi_send_command(pChain, CMD_RESET, chip_id, spi_tx, 2)){
@@ -526,7 +529,7 @@ bool inno_cmd_read_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg)
 				}					
 				index = index + 2;
 			}while(index < REG_LENGTH);
-			hexdump("poll: reg", spi_rx + 2, REG_LENGTH);
+			//hexdump("poll: reg", spi_rx + 2, REG_LENGTH);
 		
 			//printf("rd reg:0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x\n",spi_rx[0],spi_rx[1],spi_rx[2],spi_rx[3],spi_rx[4],spi_rx[5],spi_rx[6],spi_rx[7],spi_rx[8],spi_rx[9],spi_rx[10],spi_rx[11],spi_rx[12],spi_rx[13],spi_rx[14],spi_rx[15],spi_rx[16],spi_rx[17]);
             
