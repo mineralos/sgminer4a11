@@ -791,7 +791,7 @@ int prechain_detect(struct A1_chain *a1, int idxpll)
 	uint8_t temp_reg[REG_LENGTH];
 	int i,nCount = 0;
 
-	inno_cmd_reset(a1, ADDR_BROADCAST);
+	inno_cmd_reset(a1, ADDR_BROADCAST,NULL);
 
 	usleep(1000);
 

@@ -366,7 +366,7 @@ int chain_detect_reload(struct A1_chain *a1)
 	uint8_t temp_reg[REG_LENGTH];
 	int i;
 
-	set_spi_speed(5000000);
+	set_spi_speed(3250000);
 	usleep(100000);
 
 	memset(buffer, 0, sizeof(buffer));
@@ -987,7 +987,8 @@ void inno_log_print(int cid, void* log, int len)
 
 static int64_t coinflex_scanwork(struct thr_info *thr)
 {
-	static uint8_t cnt = 0; 
+	static uint8_t cnt = 0;
+	static uint8_t reset_buf[2] = {0x20,0x20};
 	int i;
 	int32_t A1Pll = 1000;
 	uint8_t reg[128];
@@ -1001,6 +1002,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 	uint8_t chip_id;
 	uint8_t job_id;
 	bool work_updated = false;
+	static uint8_t RD_result = 3;
 
 	if (a1->num_cores == 0) {
 		cgpu->deven = DEV_DISABLED;
@@ -1079,13 +1081,33 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 				uint8_t c = i;
 				if (is_chip_disabled(a1, c))
 					continue;
-				if (!inno_cmd_read_reg(a1, c, reg)) 
-				{
-					disable_chip(a1, c);
-					continue;
+
+
+			for(;RD_result>0; RD_result--)
+			{
+			   if(!inno_cmd_read_reg(a1, c, reg))
+			   {
+				  continue;
+
+			   	}else{
+
+				RD_result = 3;
 				}
-	            else
-	            {
+			   	break;
+			}
+			
+			if(!RD_result)
+			{
+			    
+				inno_cmd_reset(a1, c,reset_buf);
+
+			}else
+				{
+					RD_result = 3;
+
+					//disable_chip(a1, c);
+					//continue;
+
 	                /* update temp database */
 	                uint32_t temp = 0;
 	                float    temp_f = 0.0f;

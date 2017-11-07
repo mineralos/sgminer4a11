@@ -132,7 +132,7 @@ struct A1_chain {
 
 unsigned short CRC16_2(unsigned char* pchMsg, unsigned short wDataLen);
 
-extern bool inno_cmd_reset(struct A1_chain *pChain, uint8_t chip_id);
+extern bool inno_cmd_reset(struct A1_chain *pChain, uint8_t chip_id, uint8_t *buff);
 
 extern bool inno_cmd_resetjob(struct A1_chain *pChain, uint8_t chip_id);
 
