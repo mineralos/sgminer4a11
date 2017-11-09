@@ -28,11 +28,11 @@
 #define SYSFS_GPIO_VAL_LOW	"0"
 #define SYSFS_GPIO_VAL_HIGH	"1"
 
-extern int SPI_PIN_POWER_EN[ASIC_CHAIN_NUM];
-extern int SPI_PIN_START_EN[ASIC_CHAIN_NUM];
-extern int SPI_PIN_RESET[ASIC_CHAIN_NUM];
-extern int SPI_PIN_LED[ASIC_CHAIN_NUM];
-extern int SPI_PIN_PLUG[ASIC_CHAIN_NUM];
+extern int SPI_PIN_POWER_EN[];
+extern int SPI_PIN_START_EN[];
+extern int SPI_PIN_RESET[];
+extern int SPI_PIN_LED[];
+extern int SPI_PIN_PLUG[];
 
 
 
@@ -49,6 +49,10 @@ uint32_t set_spi_speed(uint32_t speed);
 uint32_t get_spi_speed(void);
 
 void set_vid_value(int level);
+
+void set_vid_value_G9(int level);
+
+void set_vid_value_G19(int chainNum, int level);
 
 
 #endif

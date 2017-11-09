@@ -35,6 +35,19 @@
 
 #define CHIP_A7 
 
+#define INNO_MINER_TYPE_FILE			"/tmp/type"
+#define INNO_HARDWARE_VERSION_FILE		"/tmp/hwver"
+
+#define HARDWARE_VERSION_G9		(9)
+#define HARDWARE_VERSION_G19	(19)
+
+#define MINER_TYPE_T1			(1)
+#define MINER_TYPE_T2			(2)
+#define MINER_TYPE_T3			(3)
+#define MINER_TYPE_T4			(4)
+
+
+
 #include "asic_inno_cmd.h"
 
 //add 0922

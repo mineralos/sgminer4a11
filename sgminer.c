@@ -104,6 +104,12 @@ int opt_A1Pll6=120; // -1 Default
 
 int opt_voltage = 8;
 
+int opt_voltage1 = 8;
+int opt_voltage2 = 8;
+int opt_voltage3 = 8;
+int opt_voltage4 = 8;
+
+
 
 
 static char packagename[256];
@@ -1178,10 +1184,24 @@ static struct opt_table opt_config_table[] = {
 	OPT_WITH_ARG("--A1Pll6",
              set_int_0_to_9999, opt_show_intval, &opt_A1Pll6,
              "Set PLL Clock in bitmine A1 broad 6 chip (-1: 1000MHz, >0:Look PLL table)"),
-		     
+
+	// for G9
 	OPT_WITH_ARG("--A1Vol",
 		     set_int_0_to_31, opt_show_intval, &opt_voltage,
 		     "set voltage (1 ~ 31)"),
+	// for G19
+	OPT_WITH_ARG("--A1Vol1",
+		     set_int_0_to_31, opt_show_intval, &opt_voltage1,
+		     "set voltage (1 ~ 31)"),
+	OPT_WITH_ARG("--A1Vol2",
+			 set_int_0_to_31, opt_show_intval, &opt_voltage2,
+			 "set voltage (1 ~ 31)"),
+	OPT_WITH_ARG("--A1Vol3",
+			 set_int_0_to_31, opt_show_intval, &opt_voltage3,
+			 "set voltage (1 ~ 31)"),
+	OPT_WITH_ARG("--A1Vol4",
+			 set_int_0_to_31, opt_show_intval, &opt_voltage4,
+			 "set voltage (1 ~ 31)"),
 
 
 #ifdef HAVE_CURSES

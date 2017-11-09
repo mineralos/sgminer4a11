@@ -166,6 +166,10 @@ char szShowLog[ASIC_CHAIN_NUM][ASIC_CHIP_NUM][256] = {0};
 
 extern int opt_voltage;
 
+int g_hwver;
+int g_type;
+
+
 // Commands result
 enum coinflex_result
 {
@@ -645,19 +649,47 @@ static bool detect_A1_chain(void)
 	}
 	applog(LOG_ERR, "init_ReadTemp...");
 
-	//divide the init to break two part
-	if(opt_voltage > 8){
-		for(i=9; i<=opt_voltage; i++){
-			set_vid_value(i);
-			usleep(500000);
+	if(g_hwver == HARDWARE_VERSION_G9){
+		//divide the init to break two part
+		if(opt_voltage > 8){
+			for(i=9; i<=opt_voltage; i++){
+				set_vid_value(i);
+				usleep(500000);
+			}
 		}
-	}
-		
-	if(opt_voltage < 8){
-		for(i=7; i>=opt_voltage; i--){
-			set_vid_value(i);
-			usleep(500000);
+			
+		if(opt_voltage < 8){
+			for(i=7; i>=opt_voltage; i--){
+				set_vid_value(i);
+				usleep(500000);
+			}
 		}
+	}else if(g_hwver == HARDWARE_VERSION_G19)
+	{
+		int j, vid;
+		for(i = 0; i < ASIC_CHAIN_NUM; i++){
+			switch(1){
+				case 0:	vid = opt_voltage; break;
+				case 1:	vid = opt_voltage; break;
+				case 2:	vid = opt_voltage; break;
+				case 3:	vid = opt_voltage; break;
+				default: break;
+			}
+
+			if(vid > 8){
+				for(j=9; j<=vid; j++){
+					set_vid_value_G19(i, j);
+					usleep(500000);
+				}
+			}
+				
+			if(vid < 8){
+				for(j=7; j>=vid; j--){
+					set_vid_value_G19(i, j);
+					usleep(500000);
+				}
+			}
+		}		
 	}
 	
 	for(i = 0; i < ASIC_CHAIN_NUM; i++){
@@ -818,6 +850,9 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 	applog(LOG_DEBUG, "A1 detect");
 	memset(&s_reg_ctrl,0,sizeof(s_reg_ctrl));
 	memset(&s_fan_ctrl,0,sizeof(s_fan_ctrl));
+
+	g_hwver = inno_get_hwver();
+	g_type = inno_get_miner_type();
 	
 	inno_fan_init(&s_fan_ctrl);
 		
