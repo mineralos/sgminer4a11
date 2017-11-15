@@ -693,11 +693,6 @@ bool inno_cmd_write_job(struct A1_chain *pChain, uint8_t chip_id, uint8_t *job)
 
 	//usleep(100000);
 
-	if(inno_cmd_isBusy(pChain, chip_id) != WORK_BUSY)
-	{
-		printf("wirte Job ,but inno_cmd_isBusy......\n");
-		return false;
-	}
 
 	return true;
 
