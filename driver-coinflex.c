@@ -1162,7 +1162,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
         	update_temp[cid] = 0;
         	
 		}
-		if (inno_cmd_read_reg(a1, 25, reg)) 
+		if( inno_cmd_read_reg(a1, 10, reg) ||  inno_cmd_read_reg(a1, 11, reg) ||  inno_cmd_read_reg(a1, 12, reg))
 		{
 			uint8_t qstate = reg[9] & 0x01;
 

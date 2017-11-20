@@ -1,10 +1,9 @@
 #ifndef _ASIC_INNO_
 #define _ASIC_INNO_
 
-#define ASIC_CHAIN_NUM		3
+#define ASIC_CHAIN_NUM		6
 #define ASIC_CHIP_NUM		33
-#define ACTIVE_STAT         3
-
+#define ACTIVE_STAT        3
 //set for fan stage
 #define FAN_FIRST_STAGE  25
 #define FAN_SECOND_STAGE 50
