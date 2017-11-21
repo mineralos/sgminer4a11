@@ -93,14 +93,14 @@ struct strategies strategies[] = {
 char *opt_bitmine_a1_options = NULL;
 
 //for A4
-int opt_A1Pll1=120; // -1 Default
-int opt_A1Pll2=120; // -1 Default
-int opt_A1Pll3=120; // -1 Default
-int opt_A1Pll4=120; // -1 Default
-int opt_A1Pll5=120; // -1 Default
-int opt_A1Pll6=120; // -1 Default
-int opt_A1Pll7=120; // -1 Default
-int opt_A1Pll8=120; // -1 Default
+int opt_A1Pll1=1100; // -1 Default
+int opt_A1Pll2=1100; // -1 Default
+int opt_A1Pll3=1100; // -1 Default
+int opt_A1Pll4=1100; // -1 Default
+int opt_A1Pll5=1100; // -1 Default
+int opt_A1Pll6=1100; // -1 Default
+int opt_A1Pll7=1100; // -1 Default
+int opt_A1Pll8=1100; // -1 Default
 
 #endif
 
@@ -6396,18 +6396,13 @@ static void *stratum_rthread(void *userdata)
 {
 	struct pool *pool = (struct pool *)userdata;
 	char threadname[16];
-	int last_recv_time;
+	static int cnt = 0;
 
 	pthread_detach(pthread_self());
 
 	snprintf(threadname, sizeof(threadname), "%d/RStratum", pool->pool_no);
 	RenameThread(threadname);
-	if(last_recv_time + CG_EXIT_MS < get_current_ms())
-	{
-		power_down_all_chain();
-		zynq_spi_exit();
-		exit(1);
-	}
+	
 
 	while (42) {
 		struct timeval timeout;
@@ -6463,6 +6458,15 @@ static void *stratum_rthread(void *userdata)
 				restart_threads();
 
 			while (!restart_stratum(pool)) {
+			
+			cnt++;
+			if(cnt > total_pools)
+	        {
+				power_down_all_chain();
+				zynq_spi_exit();
+               cnt = 0;
+				exit(1);		
+	         }
 				if (pool->removed)
 					goto out;
 				cgsleep_ms(30000);
