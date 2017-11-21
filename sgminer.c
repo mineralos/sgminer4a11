@@ -99,6 +99,8 @@ int opt_A1Pll3=120; // -1 Default
 int opt_A1Pll4=120; // -1 Default
 int opt_A1Pll5=120; // -1 Default
 int opt_A1Pll6=120; // -1 Default
+int opt_A1Pll7=120; // -1 Default
+int opt_A1Pll8=120; // -1 Default
 
 #endif
 
@@ -1184,6 +1186,12 @@ static struct opt_table opt_config_table[] = {
 	OPT_WITH_ARG("--A1Pll6",
              set_int_0_to_9999, opt_show_intval, &opt_A1Pll6,
              "Set PLL Clock in bitmine A1 broad 6 chip (-1: 1000MHz, >0:Look PLL table)"),
+	OPT_WITH_ARG("--A1Pll7",
+				 set_int_0_to_9999, opt_show_intval, &opt_A1Pll7,
+				 "Set PLL Clock in bitmine A1 broad 7 chip (-1: 1000MHz, >0:Look PLL table)"),
+		OPT_WITH_ARG("--A1Pll8",
+				 set_int_0_to_9999, opt_show_intval, &opt_A1Pll8,
+				 "Set PLL Clock in bitmine A1 broad 8 chip (-1: 1000MHz, >0:Look PLL table)"),
 
 	// for G9
 	OPT_WITH_ARG("--A1Vol",
@@ -6382,15 +6390,24 @@ static bool supports_resume(struct pool *pool)
  * checking for new messages and for the integrity of the socket connection. We
  * reset the connection based on the integrity of the receive side only as the
  * send side will eventually expire data it fails to send. */
+
+ #define CG_EXIT_MS 	(5 * 60 * 1000)
 static void *stratum_rthread(void *userdata)
 {
 	struct pool *pool = (struct pool *)userdata;
 	char threadname[16];
+	int last_recv_time;
 
 	pthread_detach(pthread_self());
 
 	snprintf(threadname, sizeof(threadname), "%d/RStratum", pool->pool_no);
 	RenameThread(threadname);
+	if(last_recv_time + CG_EXIT_MS < get_current_ms())
+	{
+		power_down_all_chain();
+		zynq_spi_exit();
+		exit(1);
+	}
 
 	while (42) {
 		struct timeval timeout;

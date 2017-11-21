@@ -1,9 +1,10 @@
 #ifndef _ASIC_INNO_
 #define _ASIC_INNO_
 
-#define ASIC_CHAIN_NUM		6
+#define ASIC_CHAIN_NUM		8
 #define ASIC_CHIP_NUM		33
 #define ACTIVE_STAT        3
+#define FAN_CNT            2
 //set for fan stage
 #define FAN_FIRST_STAGE  25
 #define FAN_SECOND_STAGE 50
@@ -13,7 +14,9 @@
 
 #define ASIC_CHIP_A_BUCKET              (ASIC_CHAIN_NUM * ASIC_CHIP_NUM)
 #define ASIC_INNO_FAN_PWM0_DEVICE_NAME  ("/dev/pwmgen0.0")
-//#define ASIC_INNO_FAN_PWM1_DEVICE_NAME  ("/dev/pwmgen0.1")
+#define ASIC_INNO_FAN_PWM1_DEVICE_NAME  ("/dev/pwmgen1.0")
+#define ASIC_INNO_FAN_PWM2_DEVICE_NAME  ("/dev/pwmgen2.0")
+
 #define ASIC_INNO_FAN_PWM_STEP          (10)
 #define ASIC_INNO_FAN_PWM_DUTY_MAX      (100)
 

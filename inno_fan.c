@@ -16,6 +16,9 @@
 #define IOCTL_SET_DUTY_0 _IOR(MAGIC_NUM, 1, char *)
 #define IOCTL_SET_FREQ_1 _IOR(MAGIC_NUM, 2, char *)
 #define IOCTL_SET_DUTY_1 _IOR(MAGIC_NUM, 3, char *)
+#define IOCTL_SET_FREQ_2 _IOR(MAGIC_NUM, 4, char *)
+#define IOCTL_SET_DUTY_2 _IOR(MAGIC_NUM, 5, char *)
+
 
 static const int inno_tsadc_table[] = {
     /* val temp_f */
@@ -63,6 +66,7 @@ static void inno_fan_pwm_set(INNO_FAN_CTRL_T *fan_ctrl, int duty);
 void inno_fan_init(INNO_FAN_CTRL_T *fan_ctrl)
 {
     int chain_id = 0;
+    int i = 0;
 
     mutex_init(&fan_ctrl->lock);
 
@@ -83,7 +87,23 @@ void inno_fan_init(INNO_FAN_CTRL_T *fan_ctrl)
     fan_ctrl->temp_f_max = fan_ctrl->temp_f_min + fan_ctrl->temp_f_step * (fan_ctrl->temp_nums - 1);
 
 	applog(LOG_ERR, "chip nums:%d.", ASIC_CHIP_A_BUCKET);
-	applog(LOG_ERR, "pwm  name:%s.", ASIC_INNO_FAN_PWM0_DEVICE_NAME);
+	
+    switch(FAN_CNT){
+    case 1:
+	 applog(LOG_ERR, "pwm  name:%s.", ASIC_INNO_FAN_PWM0_DEVICE_NAME);
+	 break;
+	 case 2:
+	 applog(LOG_ERR, "pwm  name:%s.", ASIC_INNO_FAN_PWM0_DEVICE_NAME);
+	 applog(LOG_ERR, "pwm  name:%s.", ASIC_INNO_FAN_PWM1_DEVICE_NAME);
+	 break;
+	 case 3:
+	 default:
+	 applog(LOG_ERR, "pwm  name:%s.", ASIC_INNO_FAN_PWM0_DEVICE_NAME);
+	 applog(LOG_ERR, "pwm  name:%s.", ASIC_INNO_FAN_PWM1_DEVICE_NAME); 
+	 applog(LOG_ERR, "pwm  name:%s.", ASIC_INNO_FAN_PWM2_DEVICE_NAME);
+     break;
+    }
+     
 	applog(LOG_ERR, "pwm  step:%d.", ASIC_INNO_FAN_PWM_STEP);
 	applog(LOG_ERR, "duty max: %d.", ASIC_INNO_FAN_PWM_DUTY_MAX);
 	applog(LOG_ERR, "targ freq:%d.", ASIC_INNO_FAN_PWM_FREQ_TARGET);
@@ -188,7 +208,8 @@ static int inno_fan_temp_get_highest(INNO_FAN_CTRL_T *fan_ctrl, int chain_id)
     int high_avg;
     for(i=0; i<ACTIVE_STAT; i++)
       high_avg += fan_ctrl->temp[chain_id][i];
-    
+      
+    fan_ctrl->temp_highest[chain_id] = (high_avg/ACTIVE_STAT);
     return (high_avg/ACTIVE_STAT);
 }
 
@@ -241,14 +262,13 @@ void inno_fan_temp_init(INNO_FAN_CTRL_T *fan_ctrl, int chain_id)
 
 void inno_fan_pwm_set(INNO_FAN_CTRL_T *fan_ctrl, int duty)
 {
-    int fd = 0;
+    int fd = 0, fd1 = 0, fd2 = 0;
     int duty_driver = 0;
 
     duty_driver = ASIC_INNO_FAN_PWM_FREQ_TARGET / 100 * duty;
 
 	mutex_lock(&fan_ctrl->lock);
-
-    /* 开启风扇结点 */
+	 /* 开启风扇结点 */
     fd = open(ASIC_INNO_FAN_PWM0_DEVICE_NAME, O_RDWR);
     if(fd < 0)
     {
@@ -256,6 +276,10 @@ void inno_fan_pwm_set(INNO_FAN_CTRL_T *fan_ctrl, int duty)
         mutex_unlock(&fan_ctrl->lock);
         return;
     }
+	switch(FAN_CNT)
+	{
+    case 1:
+   
     if(ioctl(fd, IOCTL_SET_FREQ_0, ASIC_INNO_FAN_PWM_FREQ) < 0)
     {
         applog(LOG_ERR, "set fan0 frequency fail");
@@ -268,6 +292,84 @@ void inno_fan_pwm_set(INNO_FAN_CTRL_T *fan_ctrl, int duty)
         mutex_unlock(&fan_ctrl->lock);
         return;
     }
+
+    break;
+    case 2:
+		   if(ioctl(fd, IOCTL_SET_FREQ_0, ASIC_INNO_FAN_PWM_FREQ) < 0)
+		   {
+			   applog(LOG_ERR, "set fan0 frequency fail");
+			   mutex_unlock(&fan_ctrl->lock);
+			   return;
+		   }
+		    if(ioctl(fd, IOCTL_SET_FREQ_1, ASIC_INNO_FAN_PWM_FREQ) < 0)
+		   {
+			   applog(LOG_ERR, "set fan1 frequency fail");
+			   mutex_unlock(&fan_ctrl->lock);
+			   return;
+		   }
+		   if(ioctl(fd, IOCTL_SET_DUTY_0, duty_driver) < 0)
+		   {
+			   applog(LOG_ERR, "set duty0 fail \n");
+			   mutex_unlock(&fan_ctrl->lock);
+			   return;
+		   }
+		    if(ioctl(fd, IOCTL_SET_DUTY_1, duty_driver) < 0)
+		   {
+			   applog(LOG_ERR, "set duty1 fail \n");
+			   mutex_unlock(&fan_ctrl->lock);
+			   return;
+		   }
+		   break;
+
+		   
+		   case 3:
+		   default: 
+					 if(ioctl(fd, IOCTL_SET_FREQ_0, ASIC_INNO_FAN_PWM_FREQ) < 0)
+					 {
+						 applog(LOG_ERR, "set fan0 frequency fail");
+						 mutex_unlock(&fan_ctrl->lock);
+						 return;
+					 }
+					  if(ioctl(fd, IOCTL_SET_FREQ_1, ASIC_INNO_FAN_PWM_FREQ) < 0)
+					 {
+						 applog(LOG_ERR, "set fan1 frequency fail");
+						 mutex_unlock(&fan_ctrl->lock);
+						 return;
+					 }
+					  if(ioctl(fd, IOCTL_SET_FREQ_2, ASIC_INNO_FAN_PWM_FREQ) < 0)
+					  {
+						  applog(LOG_ERR, "set fan2 frequency fail");
+						  mutex_unlock(&fan_ctrl->lock);
+						  return;
+					  }
+
+					 
+					 if(ioctl(fd, IOCTL_SET_DUTY_0, duty_driver) < 0)
+					 {
+						 applog(LOG_ERR, "set duty0 fail \n");
+						 mutex_unlock(&fan_ctrl->lock);
+						 return;
+					 }
+					  if(ioctl(fd, IOCTL_SET_DUTY_1, duty_driver) < 0)
+					 {
+						 applog(LOG_ERR, "set duty1 fail \n");
+						 mutex_unlock(&fan_ctrl->lock);
+						 return;
+					 }
+
+					 if(ioctl(fd, IOCTL_SET_DUTY_2, duty_driver) < 0)
+					 {
+						 applog(LOG_ERR, "set duty2 fail \n");
+						 mutex_unlock(&fan_ctrl->lock);
+						 return;
+					 }
+
+		      
+					 break;
+    
+    }
+  
+  
     close(fd);
 
     fan_ctrl->duty = duty;
@@ -455,11 +557,38 @@ void inno_temp_contrl(INNO_FAN_CTRL_T *fan_ctrl, struct A1_chain *a1, int chain_
 {
 	int i;
 	int arvarge = 0;
-    float arvarge_f = 0.0f; 
+    //float arvarge_f = 0.0f; 
 	uint8_t reg[REG_LENGTH];
 	
 	fan_ctrl->last_fan_temp = 2;
 
+    if(fan_ctrl->temp_highest[chain_id] < 557)
+    {
+       return ;
+    }
+    
+	while(fan_ctrl->temp_highest[chain_id] > 557){
+			for (i = a1->num_active_chips; i > 0; i--){ 
+				if (!inno_cmd_read_reg(a1, i, reg)){
+					applog(LOG_ERR, "%d: Failed to read temperature sensor register for chip %d ", a1->chain_id, i);
+					continue;
+				}
+				/* update temp database */
+				uint32_t temp = 0;
+				//float	 temp_f = 0.0f;
+	
+				temp = 0x000003ff & ((reg[7] << 8) | reg[8]);
+				inno_fan_temp_add(fan_ctrl, a1->chain_id, temp, false);
+			} 
+	
+			inno_fan_temp_init(fan_ctrl, a1->chain_id);
+			//arvarge_f = inno_fan_temp_to_float(fan_ctrl, fan_ctrl->temp_arvarge[a1->chain_id]);
+			applog(LOG_WARNING, "%s +:hst:%d. \t \n", __func__, fan_ctrl->temp_highest[chain_id]);
+			inno_fan_pwm_set(fan_ctrl, 100);
+			sleep(1);
+		}
+	
+#if 0
 	arvarge_f = inno_fan_temp_to_float(fan_ctrl, fan_ctrl->temp_arvarge[chain_id]);
 	applog(LOG_ERR,"---Read Temp:%.2f\n",arvarge_f);
 	if(arvarge_f >= 25.0){
@@ -486,6 +615,7 @@ void inno_temp_contrl(INNO_FAN_CTRL_T *fan_ctrl, struct A1_chain *a1, int chain_
 		inno_fan_pwm_set(fan_ctrl, 100);
 		sleep(1);
 	}
+	#endif
 	fan_ctrl->last_fan_temp = 0;
 	//no_fan_pwm_set(fan_ctrl, 20);
 }

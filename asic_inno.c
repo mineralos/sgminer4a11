@@ -19,6 +19,8 @@
 
 #define MAGIC_NUM  100 
 #define MUL_COEF 1.23
+extern struct spi_ctx *spi[ASIC_CHAIN_NUM];
+extern struct A1_chain *chain[ASIC_CHAIN_NUM];
 
 
 static const float inno_vsadc_table[] = {   
@@ -599,31 +601,6 @@ void check_disabled_chips(struct A1_chain *a1, int pllnum)
 		if (chip->cooldown_begin + COOLDOWN_MS > get_current_ms())
 			continue;
 		
-		#if 0
-		//if the core in chain least than 630, reinit this chain 
-		if(a1->num_cores <= LEAST_CORE_ONE_CHAIN && chip->fail_reset < RESET_CHAIN_CNT)
-		{
-			chip->fail_reset++;
-			
-			asic_gpio_write(ctx->power_en, 0);
-			sleep(2);
-			asic_gpio_write(ctx->power_en, 1);
-			sleep(2);
-
-			asic_gpio_write(ctx->reset, 0);
-			usleep(500000);
-			asic_gpio_write(ctx->reset, 1);	
-		
-			a1->num_chips = chain_detect(a1, pllnum);
-			
-			inno_cmd_bist_fix(a1, ADDR_BROADCAST);
-		
-			for (i = 0; i < a1->num_active_chips; i++)
-			{
-				check_chip(a1, i);
-			}
-		}
-		#endif
 		if (!inno_cmd_read_reg(a1, chip_id, reg)) 
 		{
 			chip->fail_count++;
@@ -646,6 +623,54 @@ void check_disabled_chips(struct A1_chain *a1, int pllnum)
 		chip->fail_count = 0;
 		chip->fail_reset = 0;
 	}
+#if 0
+
+ //if the core in chain least than 600, reinit this chain
+    if(asic_gpio_read(ctx->plug) == 0)
+    {
+        if(a1->num_cores <= LEAST_CORE_ONE_CHAIN)
+        {
+            applog(LOG_WARNING, "****core:%d*start to reset the chain:%d******************", a1->num_cores, cid);
+            applog(LOG_WARNING, "****core:%d*start to reset the chain:%d******************", a1->num_cores, cid);
+            applog(LOG_WARNING, "****core:%d*start to reset the chain:%d******************", a1->num_cores, cid);
+
+            asic_gpio_write(ctx->power_en, 0);
+            sleep(3);
+            asic_gpio_write(ctx->power_en, 1);
+            sleep(2);
+            asic_gpio_write(ctx->reset, 1);
+            sleep(1);
+            asic_gpio_write(ctx->start_en, 1);
+            sleep(2);
+
+            inno_preinit(ctx, cid);
+
+            a1->num_chips =  chain_detect(a1);
+            usleep(10000);
+
+            if (a1->num_chips <= 0)
+                goto failure;
+
+            inno_cmd_bist_fix(a1, ADDR_BROADCAST);
+
+            for (i = 0; i < a1->num_active_chips; i++)
+            {
+                check_chip(a1, i);
+            }
+        }
+    }
+    else
+    {
+        applog(LOG_WARNING, "******there is no board insert******");
+    }
+
+    return;
+
+failure:
+	 exit_A1_chain(a1);
+	 return;
+ #endif             
+
 }
 
 
@@ -821,6 +846,47 @@ int prechain_detect(struct A1_chain *a1, int idxpll)
 		usleep(120000);
 	}
 	return 0;
+}
+
+bool zynq_spi_exit(void)
+{
+	int i;
+	
+	for(i = 0; i < ASIC_CHAIN_NUM; i++)
+	{
+		if(spi[i] != NULL)
+		{
+			spi_exit(spi[i]);
+		}
+
+		if(chain[i] != NULL)
+		{
+			free(chain[i]);
+		}
+	}
+
+	return true;
+}
+
+
+int inno_chain_power_down(struct A1_chain *a1)
+{
+	asic_gpio_write(a1->spi_ctx->power_en, 0);
+	asic_gpio_write(a1->spi_ctx->start_en, 0);
+
+	return 0;
+}
+
+
+
+int power_down_all_chain(void)
+{
+	int i;
+
+	for(i = 0; i < ASIC_CHAIN_NUM; i++)
+	{
+		inno_chain_power_down(chain[i]);
+	}
 }
 
 

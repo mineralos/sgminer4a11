@@ -122,6 +122,9 @@ extern int opt_A1Pll3;
 extern int opt_A1Pll4;
 extern int opt_A1Pll5;
 extern int opt_A1Pll6;
+extern int opt_A1Pll7;
+extern int opt_A1Pll8;
+
 #endif
 
 

@@ -149,6 +149,8 @@ static uint8_t A1Pll3=A5_PLL_CLOCK_400MHz;
 static uint8_t A1Pll4=A5_PLL_CLOCK_400MHz;
 static uint8_t A1Pll5=A5_PLL_CLOCK_400MHz;
 static uint8_t A1Pll6=A5_PLL_CLOCK_400MHz;
+static uint8_t A1Pll7=A5_PLL_CLOCK_400MHz;
+static uint8_t A1Pll8=A5_PLL_CLOCK_400MHz;
 
 /* FAN CTRL */
 static INNO_FAN_CTRL_T s_fan_ctrl;
@@ -156,7 +158,7 @@ static inno_reg_ctrl_t s_reg_ctrl;
 
 static uint32_t show_log[ASIC_CHAIN_NUM];
 static uint32_t update_temp[ASIC_CHAIN_NUM];
-#define  DANGEROUS_TMP   445
+#define  DANGEROUS_TMP  445// 505 //445
 #define STD_V          0.84
 
 int spi_plug_status[ASIC_CHAIN_NUM] = {0};
@@ -335,6 +337,7 @@ void exit_A1_chain(struct A1_chain *a1)
 	free(a1->chips);
 
 	asic_gpio_write(a1->spi_ctx->led, 1);
+	asic_gpio_write(a1->spi_ctx->power_en, 0);
 
 	a1->chips = NULL;
 	a1->spi_ctx = NULL;
@@ -544,7 +547,7 @@ failure:
 	return NULL;
 }
 
-static int inno_preinit(struct A1_chain *a1, int chain_id)
+ int inno_preinit(struct A1_chain *a1, int chain_id)
 {
 	int i,ret;
 	if(a1 == NULL){
@@ -560,6 +563,8 @@ static int inno_preinit(struct A1_chain *a1, int chain_id)
 		case 3:ret = prechain_detect(a1, A1Pll4);break;
 		case 4:ret = prechain_detect(a1, A1Pll5);break;
 		case 5:ret = prechain_detect(a1, A1Pll6);break;
+		case 6:ret = prechain_detect(a1, A1Pll7);break;
+		case 7:ret = prechain_detect(a1, A1Pll8);break;
 		default:;
 	}
 
@@ -588,7 +593,8 @@ static bool detect_A1_chain(void)
 			return false;
 		}
 
-        mutex_init(&spi[i]->spi_lock);
+        //mutex_init(&spi[i]->spi_lock);
+        
 		spi[i]->power_en = SPI_PIN_POWER_EN[i];		
 		spi[i]->start_en = SPI_PIN_START_EN[i];		
 		spi[i]->reset = SPI_PIN_RESET[i];
@@ -862,6 +868,8 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 	A1Pll4 = A1_ConfigA1PLLClock(opt_A1Pll4);
 	A1Pll5 = A1_ConfigA1PLLClock(opt_A1Pll5);
 	A1Pll6 = A1_ConfigA1PLLClock(opt_A1Pll6);
+	A1Pll7 = A1_ConfigA1PLLClock(opt_A1Pll7);
+	A1Pll8 = A1_ConfigA1PLLClock(opt_A1Pll8);
 		
 	if(detect_A1_chain()){
 		return ;
@@ -1059,7 +1067,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 
 	if(s_fan_ctrl.temp_highest[a1->chain_id] < DANGEROUS_TMP){
 		asic_gpio_write(spi[a1->chain_id]->power_en, 0);
-	   	early_quit(1,"Notice Chain %d temp:%d Maybe Has Some Problem in Temperate\n",a1->chain_id,s_fan_ctrl.temp_highest[a1->chain_id]);
+		loop_blink_led(spi[a1->chain_id]->led, 10);
+	   	//early_quit(1,"Notice Chain %d temp:%d Maybe Has Some Problem in Temperate\n",a1->chain_id,s_fan_ctrl.temp_highest[a1->chain_id]);
 	}
 
 	/* poll queued results */
@@ -1218,6 +1227,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 		case 3:check_disabled_chips(a1, A1Pll4);break;
 		case 4:check_disabled_chips(a1, A1Pll5);break;
 		case 5:check_disabled_chips(a1, A1Pll6);break;
+		case 6:check_disabled_chips(a1, A1Pll7);break;
+		case 7:check_disabled_chips(a1, A1Pll8);break;
 		default:;
 	}
 	mutex_unlock(&a1->lock);
@@ -1245,6 +1256,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 		case 3:A1Pll = PLL_Clk_12Mhz[A1Pll4].speedMHz;break;
 		case 4:A1Pll = PLL_Clk_12Mhz[A1Pll5].speedMHz;break;
 		case 5:A1Pll = PLL_Clk_12Mhz[A1Pll6].speedMHz;break;
+		case 6:A1Pll = PLL_Clk_12Mhz[A1Pll7].speedMHz;break;
+		case 7:A1Pll = PLL_Clk_12Mhz[A1Pll8].speedMHz;break;
 		default:break;
 	}
 	
