@@ -283,12 +283,14 @@ void inno_fan_pwm_set(INNO_FAN_CTRL_T *fan_ctrl, int duty)
     if(ioctl(fd, IOCTL_SET_FREQ_0, ASIC_INNO_FAN_PWM_FREQ) < 0)
     {
         applog(LOG_ERR, "set fan0 frequency fail");
+        close(fd);
         mutex_unlock(&fan_ctrl->lock);
         return;
     }
     if(ioctl(fd, IOCTL_SET_DUTY_0, duty_driver) < 0)
     {
         applog(LOG_ERR, "set duty fail \n");
+        close(fd);
         mutex_unlock(&fan_ctrl->lock);
         return;
     }
@@ -298,24 +300,28 @@ void inno_fan_pwm_set(INNO_FAN_CTRL_T *fan_ctrl, int duty)
 		   if(ioctl(fd, IOCTL_SET_FREQ_0, ASIC_INNO_FAN_PWM_FREQ) < 0)
 		   {
 			   applog(LOG_ERR, "set fan0 frequency fail");
+			   close(fd);
 			   mutex_unlock(&fan_ctrl->lock);
 			   return;
 		   }
 		    if(ioctl(fd, IOCTL_SET_FREQ_1, ASIC_INNO_FAN_PWM_FREQ) < 0)
 		   {
 			   applog(LOG_ERR, "set fan1 frequency fail");
+			   close(fd);
 			   mutex_unlock(&fan_ctrl->lock);
 			   return;
 		   }
 		   if(ioctl(fd, IOCTL_SET_DUTY_0, duty_driver) < 0)
 		   {
 			   applog(LOG_ERR, "set duty0 fail \n");
+			   close(fd);
 			   mutex_unlock(&fan_ctrl->lock);
 			   return;
 		   }
 		    if(ioctl(fd, IOCTL_SET_DUTY_1, duty_driver) < 0)
 		   {
 			   applog(LOG_ERR, "set duty1 fail \n");
+			   close(fd);
 			   mutex_unlock(&fan_ctrl->lock);
 			   return;
 		   }
@@ -327,18 +333,21 @@ void inno_fan_pwm_set(INNO_FAN_CTRL_T *fan_ctrl, int duty)
 					 if(ioctl(fd, IOCTL_SET_FREQ_0, ASIC_INNO_FAN_PWM_FREQ) < 0)
 					 {
 						 applog(LOG_ERR, "set fan0 frequency fail");
+						 close(fd);
 						 mutex_unlock(&fan_ctrl->lock);
 						 return;
 					 }
 					  if(ioctl(fd, IOCTL_SET_FREQ_1, ASIC_INNO_FAN_PWM_FREQ) < 0)
 					 {
 						 applog(LOG_ERR, "set fan1 frequency fail");
+						 close(fd);
 						 mutex_unlock(&fan_ctrl->lock);
 						 return;
 					 }
 					  if(ioctl(fd, IOCTL_SET_FREQ_2, ASIC_INNO_FAN_PWM_FREQ) < 0)
 					  {
 						  applog(LOG_ERR, "set fan2 frequency fail");
+						  close(fd);
 						  mutex_unlock(&fan_ctrl->lock);
 						  return;
 					  }
@@ -347,12 +356,14 @@ void inno_fan_pwm_set(INNO_FAN_CTRL_T *fan_ctrl, int duty)
 					 if(ioctl(fd, IOCTL_SET_DUTY_0, duty_driver) < 0)
 					 {
 						 applog(LOG_ERR, "set duty0 fail \n");
+						 close(fd);
 						 mutex_unlock(&fan_ctrl->lock);
 						 return;
 					 }
 					  if(ioctl(fd, IOCTL_SET_DUTY_1, duty_driver) < 0)
 					 {
 						 applog(LOG_ERR, "set duty1 fail \n");
+						 close(fd);
 						 mutex_unlock(&fan_ctrl->lock);
 						 return;
 					 }
@@ -360,10 +371,10 @@ void inno_fan_pwm_set(INNO_FAN_CTRL_T *fan_ctrl, int duty)
 					 if(ioctl(fd, IOCTL_SET_DUTY_2, duty_driver) < 0)
 					 {
 						 applog(LOG_ERR, "set duty2 fail \n");
+						 close(fd);
 						 mutex_unlock(&fan_ctrl->lock);
 						 return;
 					 }
-
 		      
 					 break;
     

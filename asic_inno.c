@@ -1160,16 +1160,16 @@ int inno_get_miner_type(void)
 	fread(buffer, 8, 1, fd);
 	fclose(fd);
 
-	if(strstr(buffer, "T1") == 0) {
+	if(strstr(buffer, "T1") != NULL) {
 		miner_type = MINER_TYPE_T1;
 		applog(LOG_INFO, "miner type is T1");
-	}else if(strstr(buffer, "T2") == 0) {
+	}else if(strstr(buffer, "T2") != NULL) {
 		miner_type = MINER_TYPE_T2;
 		applog(LOG_INFO, "miner type is T2");
-	}else if(strstr(buffer, "T3") == 0) {
+	}else if(strstr(buffer, "T3") != NULL) {
 		miner_type = MINER_TYPE_T3;
 		applog(LOG_INFO, "miner type is T3");
-	}else if(strstr(buffer, "T4") == 0) {
+	}else if(strstr(buffer, "T4") != NULL) {
 		miner_type = MINER_TYPE_T4;
 		applog(LOG_INFO, "miner type is T4");
 	}else {
