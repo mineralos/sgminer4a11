@@ -111,6 +111,7 @@ struct A1_chain {
 	int num_cores;
 	int num_active_chips;
 	int chain_skew;
+	int vid;
 	uint8_t spi_tx[MAX_CMD_LENGTH];
 	uint8_t spi_rx[MAX_CMD_LENGTH];
 	struct spi_ctx *spi_ctx;

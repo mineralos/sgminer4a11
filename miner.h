@@ -125,6 +125,17 @@ extern int opt_A1Pll6;
 extern int opt_A1Pll7;
 extern int opt_A1Pll8;
 
+extern int opt_voltage;
+extern int opt_voltage1;
+extern int opt_voltage2;
+extern int opt_voltage3;
+extern int opt_voltage4;
+extern int opt_voltage5;
+extern int opt_voltage6;
+extern int opt_voltage7;
+extern int opt_voltage8;
+
+
 #endif
 
 

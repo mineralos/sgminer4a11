@@ -165,9 +165,6 @@ int spi_plug_status[ASIC_CHAIN_NUM] = {0};
 
 char szShowLog[ASIC_CHAIN_NUM][ASIC_CHIP_NUM][256] = {0};
 
-
-extern int opt_voltage;
-
 int g_hwver;
 int g_type;
 
@@ -654,8 +651,10 @@ static bool detect_A1_chain(void)
 		init_ReadTemp(chain[i],i);
 	}
 	applog(LOG_ERR, "init_ReadTemp...");
+	//printf("g_hwver = %d\n",g_hwver);
 
 	if(g_hwver == HARDWARE_VERSION_G9){
+	//applog(LOG_ERR,"HARDWARE_VERSION_G9");
 		//divide the init to break two part
 		if(opt_voltage > 8){
 			for(i=9; i<=opt_voltage; i++){
@@ -672,25 +671,32 @@ static bool detect_A1_chain(void)
 		}
 	}else if(g_hwver == HARDWARE_VERSION_G19)
 	{
+	   // printf("HARDWARE_VERSION_G19");
 		int j, vid;
 		for(i = 0; i < ASIC_CHAIN_NUM; i++){
-			switch(1){
-				case 0:	vid = opt_voltage; break;
-				case 1:	vid = opt_voltage; break;
-				case 2:	vid = opt_voltage; break;
-				case 3:	vid = opt_voltage; break;
-				default: break;
-			}
+		switch(i)
+		{
+			case 0: chain[i]->vid = opt_voltage1; break;
+			case 1: chain[i]->vid = opt_voltage2; break;
+			case 2: chain[i]->vid = opt_voltage3; break;
+			case 3: chain[i]->vid = opt_voltage4; break;
+			case 4: chain[i]->vid = opt_voltage5; break;
+			case 5: chain[i]->vid = opt_voltage6; break;
+			//case 6: chain[i]->vid = opt_voltage7; break;
+			//case 7: chain[i]->vid = opt_voltage8; break;
+		}
 
 			if(vid > 8){
-				for(j=9; j<=vid; j++){
+				for(j=9; j<=chain[i]->vid; j++){
+				//applog(LOG_ERR,"set_vid_value_G19 vid > 8");
 					set_vid_value_G19(i, j);
 					usleep(500000);
 				}
 			}
 				
 			if(vid < 8){
-				for(j=7; j>=vid; j--){
+				for(j=7; j>=chain[i]->vid; j--){
+				//applog(LOG_ERR,"set_vid_value_G19 vid < 8");
 					set_vid_value_G19(i, j);
 					usleep(500000);
 				}

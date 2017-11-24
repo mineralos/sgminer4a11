@@ -110,6 +110,10 @@ int opt_voltage1 = 8;
 int opt_voltage2 = 8;
 int opt_voltage3 = 8;
 int opt_voltage4 = 8;
+int opt_voltage5 = 8;
+int opt_voltage6 = 8;
+int opt_voltage7 = 8;
+int opt_voltage8 = 8;
 
 
 
@@ -1209,6 +1213,18 @@ static struct opt_table opt_config_table[] = {
 			 "set voltage (1 ~ 31)"),
 	OPT_WITH_ARG("--A1Vol4",
 			 set_int_0_to_31, opt_show_intval, &opt_voltage4,
+			 "set voltage (1 ~ 31)"),
+	OPT_WITH_ARG("--A1Vol5",
+		     set_int_0_to_31, opt_show_intval, &opt_voltage5,
+		     "set voltage (1 ~ 31)"),
+	OPT_WITH_ARG("--A1Vol6",
+			 set_int_0_to_31, opt_show_intval, &opt_voltage6,
+			 "set voltage (1 ~ 31)"),
+	OPT_WITH_ARG("--A1Vol7",
+			 set_int_0_to_31, opt_show_intval, &opt_voltage7,
+			 "set voltage (1 ~ 31)"),
+	OPT_WITH_ARG("--A1Vol8",
+			 set_int_0_to_31, opt_show_intval, &opt_voltage8,
 			 "set voltage (1 ~ 31)"),
 
 

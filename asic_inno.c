@@ -58,7 +58,8 @@ static const float inno_vsadc_table[] = {
 	0.45027,
 };
 
-extern int opt_voltage;
+
+
 extern inno_reg_ctrl_t s_reg_ctrl;
 
 int nReadVolTimes = 0;
