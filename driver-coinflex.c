@@ -674,6 +674,10 @@ static bool detect_A1_chain(void)
 	   // printf("HARDWARE_VERSION_G19");
 		int j, vid;
 		for(i = 0; i < ASIC_CHAIN_NUM; i++){
+
+		if(chain[i] == NULL)
+		  continue;
+		
 		switch(i)
 		{
 			case 0: chain[i]->vid = opt_voltage1; break;
