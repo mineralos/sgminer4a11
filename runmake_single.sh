@@ -25,4 +25,4 @@ make -j${MAKE_JOBS}
 #cp sgminer /home/public/update/sgminer_a7.$1
 #chmod 777 /home/public/update/sgminer_a7.$1
 
-rm -rf ${SGMINER_DIR}
+#rm -rf ${SGMINER_DIR}

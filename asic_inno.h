@@ -1,34 +1,9 @@
 #ifndef _ASIC_INNO_
 #define _ASIC_INNO_
 
-#define ASIC_CHAIN_NUM		6
-#define ASIC_CHIP_NUM		33
-#define ACTIVE_STAT        3
-#define FAN_CNT            2
-//set for fan stage
-#define FAN_FIRST_STAGE  25
-#define FAN_SECOND_STAGE 50
-#define FAN_THIRD_STAGE  75
-#define FAN_FOUR_STAGE   100
-#define FAN_DELTA         15
 
-#define ASIC_CHIP_A_BUCKET              (ASIC_CHAIN_NUM * ASIC_CHIP_NUM)
-#define ASIC_INNO_FAN_PWM0_DEVICE_NAME  ("/dev/pwmgen0.0")
-#define ASIC_INNO_FAN_PWM1_DEVICE_NAME  ("/dev/pwmgen1.0")
-#define ASIC_INNO_FAN_PWM2_DEVICE_NAME  ("/dev/pwmgen2.0")
-
-#define ASIC_INNO_FAN_PWM_STEP          (10)
-#define ASIC_INNO_FAN_PWM_DUTY_MAX      (100)
-
-#define ASIC_INNO_FAN_PWM_FREQ_TARGET   (7000)
-#define ASIC_INNO_FAN_PWM_FREQ          (50000000 / ASIC_INNO_FAN_PWM_FREQ_TARGET)
-#define ASIC_INNO_FAN_TEMP_MAX_THRESHOLD (100.0f)
-
-#define ASIC_INNO_FAN_TEMP_UP_THRESHOLD (55.0f)
-#define ASIC_INNO_FAN_TEMP_DOWN_THRESHOLD (35.0f)
-
-#define ASIC_INNO_FAN_TEMP_MARGIN_RATE  (5.0f / 100.0f)
-#define ASIC_INNO_FAN_CTLR_FREQ_DIV     (0)
+#include "asic_inno_cmd.h"
+#include "inno_fan.h"
 
 #define WEAK_CHIP_THRESHOLD	1
 #define BROKEN_CHIP_THRESHOLD 1
@@ -40,17 +15,26 @@
 #define INNO_MINER_TYPE_FILE			"/tmp/type"
 #define INNO_HARDWARE_VERSION_FILE		"/tmp/hwver"
 
-#define HARDWARE_VERSION_G9		(9)
-#define HARDWARE_VERSION_G19	(19)
+typedef enum{
+HARDWARE_VERSION_NONE = 0x00,
+HARDWARE_VERSION_G9 = 0x09,
+HARDWARE_VERSION_G19 = 0x13,
 
-#define MINER_TYPE_T1			(1)
-#define MINER_TYPE_T2			(2)
-#define MINER_TYPE_T3			(3)
-#define MINER_TYPE_T4			(4)
+}hardware_version_e;
 
+/*
+typedef enum{
+MINER_TYPE_NONE = 0x00,
+MINER_TYPE_T0,
+MINER_TYPE_T1,
+MINER_TYPE_T2,
+MINER_TYPE_T3,
+MINER_TYPE_T4,
+MINER_TYPE_T5,
+MINER_TYPE_SUM,
 
-
-#include "asic_inno_cmd.h"
+}miner_type_e;
+*/
 
 //add 0922
 typedef struct{

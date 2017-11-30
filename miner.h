@@ -135,6 +135,8 @@ extern int opt_voltage6;
 extern int opt_voltage7;
 extern int opt_voltage8;
 
+extern bool auto_fan;
+extern int fan_speed;
 
 #endif
 
@@ -496,10 +498,10 @@ struct cgpu_info {
 
 	bool new_work;
 
-	double temp;
+	int temp;
 	//add by witt
-	double temp_max;
-	double temp_min;
+	int temp_max;
+	int temp_min;
 	int chip_num;
 //	int core_num;
 	int fan_duty;

@@ -17,7 +17,7 @@
 #include "inno_fan.h"
 
 
-#define MAGIC_NUM  100 
+//#define MAGIC_NUM  100 
 #define MUL_COEF 1.23
 extern struct spi_ctx *spi[ASIC_CHAIN_NUM];
 extern struct A1_chain *chain[ASIC_CHAIN_NUM];
@@ -786,7 +786,7 @@ bool check_chip(struct A1_chain *a1, int i)
 
 	a1->chips[i].num_cores = buffer[11];
 	a1->num_cores += a1->chips[i].num_cores;
-	applog(LOG_WARNING, "%d: Found chip %d with %d active cores",cid, chip_id, a1->chips[i].num_cores);
+	//applog(LOG_WARNING, "%d: Found chip %d with %d active cores",cid, chip_id, a1->chips[i].num_cores);
 
 	//keep ASIC register value
 	memcpy(a1->chips[i].reg, buffer, 12);
@@ -1090,7 +1090,7 @@ bool inno_check_voltage(struct A1_chain *a1, int chip_id, inno_reg_ctrl_t *s_reg
 	    	s_reg_ctrl->avarge_vol[a1->chain_id][chip_id-1] = (s_reg_ctrl->avarge_vol[a1->chain_id][chip_id-1]*(s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1]-1) + tmp_v)/s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1];
 	       }
        		
-			applog(LOG_WARNING,"read tmp %f/%d form chain %d,chip %d h:%f,l:%f,av:%f,cnt:%d\n",tmp_v,rd_v,a1->chain_id, chip_id,s_reg_ctrl->highest_vol[a1->chain_id][chip_id-1],s_reg_ctrl->lowest_vol[a1->chain_id][chip_id-1],s_reg_ctrl->avarge_vol[a1->chain_id][chip_id-1],s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1]);
+			//applog(LOG_WARNING,"read tmp %f/%d form chain %d,chip %d h:%f,l:%f,av:%f,cnt:%d\n",tmp_v,rd_v,a1->chain_id, chip_id,s_reg_ctrl->highest_vol[a1->chain_id][chip_id-1],s_reg_ctrl->lowest_vol[a1->chain_id][chip_id-1],s_reg_ctrl->avarge_vol[a1->chain_id][chip_id-1],s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1]);
 			nReadVolTimes++;
 						
 			if((tmp_v > 0.55) || (tmp_v < 0.45)){
@@ -1114,11 +1114,11 @@ bool inno_check_voltage(struct A1_chain *a1, int chip_id, inno_reg_ctrl_t *s_reg
 }
 
 
-int inno_get_hwver(void)
+hardware_version_e inno_get_hwver(void)
 {
 	FILE* fd;
 	char buffer[64] = {0};
-	int version;
+	hardware_version_e version;
 	
 	fd = fopen(INNO_HARDWARE_VERSION_FILE, "r");	
 	if(fd == NULL)
@@ -1145,11 +1145,11 @@ int inno_get_hwver(void)
 }
 
 
-int inno_get_miner_type(void)
+inno_type_e inno_get_miner_type(void)
 {
 	FILE* fd;
 	char buffer[64] = {0};
-	int miner_type;
+	inno_type_e miner_type;
 	
 	fd = fopen(INNO_MINER_TYPE_FILE, "r");	
 	if(fd == NULL)
@@ -1162,16 +1162,16 @@ int inno_get_miner_type(void)
 	fclose(fd);
 
 	if(strstr(buffer, "T1") != NULL) {
-		miner_type = MINER_TYPE_T1;
+		miner_type = INNO_TYPE_A5;
 		applog(LOG_INFO, "miner type is T1");
 	}else if(strstr(buffer, "T2") != NULL) {
-		miner_type = MINER_TYPE_T2;
+		miner_type = INNO_TYPE_A6;
 		applog(LOG_INFO, "miner type is T2");
 	}else if(strstr(buffer, "T3") != NULL) {
-		miner_type = MINER_TYPE_T3;
+		miner_type = INNO_TYPE_A7;
 		applog(LOG_INFO, "miner type is T3");
 	}else if(strstr(buffer, "T4") != NULL) {
-		miner_type = MINER_TYPE_T4;
+		miner_type = INNO_TYPE_A8;
 		applog(LOG_INFO, "miner type is T4");
 	}else {
 		miner_type = 0;

@@ -56,32 +56,8 @@
 
 #include "inno_fan.h"
 
-
-
-#define COINFLEX_TIMEOUT		(5)
-
-#define COINFLEX_DEF_DIFF		(64)
-
-#define COINFLEX_STX			(0x12)
-#define COINFLEX_ETX			(0x13)
-
-#define STX_POS					(0)
-#define CMD_POS					(1)
-#define LEN_POS					(2)
-#define DATA_POS				(3)
-#define ETX_POS					(DATA_POS + len)
-
-#define WAIT_TIME				(10)
-#define INFO_SIZE				(28)
-#define ALGO_SIZE				(2)
-#define CORE_SIZE				(16)
-#define CLOCK_SIZE				(6)
-#define MWORK_SIZE				(2)
-
 #define WORK_SIZE				(80)
 #define DEVICE_TARGET_SIZE		(32)
-#define NONCE_POS				(76)
-#define NONCE_SIZE				(4)
 #define TARGET_POS				(80)
 #define TARGET_SIZE				(4)
 #define MINER_ID_POS			(84)
@@ -92,9 +68,6 @@
 
 #define REPLY_SIZE				(2)
 #define BUF_SIZE					(128)
-#define TEMP_UPDATE_TIME		(5 * 1000)		/* 30sec -> 5sec*/
-
-#define COINFLEX_COM_TIMEOUT_MS		(999)
 #define TEMP_UPDATE_INT_MS	10000
 
 
@@ -105,38 +78,6 @@ struct Test_bench Test_bench_Array[5]={
 	{1100,	0,	0,	0},
 	{1100,	0,	0,	0},
 };
-
-
-// Commands
-enum coinflex_cmd
-{
-	COINFLEX_RESET			= 0x00,
-	COINFLEX_GET_STATUS	    = 0x01,
-	COINFLEX_GET_INFO		= 0x02,
-	COINFLEX_SET_CLK		= 0x03,
-	COINFLEX_GET_CLK		= 0x04,
-	COINFLEX_SET_TEMP		= 0x05,
-	COINFLEX_GET_TEMP		= 0x06,
-	RESERVED07				= 0x07,
-	RESERVED08				= 0x08,
-	COINFLEX_SEND_WORK	    = 0x09,
-	RESERVED0A				= 0x0A,
-	RESERVED0B				= 0x0B,
-	RESERVED0C				= 0x0C,
-	RESERVED0D				= 0x0D,
-	RESERVED0E				= 0x0E,
-	RESERVED0F				= 0x0F,
-	COINFLEX_GET_WORK	    = 0x10,
-	COINFLEX_SET_LED		= 0x11,
-	COINFLEX_SET_IDLE		= 0x12,
-	COINFLEX_SET_ALGO		= 0x13,
-	COINFLEX_GET_CORE		= 0x14,
-	COINFLEX_SET_MUTI		= 0x15,
-	COINFLEX_HW_RESET	= 0x16,
-	COINFLEX_STOP_MINER	= 0x17,
-	COINFLEX_START_MINER	= 0x18
-};
-
 
 
 struct spi_config cfg[ASIC_CHAIN_NUM];
@@ -153,8 +94,8 @@ static uint8_t A1Pll7=A5_PLL_CLOCK_400MHz;
 static uint8_t A1Pll8=A5_PLL_CLOCK_400MHz;
 
 /* FAN CTRL */
-static INNO_FAN_CTRL_T s_fan_ctrl;
-static inno_reg_ctrl_t s_reg_ctrl;
+extern inno_fan_temp_s s_fan_ctrl;
+inno_reg_ctrl_t s_reg_ctrl;
 
 static uint32_t show_log[ASIC_CHAIN_NUM];
 static uint32_t update_temp[ASIC_CHAIN_NUM];
@@ -165,18 +106,8 @@ int spi_plug_status[ASIC_CHAIN_NUM] = {0};
 
 char szShowLog[ASIC_CHAIN_NUM][ASIC_CHIP_NUM][256] = {0};
 
-int g_hwver;
-int g_type;
-
-
-// Commands result
-enum coinflex_result
-{
-	COINFLEX_RESULT_OK = 0,
-	COINFLEX_SEND_FAIL = 1,
-	COINFLEX_RECV_FAIL = 2,
-	COINFLEX_CMD_FAIL  = 3
-};
+hardware_version_e g_hwver;
+inno_type_e g_type;
 
 /* added by yex in 20170907 */
 /*
@@ -185,9 +116,6 @@ enum coinflex_result
  *
  * TODO: to be removed after bring up / test phase
  */
-#define COOLDOWN_MS (30 * 1000)
-/* if after this number of retries a chip is still inaccessible, disable it */
-#define DISABLE_CHIP_FAIL_THRESHOLD	3
 
 /*
  * for now, we have one global config, defaulting values:
@@ -260,70 +188,6 @@ static bool coinflex_queue_full(struct cgpu_info *cgpu)
 	mutex_unlock(&a1->lock);
 
 	return queue_full;
-}
-
-
-static int coinflex_encode(unsigned char *packet, unsigned char cmd, unsigned char *data, int len)
-{
-	
-
-	return (ETX_POS + 1);
-}
-
-
-static bool coinflex_send(struct cgpu_info *coinflex, uint8_t cmd, char *data, int len)
-{
-
-	return (true);
-}
-
-
-static bool coinflex_recv(struct cgpu_info *coinflex, uint8_t cmd, char *data, int len)
-{
-	
-	return (true);
-}
-
-static int coinflex_send_cmd(struct cgpu_info *coinflex, uint8_t cmd, uint8_t *data, uint32_t data_len, uint8_t *status)
-{
-	
-	return (COINFLEX_RESULT_OK);
-}
-
-
-static void coinflex_info_clear(struct A1_chain *info)
-{
-
-
-}
-
-
-
-static bool coinflex_reset(struct cgpu_info *coinflex)
-{
-	
-}
-
-
-static void coinflex_identify(struct cgpu_info *coinflex)
-{
-	
-}
-
-
-
-static bool coinflex_hw_reset(struct cgpu_info *coinflex)
-{
-	
-	return (true);
-}
-
-
-
-#define TARGET_32BIT_LIMIT_E9				(0x00000002)
-static bool coinflex_send_work(struct thr_info *thr)
-{
-	return (true);
 }
 
 void exit_A1_chain(struct A1_chain *a1)
@@ -400,32 +264,35 @@ int chain_detect_reload(struct A1_chain *a1)
 bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 {
 	int i;
-	uint8_t buffer[64];
-	if(a1 == NULL){
+	uint8_t reg[64];
+	
+	/* update temp database */
+	uint32_t temp = 0;
+
+	if(a1 == NULL)
+	{
 		return ;
 	}
 	int cid = a1->chain_id;
 
-	//inno_configure_tvsensor(a1,ADDR_BROADCAST,1);
-	for (i = 0; i < a1->num_active_chips; i++){
-		memset(buffer, 0, sizeof(buffer));
-		if (!inno_cmd_read_reg(a1, i+1, buffer)) {
-			applog(LOG_NOTICE, "%d: Failed to read register for ""chip %d -> disabling", cid, i+1);
-			a1->chips[i].num_cores = 0;
-			a1->chips[i].disabled = 1;
-			return false;;
-		}else{
-			memcpy(a1->chips[i].reg, buffer, 12);
-			a1->chips[i].temp= 0x000003ff & ((buffer[7]<<8) | buffer[8]);
-        	inno_fan_temp_add(&s_fan_ctrl, chain_id, a1->chips[i].temp, true);
-    	}
+	while(s_fan_ctrl.temp_highest[cid] > FAN_FIRST_STAGE)
+	{
+		for (i = a1->num_active_chips; i > 0; i--)
+		{ 
+			if (!inno_cmd_read_reg(a1, i, reg))
+			{
+				applog(LOG_ERR, "%d: Failed to read temperature sensor register for chip %d ", a1->chain_id, i);
+				continue;
+			}
+			
+
+			temp = 0x000003ff & ((reg[7] << 8) | reg[8]);
+			inno_fan_temp_add(&s_fan_ctrl, cid, i, temp);
+		} 
+		
+		asic_temp_sort(&s_fan_ctrl, chain_id);
+		inno_fan_temp_highest(&s_fan_ctrl, chain_id,g_type);
 	}
-
-	usleep(100000);
-	inno_fan_temp_init(&s_fan_ctrl, chain_id);
-	usleep(100000);
-	inno_temp_contrl(&s_fan_ctrl, a1, chain_id);
-
 	return true;
 }
 
@@ -476,20 +343,22 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
 	
 	for (i = 0; i < a1->num_active_chips; i++){
 		check_chip(a1, i);
-        inno_fan_temp_add(&s_fan_ctrl, chain_id, a1->chips[i].temp, true);
+        inno_fan_temp_add(&s_fan_ctrl, chain_id, i+1, a1->chips[i].temp);
     }
-	
-	usleep(200);
-    inno_fan_temp_init(&s_fan_ctrl, chain_id);
-	usleep(200000);
+
+	inno_fan_temp_update(&s_fan_ctrl,chain_id, g_type);
 	
 	applog(LOG_WARNING, "[chain_ID:%d]: Found %d Chips With Total %d Active Cores",a1->chain_id, a1->num_active_chips, a1->num_cores);
 	applog(LOG_WARNING, "[chain_ID]: Temp:%d\n",s_fan_ctrl.temp_highest[chain_id]);
 
+#if 1
 	if(s_fan_ctrl.temp_highest[chain_id] < DANGEROUS_TMP){
-		asic_gpio_write(spi[a1->chain_id]->power_en, 0);
-	  	early_quit(1,"Notice Chain %d temp:%d Maybe Has Some Problem in Temperate\n",a1->chain_id,s_fan_ctrl.temp_highest[chain_id]);
+		//asic_gpio_write(spi[a1->chain_id]->power_en, 0);
+		//loop_blink_led(spi[a1->chain_id]->led, 10);
+		goto failure;
+	  	//early_quit(1,"Notice Chain %d temp:%d Maybe Has Some Problem in Temperate\n",a1->chain_id,s_fan_ctrl.temp_highest[chain_id]);
 	}
+#endif
 
 	return true;
 
@@ -568,7 +437,7 @@ failure:
 	return ret;
 }
 
-int chain_flag[3] = {0};
+int chain_flag[ASIC_CHAIN_NUM] = {0};
 
 static bool detect_A1_chain(void)
 {
@@ -651,10 +520,9 @@ static bool detect_A1_chain(void)
 		init_ReadTemp(chain[i],i);
 	}
 	applog(LOG_ERR, "init_ReadTemp...");
-	//printf("g_hwver = %d\n",g_hwver);
-
+	
 	if(g_hwver == HARDWARE_VERSION_G9){
-	//applog(LOG_ERR,"HARDWARE_VERSION_G9");
+
 		//divide the init to break two part
 		if(opt_voltage > 8){
 			for(i=9; i<=opt_voltage; i++){
@@ -671,7 +539,7 @@ static bool detect_A1_chain(void)
 		}
 	}else if(g_hwver == HARDWARE_VERSION_G19)
 	{
-	   // printf("HARDWARE_VERSION_G19");
+	
 		int j, vid;
 		for(i = 0; i < ASIC_CHAIN_NUM; i++){
 
@@ -686,8 +554,8 @@ static bool detect_A1_chain(void)
 			case 3: chain[i]->vid = opt_voltage4; break;
 			case 4: chain[i]->vid = opt_voltage5; break;
 			case 5: chain[i]->vid = opt_voltage6; break;
-			//case 6: chain[i]->vid = opt_voltage7; break;
-			//case 7: chain[i]->vid = opt_voltage8; break;
+			case 6: chain[i]->vid = opt_voltage7; break;
+			case 7: chain[i]->vid = opt_voltage8; break;
 		}
 
 			if(vid > 8){
@@ -831,7 +699,7 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 	if (hotplug){
 		return;
 	}
-		
+    
 	/* parse bimine-a1-options */
 	if ((opt_bitmine_a1_options != NULL) && (parsed_config_options == NULL)) {
 		int ref_clk = 0;
@@ -864,13 +732,14 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 		parsed_config_options = &A1_config_options;
 	}
 	applog(LOG_DEBUG, "A1 detect");
-	memset(&s_reg_ctrl,0,sizeof(s_reg_ctrl));
-	memset(&s_fan_ctrl,0,sizeof(s_fan_ctrl));
-
+	
 	g_hwver = inno_get_hwver();
 	g_type = inno_get_miner_type();
 	
-	inno_fan_init(&s_fan_ctrl);
+	memset(&s_reg_ctrl,0,sizeof(s_reg_ctrl));
+	memset(&s_fan_ctrl,0,sizeof(s_fan_ctrl));
+	
+	inno_fan_temp_init(&s_fan_ctrl);
 		
 	A1Pll1 = A1_ConfigA1PLLClock(opt_A1Pll1);
 	A1Pll2 = A1_ConfigA1PLLClock(opt_A1Pll2);
@@ -894,15 +763,6 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 	}	
 }
 
-static bool coinflex_prepare(struct thr_info *thr)
-{
-	return (true);
-}
-
-static char* coinflex_set_device(struct cgpu_info *coinflex, char *option, char *setting, char *replybuf)
-{
-	return (NULL);
-}
 
 static void coinflex_get_statline_before(char *buf, size_t bufsiz, struct cgpu_info *coinflex)
 {
@@ -916,15 +776,6 @@ static void coinflex_get_statline_before(char *buf, size_t bufsiz, struct cgpu_i
 }
 
 
-static void coinflex_shutdown(struct thr_info *thr)
-{
-	
-}
-
-static void coinflex_update_work(struct cgpu_info *coinflex)
-{
-	
-}
 
 static void coinflex_flush_work(struct cgpu_info *coinflex)
 {
@@ -979,10 +830,6 @@ static void coinflex_flush_work(struct cgpu_info *coinflex)
 	#endif
 }
 
-static bool coinflex_get_result(struct cgpu_info *coinflex, char *data, int len)
-{
-	return (true);
-}
 
 #define VOLTAGE_UPDATE_INT  6000
 #define  LOG_FILE_PREFIX "/home/www/conf/analys"
@@ -1042,7 +889,7 @@ void inno_log_print(int cid, void* log, int len)
 static int64_t coinflex_scanwork(struct thr_info *thr)
 {
 	static uint8_t cnt = 0;
-	static uint8_t reset_buf[2] = {0x20,0x20};
+	//static uint8_t reset_buf[2] = {0x20,0x20};
 	int i;
 	int32_t A1Pll = 1000;
 	uint8_t reg[128];
@@ -1056,7 +903,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 	uint8_t chip_id;
 	uint8_t job_id;
 	bool work_updated = false;
-	static uint8_t RD_result = 3;
+//	static uint8_t RD_result = 3;
 
 	if (a1->num_cores == 0) {
 		cgpu->deven = DEV_DISABLED;
@@ -1087,9 +934,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 		if (!get_nonce(a1, (uint8_t*)&nonce, &chip_id, &job_id)){
 			break;
 		}
-	
-		//nonce = bswap_32(nonce);	 //modify for A4
-	
+		
 		work_updated = true;
 		if (chip_id < 1 || chip_id > a1->num_active_chips) {
 			applog(LOG_WARNING, "%d: wrong chip_id %d", cid, chip_id);
@@ -1129,56 +974,44 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 	}
 	else
 	{
-		if(update_temp[cid] > 5)
+		if(update_temp[cid] > 2)
 		{
 			for (i = a1->num_active_chips; i > 0; i--) 
 			{
-				uint8_t c = i;
-				if (is_chip_disabled(a1, c))
-					continue;
-
-
-			for(;RD_result>0; RD_result--)
-			{
-			   if(!inno_cmd_read_reg(a1, c, reg))
+				//uint8_t c = i;
+				if (is_chip_disabled(a1, i))
+				{
+				 printf("chip %d is disabled\n ",i);
+				 continue;
+				}
+			 if(!inno_cmd_read_reg(a1, i, reg))
 			   {
-				  continue;
-
+			     printf("chip %d reg read failed\n ",i);
+				 continue;
 			   	}else{
 
-				RD_result = 3;
-				}
-			   	break;
-			}
-			
-			if(!RD_result)
-			{
-			    
-				inno_cmd_reset(a1, c,reset_buf);
+                /* update temp database */
+                uint32_t temp = 0;
+				struct A1_chip *chip = &a1->chips[i - 1];
 
-			}else
-				{
-					RD_result = 3;
-
-					//disable_chip(a1, c);
-					//continue;
-
-	                /* update temp database */
-	                uint32_t temp = 0;
-	                float    temp_f = 0.0f;
-					struct A1_chip *chip = &a1->chips[i - 1];
-
-                	temp = 0x000003ff & ((reg[7] << 8) | reg[8]);
-					chip->temp = temp;
-                	inno_fan_temp_add(&s_fan_ctrl, cid, temp, false);
-                
-					//inno_fan_speed_update(&s_fan_ctrl, cid);
-				//	a1->last_temp_time = get_current_ms();
-					cnt++;
-					//printf("cnt = %d\n",cnt);
+            	temp = 0x000003ff & ((reg[7] << 8) | reg[8]);
+				chip->temp = temp;
+            	inno_fan_temp_add(&s_fan_ctrl, cid, i, temp);
+            
+				cnt++;
 				} 
 			 }
-        	inno_fan_speed_update(&s_fan_ctrl, cid, cgpu);
+
+			inno_fan_temp_update(&s_fan_ctrl, cid, g_type);
+			cgpu->temp = s_fan_ctrl.temp2float[cid][1];
+			cgpu->temp_max = s_fan_ctrl.temp2float[cid][0];
+			cgpu->temp_min = s_fan_ctrl.temp2float[cid][2];
+			cgpu->fan_duty = s_fan_ctrl.speed;
+					
+			cgpu->chip_num = a1->num_active_chips;
+			cgpu->core_num = a1->num_cores; 
+
+			
         	update_temp[cid] = 0;
         	
 		}
@@ -1314,13 +1147,13 @@ struct device_drv coinflex_drv =
 	.get_statline_before		= coinflex_get_statline_before,
 	.queue_full             =   coinflex_queue_full,
 	.get_api_stats				= NULL,
-	.identify_device			= coinflex_identify,
-	.set_device				= coinflex_set_device,
-	.thread_prepare			= coinflex_prepare,
-	.thread_shutdown			= coinflex_shutdown,
-	.hw_reset				= coinflex_hw_reset,
+	.identify_device			= NULL,
+	.set_device				= NULL,
+	.thread_prepare			= NULL,
+	.thread_shutdown			= NULL,
+	.hw_reset				= NULL,
 	.hash_work				= hash_queued_work,
-	.update_work				= coinflex_update_work,
+	.update_work				= NULL,
 	.flush_work				= coinflex_flush_work,			// new block detected or work restart 
 	.scanwork				= coinflex_scanwork,				// scan hash
 	.max_diff					= 65536

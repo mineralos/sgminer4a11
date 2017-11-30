@@ -13,8 +13,6 @@
 #include "asic_inno.h"
 #include "asic_inno_gpio.h"
 
-#define MAGIC_NUM  100 
-
 #define IOCTL_SET_VAL_0 _IOR(MAGIC_NUM, 0, char *)
 #define IOCTL_SET_VALUE_0 _IOR(MAGIC_NUM, 0, char *)
 #define IOCTL_SET_CHAIN_0 _IOR(MAGIC_NUM, 1, char *)

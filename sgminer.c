@@ -116,8 +116,6 @@ int opt_voltage7 = 8;
 int opt_voltage8 = 8;
 
 
-
-
 static char packagename[256];
 
 bool opt_work_update;
@@ -1226,7 +1224,14 @@ static struct opt_table opt_config_table[] = {
 	OPT_WITH_ARG("--A1Vol8",
 			 set_int_0_to_31, opt_show_intval, &opt_voltage8,
 			 "set voltage (1 ~ 31)"),
-
+#if 0
+    OPT_WITH_ARG("--A1Speed",
+			 set_int_0_to_100, opt_show_intval, &fan_speed,
+			 "set fan speed (0 ~ 100)"),
+	OPT_WITHOUT_ARG("--A1Fanctrl",
+			 opt_set_bool, &auto_fan,
+			 "set fan control (manual ~ auto)"),
+#endif
 
 #ifdef HAVE_CURSES
 	OPT_WITHOUT_ARG("--compact",
@@ -8136,6 +8141,7 @@ void hash_queued_work(struct thr_info *mythr)
 		if (mythr->work_update){
 			drv->update_work(cgpu);
 		}
+		usleep(1);
 	}
 
 	cgpu->deven = DEV_DISABLED;
