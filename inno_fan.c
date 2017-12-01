@@ -245,6 +245,7 @@ int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e i
 {
 	 int i = 0;
 	 int high_avg = 0;
+	 static int stat_hi = 0;
 
   switch(inno_type)
   {
@@ -258,11 +259,16 @@ int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e i
    case INNO_TYPE_A8:
 	for(i=0; i<ACTIVE_STAT; i++)
 	{
-	 high_avg += fan_temp->temp[chain_id][i];
+	 if(fan_temp->temp[chain_id][i] != 0)
+	   high_avg += fan_temp->temp[chain_id][i];
+	 else
+	 	stat_hi++;
 	}
-	  
-	fan_temp->temp_highest[chain_id] = (high_avg/ACTIVE_STAT);
-   
+	
+	if(stat_hi != ACTIVE_STAT)  
+	  fan_temp->temp_highest[chain_id] = (high_avg/(ACTIVE_STAT - stat_hi));
+
+   stat_hi = 0;
 	 break;
    
    case INNO_TYPE_A9:
@@ -280,7 +286,8 @@ int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e i
 	{
 		 int i = 0;
 		 int low_avg = 0;
-	
+	     static int stat_lo = 0;
+		 
 	  switch(inno_type)
 	  {
 	   case INNO_TYPE_A4:
@@ -293,11 +300,16 @@ int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e i
 	   case INNO_TYPE_A8:
 		for(i=0; i<ACTIVE_STAT; i++)
 		{
-		 low_avg += fan_temp->temp[chain_id][ASIC_CHIP_NUM-i-1];
+		 if(fan_temp->temp[chain_id][ASIC_CHIP_NUM-i-1] != 0)
+		    low_avg += fan_temp->temp[chain_id][ASIC_CHIP_NUM-i-1];
+		 else 
+		 	stat_lo++;
 		}
-		  
-		fan_temp->temp_lowest[chain_id] = (low_avg/ACTIVE_STAT);
-	   
+
+		if(stat_lo != ACTIVE_STAT)
+		  fan_temp->temp_lowest[chain_id] = (low_avg/(ACTIVE_STAT - stat_lo));
+	    
+		stat_lo = 0;
 		 break;
 	   
 	   case INNO_TYPE_A9:
@@ -314,6 +326,8 @@ int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e i
 	{ 
 	  int i = 0;
 	  int temp_avg = 0;
+	  static int stat_avg = 0;
+	  
 	  switch(inno_type)
 	  {
 	   case INNO_TYPE_A4:
@@ -326,11 +340,16 @@ int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e i
 	   case INNO_TYPE_A8:
 		for(i=0; i<ASIC_CHIP_NUM; i++)
 		{
-		 temp_avg += fan_temp->temp[chain_id][i];
+		 if(fan_temp->temp[chain_id][i] != 0)
+		   temp_avg += fan_temp->temp[chain_id][i];
+		 else 
+		 	stat_avg++;
 		}
-		  
-		fan_temp->temp_arvarge[chain_id] = (temp_avg/ASIC_CHIP_NUM);
-	   
+
+		if(stat_avg != ASIC_CHIP_NUM)
+		 fan_temp->temp_arvarge[chain_id] = (temp_avg/(ASIC_CHIP_NUM - stat_avg));
+
+		 stat_avg = 0;
 		 break;
 	   
 	   case INNO_TYPE_A9:

@@ -123,7 +123,7 @@ bool spi_send_data(struct spi_ctx *ctx, uint8_t *txbuf, int len)
 
 	memset(spi_tx, 0, sizeof(spi_tx));
 	memcpy(spi_tx, txbuf, len);
-	applog(LOG_DEBUG,"%s,%d\n",__FUNCTION__,__LINE__);
+	//applog(LOG_DEBUG,"%s,%d\n",__FUNCTION__,__LINE__);
 	do{
 		memset(spi_rx, 0, sizeof(spi_rx));
 		ret = spi_write_data(ctx, spi_tx + index, 2);
@@ -144,7 +144,7 @@ bool spi_send_command(struct A1_chain *pChain, uint8_t cmd, uint8_t chip_id, uin
 	uint8_t spi_tx[MAX_CMD_LENGTH];
 	uint8_t spi_rx[MAX_CMD_LENGTH];
 	struct spi_ctx *ctx = pChain->spi_ctx;
-	applog(LOG_DEBUG,"%s,%d\n",__FUNCTION__,__LINE__);
+	//applog(LOG_DEBUG,"%s,%d\n",__FUNCTION__,__LINE__);
 	
 	assert(buff != NULL);
 
@@ -164,7 +164,7 @@ bool spi_send_command(struct A1_chain *pChain, uint8_t cmd, uint8_t chip_id, uin
 	if(spi_send_data(ctx, spi_tx, tx_len)){
 		return true;
 	}else{
-		applog(LOG_WARNING, "send command fail !");
+		//applog(LOG_WARNING, "send command fail !");
 		return false;
 	}
 }
@@ -192,7 +192,7 @@ bool spi_poll_result(struct A1_chain *pChain, uint8_t cmd, uint8_t chip_id, uint
 			tx_len =  ASIC_CHIP_NUM*4;
 		}else{
 			tx_len =  pChain->num_chips*4;
-			//applog(LOG_WARNING, "[clk]pChain->num_chips=%d,%d",pChain->num_chips,tx_len);
+			////applog(LOG_WARNING, "[clk]pChain->num_chips=%d,%d",pChain->num_chips,tx_len);
 		}
 			
 	}
@@ -229,7 +229,7 @@ bool inno_cmd_reset(struct A1_chain *pChain, uint8_t chip_id, uint8_t *buff)
 	uint8_t spi_rx[MAX_CMD_LENGTH];
 	//uint8_t tmp_reg[12] = {0x02,0x50,0x41,0xc2,0x00,0x00,0x00,0xa7,0xff,0x24,0x00,0x00};
 	
-	applog(LOG_INFO,"send command [reset] \n");
+	//applog(LOG_INFO,"send command [reset] \n");
 
 	memset(spi_tx, 0, sizeof(spi_tx));
 	
@@ -334,7 +334,7 @@ bool inno_cmd_bist_start(struct A1_chain *pChain, uint8_t chip_id, uint8_t *num)
 	uint8_t spi_tx[MAX_CMD_LENGTH];
 	uint8_t spi_rx[MAX_CMD_LENGTH];
 	
-	applog(LOG_WARNING,"send command [bist_start] \n");
+	//applog(LOG_WARNING,"send command [bist_start] \n");
 
 	memset(spi_tx, 0, sizeof(spi_tx));
 	if(!spi_send_command(pChain, CMD_BIST_START, chip_id, spi_tx, 2)){
@@ -378,7 +378,7 @@ bool inno_cmd_bist_fix(struct A1_chain *pChain, uint8_t chip_id)
 	uint8_t spi_tx[MAX_CMD_LENGTH];
 	uint8_t spi_rx[MAX_CMD_LENGTH];
 	
-	applog(LOG_WARNING,"send command [bist_fix] \n");
+	//applog(LOG_WARNING,"send command [bist_fix] \n");
 
 	memset(spi_tx, 0, sizeof(spi_tx));
 	if(!spi_send_command(pChain, CMD_BIST_FIX, chip_id, spi_tx, 2))
@@ -405,7 +405,7 @@ bool inno_cmd_write_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg)
 	uint16_t clc_crc;
 	uint8_t j;
 	
-	applog(LOG_INFO,"send command [write_reg] \n");
+	//applog(LOG_INFO,"send command [write_reg] \n");
 	assert(reg != NULL);
 
 	memset(spi_tx, 0, sizeof(spi_tx));
@@ -451,7 +451,7 @@ bool inno_cmd_write_sec_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *r
 		uint16_t clc_crc;
 		uint8_t j;
 		
-		applog(LOG_INFO,"send command [write_reg] \n");
+		//applog(LOG_INFO,"send command [write_reg] \n");
 		assert(reg != NULL);
 	
 		memset(spi_tx, 0, sizeof(spi_tx));
@@ -565,7 +565,7 @@ bool inno_cmd_read_result(struct A1_chain *pChain, uint8_t chip_id, uint8_t *res
 	struct spi_ctx *ctx = pChain->spi_ctx;
 	//applog(LOG_DEBUG,"%s,%d\n",__FUNCTION__,__LINE__);
 
-	applog(LOG_INFO,"send command [read_result] \r\n");
+	//applog(LOG_INFO,"send command [read_result] \r\n");
 	assert(res != NULL);
 	
 	memset(spi_tx, 0, sizeof(spi_tx));
@@ -751,7 +751,7 @@ uint32_t inno_cmd_test_chip(struct A1_chain *pChain)
        0x00,0x00,//CRC
 	   0x00,0x00
 	};
-	applog(LOG_INFO, "ChipNum:%d. \n", pChain->num_active_chips);
+	//applog(LOG_INFO, "ChipNum:%d. \n", pChain->num_active_chips);
 	for (k = 0; k < 3; k++){
 		for (i = pChain->num_active_chips; i > 0; i--) 
 		{

@@ -986,7 +986,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 				}
 			 if(!inno_cmd_read_reg(a1, i, reg))
 			   {
-			     printf("chip %d reg read failed\n ",i);
+			     applog(LOG_ERR,"chip %d reg read failed\n ",i);
 				 continue;
 			   	}else{
 
