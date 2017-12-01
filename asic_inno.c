@@ -550,7 +550,7 @@ static uint8_t *create_job(uint8_t chip_id, uint8_t job_id, struct work *work)
 
 #define COOLDOWN_MS			(30 * 1000)
 #define DISABLE_CHIP_FAIL_THRESHOLD	3
-#define LEAST_CORE_ONE_CHAIN	603
+#define LEAST_CORE_ONE_CHAIN	100
 #define RESET_CHAIN_CNT	2
 /********** disable / re-enable related section (temporary for testing) */
 int get_current_ms(void)
@@ -624,9 +624,9 @@ void check_disabled_chips(struct A1_chain *a1, int pllnum)
 		chip->fail_count = 0;
 		chip->fail_reset = 0;
 	}
-#if 0
+#if 1
 
- //if the core in chain least than 600, reinit this chain
+ //if the core in chain least than 100, reinit this chain
     if(asic_gpio_read(ctx->plug) == 0)
     {
         if(a1->num_cores <= LEAST_CORE_ONE_CHAIN)
@@ -660,11 +660,7 @@ void check_disabled_chips(struct A1_chain *a1, int pllnum)
             }
         }
     }
-    else
-    {
-        applog(LOG_WARNING, "******there is no board insert******");
-    }
-
+    
     return;
 
 failure:

@@ -69,6 +69,7 @@
 #define REPLY_SIZE				(2)
 #define BUF_SIZE					(128)
 #define TEMP_UPDATE_INT_MS	10000
+#define CHECK_DISABLE_TIME  0
 
 
 struct Test_bench Test_bench_Array[5]={
@@ -99,6 +100,8 @@ inno_reg_ctrl_t s_reg_ctrl;
 
 static uint32_t show_log[ASIC_CHAIN_NUM];
 static uint32_t update_temp[ASIC_CHAIN_NUM];
+static uint32_t check_disbale_flag[ASIC_CHAIN_NUM];
+
 #define  DANGEROUS_TMP  445// 505 //445
 #define STD_V          0.84
 
@@ -917,6 +920,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 	{
 		update_temp[cid]++;
 		show_log[cid]++;
+		check_disbale_flag[cid]++;
 
 		inno_log_print(cid, szShowLog[cid], sizeof(szShowLog[0]));
 		
@@ -1064,16 +1068,19 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 		usleep(200);
    }
 	
-	switch(cid){
-		case 0:check_disabled_chips(a1, A1Pll1);break;
-		case 1:check_disabled_chips(a1, A1Pll2);break;
-		case 2:check_disabled_chips(a1, A1Pll3);break;
-		case 3:check_disabled_chips(a1, A1Pll4);break;
-		case 4:check_disabled_chips(a1, A1Pll5);break;
-		case 5:check_disabled_chips(a1, A1Pll6);break;
-		case 6:check_disabled_chips(a1, A1Pll7);break;
-		case 7:check_disabled_chips(a1, A1Pll8);break;
-		default:;
+	if(check_disbale_flag[cid] > CHECK_DISABLE_TIME)
+	{
+		applog(LOG_INFO, "start to check disable chips");
+		switch(cid){
+			case 0:check_disabled_chips(a1, A1Pll1);;break;
+			case 1:check_disabled_chips(a1, A1Pll2);;break;
+			case 2:check_disabled_chips(a1, A1Pll3);;break;
+			case 3:check_disabled_chips(a1, A1Pll4);;break;
+			case 4:check_disabled_chips(a1, A1Pll5);;break;
+			case 5:check_disabled_chips(a1, A1Pll6);;break;
+			default:;
+		}
+		check_disbale_flag[cid] = 0;
 	}
 	mutex_unlock(&a1->lock);
 	
