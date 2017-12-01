@@ -353,7 +353,7 @@ int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e i
 				{FAN_FOUR_STAGE + FAN_DELTA,FAN_FOUR_STAGE - FAN_DELTA}
 			};
 		
-			int fan_speed[4]={30,60,80,100};
+			int fan_speed[4]={0,50,80,100};
 			
 	   
 			//applog(LOG_ERR, "Read:fan_ctrl->last_fan_tem = %d", fan_ctrl->last_fan_temp);
@@ -362,8 +362,9 @@ int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e i
 			inno_fan_temp_highest(fan_temp, chain_id,inno_type);
 			inno_fan_temp_avg(fan_temp, chain_id,inno_type);
             inno_fan_temp_lowest(fan_temp, chain_id,inno_type); 
-			asic_temp_clear(fan_temp, chain_id);
 			asic_temp_to_float(fan_temp, chain_id);
+			asic_temp_clear(fan_temp, chain_id);
+			
 
 		if(fan_temp->auto_ctrl)
 		{
@@ -384,7 +385,7 @@ int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e i
 				//applog(LOG_ERR, "%s +:arv:%5.2f, lest:%5.2f, hest:%5.2f, speed:%d%%", __func__, arvarge_f, lowest_f, highest_f, 100 - fan_ctrl->duty);
 			}
 				fan_temp->speed = fan_speed[fan_temp->last_fan_temp];
-				 printf("temp_highest %d, fan speed %d,last fan id: %d\n",fan_temp->temp_highest[chain_id],fan_speed[fan_temp->last_fan_temp],fan_temp->last_fan_temp);
+				 //printf("temp_highest %d, fan speed %d,last fan id: %d\n",fan_temp->temp_highest[chain_id],fan_speed[fan_temp->last_fan_temp],fan_temp->last_fan_temp);
 	   	}
 				inno_fan_speed_set(fan_temp,fan_temp->speed);
 			  

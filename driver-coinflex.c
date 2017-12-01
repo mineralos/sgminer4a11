@@ -974,7 +974,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 	}
 	else
 	{
-		if(update_temp[cid] > 2)
+		if(update_temp[cid] > 3)
 		{
 			for (i = a1->num_active_chips; i > 0; i--) 
 			{
