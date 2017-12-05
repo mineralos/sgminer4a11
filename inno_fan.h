@@ -55,7 +55,7 @@
 #define FAN_DELTA                         (23)//15
 #define TEMP_LABEL                        (594)
 #define ACTIVE_STAT                       (6)
-#define START_FAN_TH                      (527)
+#define START_FAN_TH                      (550)
 #define PREHEAT_SPEED                     (0)
 #define  DANGEROUS_TMP                    (453)// 505 //445
 
