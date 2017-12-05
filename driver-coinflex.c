@@ -102,7 +102,6 @@ static uint32_t show_log[ASIC_CHAIN_NUM];
 static uint32_t update_temp[ASIC_CHAIN_NUM];
 static uint32_t check_disbale_flag[ASIC_CHAIN_NUM];
 
-#define  DANGEROUS_TMP  445// 505 //445
 #define STD_V          0.84
 
 int spi_plug_status[ASIC_CHAIN_NUM] = {0};

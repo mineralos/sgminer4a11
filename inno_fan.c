@@ -413,7 +413,7 @@ void inno_fan_temp_update(inno_fan_temp_s *fan_temp,int chain_id,inno_type_e inn
 			//applog(LOG_ERR, "%s +:arv:%5.2f, lest:%5.2f, hest:%5.2f, speed:%d%%", __func__, arvarge_f, lowest_f, highest_f, 100 - fan_ctrl->duty);
 		}
 			fan_temp->speed = fan_speed[fan_temp->last_fan_temp];
-			// printf("temp_highest %d, fan speed %d,last fan id: %d\n",fan_temp->temp_highest[chain_id],fan_speed[fan_temp->last_fan_temp],fan_temp->last_fan_temp);
+		 printf("temp_highest %d, fan speed %d,last fan id: %d\n",fan_temp->temp_highest[chain_id],fan_speed[fan_temp->last_fan_temp],fan_temp->last_fan_temp);
    	}else{
 		fan_temp->speed = fan_speed[g_fan_speed];
 
