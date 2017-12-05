@@ -299,7 +299,7 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 		
 		asic_temp_sort(&g_fan_ctrl, chain_id);
 		inno_fan_temp_highest(&g_fan_ctrl, chain_id,g_type);
-		inno_fan_speed_set(&g_fan_ctrl,10);
+		inno_fan_speed_set(&g_fan_ctrl,PREHEAT_SPEED);
 		//applog(LOG_ERR,"higtest temp %d\n",g_fan_ctrl.temp_highest[cid]);
 	}while(g_fan_ctrl.temp_highest[cid] > START_FAN_TH);
 	return true;

@@ -31,9 +31,10 @@
 #ifdef A7
 #define ASIC_CHAIN_NUM 3
 #define ASIC_CHIP_NUM 33
-#define ACTIVE_STAT 6
-#define START_FAN_TH 527
+
 #endif
+
+
 
 #define ASIC_INNO_FAN_PWM0_DEVICE_NAME  ("/dev/pwmgen0.0")
 
@@ -53,6 +54,12 @@
 #define FAN_FOUR_STAGE                    (445)//100
 #define FAN_DELTA                         (23)//15
 #define TEMP_LABEL                        (594)
+#define ACTIVE_STAT                       (6)
+#define START_FAN_TH                      (527)
+#define PREHEAT_SPEED                     (0)
+
+
+
 #define MAGIC_NUM                         (100) 
 
 #define IOCTL_SET_FREQ(X) _IOR(MAGIC_NUM, (2*X), char *)
