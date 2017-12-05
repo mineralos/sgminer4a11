@@ -631,8 +631,8 @@ void check_disabled_chips(struct A1_chain *a1, int pllnum)
     {
         if(a1->num_cores <= LEAST_CORE_ONE_CHAIN)
         {
-            applog(LOG_WARNING, "****core:%d*start to reset the chain:%d******************", a1->num_cores, cid);
-            applog(LOG_WARNING, "****core:%d*start to reset the chain:%d******************", a1->num_cores, cid);
+           // applog(LOG_WARNING, "****core:%d*start to reset the chain:%d******************", a1->num_cores, cid);
+          //  applog(LOG_WARNING, "****core:%d*start to reset the chain:%d******************", a1->num_cores, cid);
             applog(LOG_WARNING, "****core:%d*start to reset the chain:%d******************", a1->num_cores, cid);
 
             asic_gpio_write(ctx->power_en, 0);
@@ -812,6 +812,9 @@ int prechain_detect(struct A1_chain *a1, int idxpll)
 	int cid = a1->chain_id;
 	uint8_t temp_reg[REG_LENGTH];
 	int i,nCount = 0;
+
+	asic_spi_init();
+	set_spi_speed(1500000);
 
 	inno_cmd_reset(a1, ADDR_BROADCAST,NULL);
 

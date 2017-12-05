@@ -2105,7 +2105,7 @@ static void devstatus(struct io_data *io_data, __maybe_unused SOCKETTYPE c, __ma
 	int numasc = 0;
 	int numpga = 0;
 	int i;
-
+	
 #ifdef HAVE_AN_ASIC
 	numasc = numascs();
 #endif
@@ -4050,6 +4050,37 @@ static void lcddata(struct io_data *io_data, __maybe_unused SOCKETTYPE c, __mayb
 		io_close(io_data);
 }
 
+
+static void fanmode(struct io_data *io_data, __maybe_unused SOCKETTYPE c, char *param, bool isjson, char group)
+{
+	if (param == NULL || *param == '\0') {
+		message(io_data, MSG_MISPDP, 0, NULL, isjson);
+		return;
+	}
+
+   // printf("%c,0x%x,%d\n",*param, *param,atoi(param));
+	g_auto_fan = atoi(param);
+
+}
+
+static void fanspd(struct io_data *io_data, __maybe_unused SOCKETTYPE c, char *param, bool isjson, char group)
+{
+ int fan_speed = 0;
+ 
+	if (param == NULL || *param == '\0') {
+	
+		message(io_data, MSG_MISPDP, 0, NULL, isjson);
+		
+		return;
+	}
+     fan_speed = atoi(param);
+//	printf("%c,0x%x,%d\n",*param, *param,atoi(param));
+	if((fan_speed >= 0)&&(fan_speed < 4))
+	  g_fan_speed = fan_speed;
+}
+
+
+
 static void checkcommand(struct io_data *io_data, __maybe_unused SOCKETTYPE c, char *param, bool isjson, char group);
 
 struct CMDS {
@@ -4107,8 +4138,10 @@ struct CMDS {
 	{ "ascset",		ascset,		true,		false },
 #endif
 	{ "asccount",		asccount,	false,	true },
-	{ "lcd",			lcddata,		false,	true },
+	{ "lcd",			lcddata,	false,	true },
 	{ "lockstats",		lockstats,	true,		true },
+    { "fanmode",		fanmode,	false,	true },
+    { "fanspd",		    fanspd,	    false,		true },
 	{ NULL,			NULL,		false,	false }
 };
 

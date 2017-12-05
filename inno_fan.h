@@ -29,9 +29,10 @@
 #define A7 
 //#define A6 0
 #ifdef A7
-#define ASIC_CHAIN_NUM 6
+#define ASIC_CHAIN_NUM 3
 #define ASIC_CHIP_NUM 33
 #define ACTIVE_STAT 6
+#define START_FAN_TH 527
 #endif
 
 #define ASIC_INNO_FAN_PWM0_DEVICE_NAME  ("/dev/pwmgen0.0")
@@ -72,10 +73,12 @@
 /*********************************** 全局变量 **********************************/
 typedef struct {
 	int temp[ASIC_CHAIN_NUM][ASIC_CHIP_NUM];    /* 用于存放所有链上的芯片温度*/
+	bool valid_temp[ASIC_CHAIN_NUM][ASIC_CHIP_NUM];  //用于判断该温度是否有效
     int index[ASIC_CHAIN_NUM];                  /*对应链上的chip_id */
 
     int speed;                              /* 0 - 100用于设置风扇转速(可能32档) */
-    bool auto_ctrl;
+    int last_fan_speed;
+	int auto_ctrl;
 
     int temp_arvarge[ASIC_CHAIN_NUM];          /*对应链上的平均温度*/
     int temp_highest[ASIC_CHAIN_NUM];            /*对应链上的最高温度*/
@@ -111,7 +114,7 @@ int inno_fan_temp_lowest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e in
 
 int inno_fan_temp_avg(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e inno_type); /*提供当前链所有芯片统计的实时平均温度*/
 
-void inno_fan_temp_update(inno_fan_temp_s *fan_temp,int chain_id, inno_type_e inno_type);  /*用于更新风扇转速与温度显示数据*/
+void inno_fan_temp_update(inno_fan_temp_s *fan_temp,int chain_id, inno_type_e inno_type, int *fan_level);  /*用于更新风扇转速与温度显示数据*/
 
 void inno_fan_speed_set(inno_fan_temp_s *fan_temp, int speed);  /*设置风扇转速 */
 

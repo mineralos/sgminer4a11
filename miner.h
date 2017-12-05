@@ -135,8 +135,8 @@ extern int opt_voltage6;
 extern int opt_voltage7;
 extern int opt_voltage8;
 
-extern bool auto_fan;
-extern int fan_speed;
+extern int g_auto_fan;
+extern int g_fan_speed;
 
 #endif
 

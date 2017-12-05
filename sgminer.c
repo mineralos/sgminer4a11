@@ -1224,12 +1224,12 @@ static struct opt_table opt_config_table[] = {
 	OPT_WITH_ARG("--A1Vol8",
 			 set_int_0_to_31, opt_show_intval, &opt_voltage8,
 			 "set voltage (1 ~ 31)"),
-#if 0
-    OPT_WITH_ARG("--A1Speed",
-			 set_int_0_to_100, opt_show_intval, &fan_speed,
+#if 1
+    OPT_WITH_ARG("--A1Fanspd",
+			 set_int_0_to_100, opt_show_intval, &g_fan_speed,
 			 "set fan speed (0 ~ 100)"),
-	OPT_WITHOUT_ARG("--A1Fanctrl",
-			 opt_set_bool, &auto_fan,
+	OPT_WITHOUT_ARG("--A1Fanmode",
+			 opt_set_bool, &g_auto_fan,
 			 "set fan control (manual ~ auto)"),
 #endif
 

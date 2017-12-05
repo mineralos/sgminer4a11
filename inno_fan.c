@@ -19,9 +19,10 @@
 /*----------------------------------- 声明区 ----------------------------------*/
 /********************************** 变量声明区 *********************************/
 /* FAN CTRL */
-inno_fan_temp_s s_fan_ctrl;
-bool auto_fan = true;
-int fan_speed = 50;
+extern inno_fan_temp_s g_fan_ctrl;
+int g_auto_fan = 1;
+int g_fan_speed = 1;
+int fan_speed[4]={10,50,80,100};
 
 
 /********************************** 函数声明区 *********************************/
@@ -119,7 +120,8 @@ void asic_temp_clear(inno_fan_temp_s *fan_temp, int chain_id)
    int i;
     for(i = 0; i < ASIC_CHIP_NUM; i++)  
 	{       
-	fan_temp->temp[chain_id][i] = 0; 
+	fan_temp->temp[chain_id][i] = 0;
+	fan_temp->valid_temp[chain_id][i] = 0;
 	}
 }
 
@@ -195,18 +197,17 @@ void inno_fan_temp_init(inno_fan_temp_s *fan_temp)
 {
 	int chain_id = 0;
 	int speed = 80;
-    printf("auto_fan %s, fan_speed %d\n",auto_fan == false?"false":"true", fan_speed);
 	pthread_mutex_init(&fan_temp->lock,NULL);
 	
-    fan_temp->auto_ctrl = auto_fan;
-	fan_temp->speed = fan_speed;
+    fan_temp->auto_ctrl = g_auto_fan;
+	fan_temp->speed = speed;
 	
-	if(auto_fan)
+	if(g_auto_fan)
 	{
 	 inno_fan_speed_set(fan_temp,speed);	 
 	}else
 	{
-		inno_fan_speed_set(fan_temp,fan_speed);
+		inno_fan_speed_set(fan_temp,fan_speed[g_fan_speed]);
 	}
 
 	for(chain_id = 0; chain_id < ASIC_CHAIN_NUM; chain_id++)
@@ -222,7 +223,7 @@ void inno_fan_temp_init(inno_fan_temp_s *fan_temp)
 	printf( "fan speed thrd:%d.\n", ASIC_INNO_FAN_TEMP_MAX_THRESHOLD);
 	printf( "fan up thrd:%d.\n", ASIC_INNO_FAN_TEMP_UP_THRESHOLD);
 	printf( "fan down thrd:%d.\n", ASIC_INNO_FAN_TEMP_DOWN_THRESHOLD);
-	
+    printf("auto_fan %s, fan_speed %d\n",g_auto_fan == 0?"false":"true", g_fan_speed);
 }
 	
 	
@@ -234,7 +235,7 @@ bool inno_fan_temp_add(inno_fan_temp_s *fan_temp,int chain_id, int chip_id, int 
    return false;
   }
   
-  
+  fan_temp->valid_temp[chain_id][chip_id] = 1;
   fan_temp->temp[chain_id][chip_id-1] = temp;
   //printf("chain %d, chip %d, temp %d\n",chain_id, chip_id,fan_temp->temp[chain_id][chip_id-1]);
   return true;
@@ -281,156 +282,170 @@ int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e i
   return fan_temp->temp_highest[chain_id];
 }
 
-	
-	int inno_fan_temp_lowest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e inno_type)
-	{
-		 int i = 0;
-		 int low_avg = 0;
-	     static int stat_lo = 0;
-		 
-	  switch(inno_type)
-	  {
-	   case INNO_TYPE_A4:
-		 printf("Sorry do not have such type named INNO_TYPE_A4\n");
-		 break;
-	   
-	   case INNO_TYPE_A5:
-	   case INNO_TYPE_A6:
-	   case INNO_TYPE_A7:
-	   case INNO_TYPE_A8:
-		for(i=0; i<ACTIVE_STAT; i++)
-		{
-		 if(fan_temp->temp[chain_id][ASIC_CHIP_NUM-i-1] != 0)
-		    low_avg += fan_temp->temp[chain_id][ASIC_CHIP_NUM-i-1];
-		 else 
-		 	stat_lo++;
-		}
 
-		if(stat_lo != ACTIVE_STAT)
-		  fan_temp->temp_lowest[chain_id] = (low_avg/(ACTIVE_STAT - stat_lo));
-	    
-		stat_lo = 0;
-		 break;
-	   
-	   case INNO_TYPE_A9:
-		printf("Sorry do not have such type named INNO_TYPE_A9\n");
-	   default:
-		 break;
-	
-	 }
-	
-	  return fan_temp->temp_lowest[chain_id];
-	}
-	
-	int inno_fan_temp_avg(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e inno_type)
-	{ 
-	  int i = 0;
-	  int temp_avg = 0;
-	  static int stat_avg = 0;
-	  
-	  switch(inno_type)
-	  {
-	   case INNO_TYPE_A4:
-		 printf("Sorry do not have such type named INNO_TYPE_A4\n");
-		 break;
-	   
-	   case INNO_TYPE_A5:
-	   case INNO_TYPE_A6:
-	   case INNO_TYPE_A7:
-	   case INNO_TYPE_A8:
-		for(i=0; i<ASIC_CHIP_NUM; i++)
-		{
-		 if(fan_temp->temp[chain_id][i] != 0)
-		   temp_avg += fan_temp->temp[chain_id][i];
-		 else 
-		 	stat_avg++;
-		}
-
-		if(stat_avg != ASIC_CHIP_NUM)
-		 fan_temp->temp_arvarge[chain_id] = (temp_avg/(ASIC_CHIP_NUM - stat_avg));
-
-		 stat_avg = 0;
-		 break;
-	   
-	   case INNO_TYPE_A9:
-		printf("Sorry do not have such type named INNO_TYPE_A9\n");
-	   default:
-		 break;
-	
-	 }
-	 return fan_temp->temp_arvarge[chain_id];
+int inno_fan_temp_lowest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e inno_type)
+{
+	 int i = 0;
+	 int low_avg = 0;
+     static int stat_lo = 0;
 	 
-	}
-	
-	void inno_fan_temp_update(inno_fan_temp_s *fan_temp,int chain_id,inno_type_e inno_type)
+  switch(inno_type)
+  {
+   case INNO_TYPE_A4:
+	 printf("Sorry do not have such type named INNO_TYPE_A4\n");
+	 break;
+   
+   case INNO_TYPE_A5:
+   case INNO_TYPE_A6:
+   case INNO_TYPE_A7:
+   case INNO_TYPE_A8:
+	for(i=0; i<ACTIVE_STAT; i++)
 	{
-	   int delta[4][2]={
-				//{FAN_FIRST_STAGE + FAN_DELTA,0},
-				{FAN_FIRST_STAGE + FAN_DELTA,FAN_FIRST_STAGE - FAN_DELTA},
-				{FAN_SECOND_STAGE + FAN_DELTA,FAN_SECOND_STAGE - FAN_DELTA},
-				{FAN_THIRD_STAGE + FAN_DELTA,FAN_THIRD_STAGE - FAN_DELTA},
-				{FAN_FOUR_STAGE + FAN_DELTA,FAN_FOUR_STAGE - FAN_DELTA}
-			};
-		
-			int fan_speed[4]={0,50,80,100};
-			
-	   
-			//applog(LOG_ERR, "Read:fan_ctrl->last_fan_tem = %d", fan_ctrl->last_fan_temp);
-
-			asic_temp_sort(fan_temp, chain_id);
-			inno_fan_temp_highest(fan_temp, chain_id,inno_type);
-			inno_fan_temp_avg(fan_temp, chain_id,inno_type);
-            inno_fan_temp_lowest(fan_temp, chain_id,inno_type); 
-			asic_temp_to_float(fan_temp, chain_id);
-			asic_temp_clear(fan_temp, chain_id);
-			
-
-		if(fan_temp->auto_ctrl)
-		{
-		
-			if(fan_temp->temp_highest[chain_id] > delta[fan_temp->last_fan_temp][0])
-			{
-				if(fan_temp->last_fan_temp > 0)
-				{
-					fan_temp->last_fan_temp -= 1;
-				}
-				//applog(LOG_ERR, "%s +:arv:%5.2f, lest:%5.2f, hest:%5.2f, speed:%d%%", __func__, arvarge_f, lowest_f, highest_f, 100 - fan_ctrl->duty); 
-			}else if (fan_temp->temp_highest[chain_id] < delta[fan_temp->last_fan_temp][1])
-			{
-				if(fan_temp->last_fan_temp < 3)
-				{
-					fan_temp->last_fan_temp += 1;
-				}
-				//applog(LOG_ERR, "%s +:arv:%5.2f, lest:%5.2f, hest:%5.2f, speed:%d%%", __func__, arvarge_f, lowest_f, highest_f, 100 - fan_ctrl->duty);
-			}
-				fan_temp->speed = fan_speed[fan_temp->last_fan_temp];
-				 //printf("temp_highest %d, fan speed %d,last fan id: %d\n",fan_temp->temp_highest[chain_id],fan_speed[fan_temp->last_fan_temp],fan_temp->last_fan_temp);
-	   	}
-				inno_fan_speed_set(fan_temp,fan_temp->speed);
-			  
+	 if(fan_temp->temp[chain_id][ASIC_CHIP_NUM-i-1] != 0)
+	    low_avg += fan_temp->temp[chain_id][ASIC_CHIP_NUM-i-1];
+	 else 
+	 	stat_lo++;
 	}
-	
-	
-#if 0	 
-	int main(int argc, char *argv[])
+
+	if(stat_lo != ACTIVE_STAT)
+	  fan_temp->temp_lowest[chain_id] = (low_avg/(ACTIVE_STAT - stat_lo));
+    
+	stat_lo = 0;
+	 break;
+   
+   case INNO_TYPE_A9:
+	printf("Sorry do not have such type named INNO_TYPE_A9\n");
+   default:
+	 break;
+
+ }
+
+  return fan_temp->temp_lowest[chain_id];
+}
+
+int inno_fan_temp_avg(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e inno_type)
+{ 
+  int i = 0;
+  int temp_avg = 0;
+  static int stat_avg = 0;
+  
+  switch(inno_type)
+  {
+   case INNO_TYPE_A4:
+	 printf("Sorry do not have such type named INNO_TYPE_A4\n");
+	 break;
+   
+   case INNO_TYPE_A5:
+   case INNO_TYPE_A6:
+   case INNO_TYPE_A7:
+   case INNO_TYPE_A8:
+	for(i=0; i<ASIC_CHIP_NUM; i++)
 	{
-		int i = 0;
-		int j = 0;
-		inno_fan_temp_s fan_temp;
-		int temp[33] = {0};
-		int fan_dep_temp = 0;
+	 if(fan_temp->temp[chain_id][i] != 0)
+	   temp_avg += fan_temp->temp[chain_id][i];
+	 else 
+	 	stat_avg++;
+	}
+
+	if(stat_avg != ASIC_CHIP_NUM)
+	 fan_temp->temp_arvarge[chain_id] = (temp_avg/(ASIC_CHIP_NUM - stat_avg));
+
+	 stat_avg = 0;
+	 break;
+   
+   case INNO_TYPE_A9:
+	printf("Sorry do not have such type named INNO_TYPE_A9\n");
+   default:
+	 break;
+
+ }
+ return fan_temp->temp_arvarge[chain_id];
+ 
+}
+
+void inno_fan_temp_update(inno_fan_temp_s *fan_temp,int chain_id,inno_type_e inno_type, int *fan_level)
+{
+   int delta[4][2]={
+			//{FAN_FIRST_STAGE + FAN_DELTA,0},
+			{FAN_FIRST_STAGE + FAN_DELTA,FAN_FIRST_STAGE - FAN_DELTA},
+			{FAN_SECOND_STAGE + FAN_DELTA,FAN_SECOND_STAGE - FAN_DELTA},
+			{FAN_THIRD_STAGE + FAN_DELTA,FAN_THIRD_STAGE - FAN_DELTA},
+			{FAN_FOUR_STAGE + FAN_DELTA,FAN_FOUR_STAGE - FAN_DELTA}
+		};
+	
+		//printf("before fan_speed %d, %d, %d, %d\n",fan_speed[0],fan_speed[1],fan_speed[2],fan_speed[3]);
 		
-		for(i=0; i<argc-1; i++)
-		{
-		printf("argv:%s\n",argv[i]);
-		  temp[i] = atoi(argv[i+1]);
+		if(fan_level != NULL){
+           // printf("size %d, %d\n",sizeof(fan_speed),sizeof(fan_speed[0]));
+			memcpy(fan_speed, fan_level,sizeof(fan_speed));
 		}
-	   // const char * log_path = "./";
-		//int size = 10000;
-		int chain_id = 0;
-		inno_type_e inno_type = INNO_TYPE_A7;
 		
-		printf("Hello, World!\n");
+		//printf("level_speed %d, %d, %d, %d\n",fan_level[0],fan_level[1],fan_level[2],fan_level[3]);
+		//printf("after fan_speed %d, %d, %d, %d\n",fan_speed[0],fan_speed[1],fan_speed[2],fan_speed[3]);
+		fan_temp->auto_ctrl = g_auto_fan;
+   
+		//applog(LOG_ERR, "Read:fan_ctrl->last_fan_tem = %d", fan_ctrl->last_fan_temp);
+
+		asic_temp_sort(fan_temp, chain_id);
+		inno_fan_temp_highest(fan_temp, chain_id,inno_type);
+		inno_fan_temp_avg(fan_temp, chain_id,inno_type);
+        inno_fan_temp_lowest(fan_temp, chain_id,inno_type); 
+		asic_temp_to_float(fan_temp, chain_id);
+		asic_temp_clear(fan_temp, chain_id);
+		
+
+	if(fan_temp->auto_ctrl)
+	{
+	
+		if(fan_temp->temp_highest[chain_id] > delta[fan_temp->last_fan_temp][0])
+		{
+			if(fan_temp->last_fan_temp > 0)
+			{
+				fan_temp->last_fan_temp -= 1;
+			}
+			//applog(LOG_ERR, "%s +:arv:%5.2f, lest:%5.2f, hest:%5.2f, speed:%d%%", __func__, arvarge_f, lowest_f, highest_f, 100 - fan_ctrl->duty); 
+		}else if (fan_temp->temp_highest[chain_id] < delta[fan_temp->last_fan_temp][1])
+		{
+			if(fan_temp->last_fan_temp < 3)
+			{
+				fan_temp->last_fan_temp += 1;
+			}
+			//applog(LOG_ERR, "%s +:arv:%5.2f, lest:%5.2f, hest:%5.2f, speed:%d%%", __func__, arvarge_f, lowest_f, highest_f, 100 - fan_ctrl->duty);
+		}
+			fan_temp->speed = fan_speed[fan_temp->last_fan_temp];
+			// printf("temp_highest %d, fan speed %d,last fan id: %d\n",fan_temp->temp_highest[chain_id],fan_speed[fan_temp->last_fan_temp],fan_temp->last_fan_temp);
+   	}else{
+		fan_temp->speed = fan_speed[g_fan_speed];
+
+			 }
+		if(fan_temp->speed != fan_temp->last_fan_speed)
+		{
+		    fan_temp->last_fan_speed = fan_temp->speed;
+			inno_fan_speed_set(fan_temp,fan_temp->speed);
+		}  
+}
+
+
+#if 0	 
+int main(int argc, char *argv[])
+{
+	int i = 0;
+	int j = 0;
+	inno_fan_temp_s fan_temp;
+	int temp[33] = {0};
+	int fan_dep_temp = 0;
+	
+	for(i=0; i<argc-1; i++)
+	{
+	printf("argv:%s\n",argv[i]);
+	  temp[i] = atoi(argv[i+1]);
+	}
+   // const char * log_path = "./";
+	//int size = 10000;
+	int chain_id = 0;
+	inno_type_e inno_type = INNO_TYPE_A7;
+	
+	printf("Hello, World!\n");
 	   // im_log_init(log_path, size);
 		inno_fan_temp_init(&fan_temp);
 	
@@ -457,5 +472,5 @@ int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e i
 		
 		return 0;
 	
-	}
+}
 #endif

@@ -95,7 +95,7 @@ static uint8_t A1Pll7=A5_PLL_CLOCK_400MHz;
 static uint8_t A1Pll8=A5_PLL_CLOCK_400MHz;
 
 /* FAN CTRL */
-extern inno_fan_temp_s s_fan_ctrl;
+inno_fan_temp_s g_fan_ctrl;
 inno_reg_ctrl_t s_reg_ctrl;
 
 static uint32_t show_log[ASIC_CHAIN_NUM];
@@ -108,6 +108,7 @@ static uint32_t check_disbale_flag[ASIC_CHAIN_NUM];
 int spi_plug_status[ASIC_CHAIN_NUM] = {0};
 
 char szShowLog[ASIC_CHAIN_NUM][ASIC_CHIP_NUM][256] = {0};
+int fan_level[4]={10,50,80,100};
 
 hardware_version_e g_hwver;
 inno_type_e g_type;
@@ -207,6 +208,7 @@ void exit_A1_chain(struct A1_chain *a1)
 	a1->spi_ctx = NULL;
 	free(a1);
 }
+
 int  cfg_tsadc_divider(struct A1_chain *a1,uint32_t pll_clk)
 {
 	uint8_t  cmd_return;
@@ -268,7 +270,7 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 {
 	int i;
 	uint8_t reg[64];
-	
+	//applog(LOG_ERR, "start read temp cid %d, a1 addr 0x%x\n", chain_id,a1);
 	/* update temp database */
 	uint32_t temp = 0;
 
@@ -278,24 +280,28 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 	}
 	int cid = a1->chain_id;
 
-	while(s_fan_ctrl.temp_highest[cid] > FAN_FIRST_STAGE)
-	{
+	//while(s_fan_ctrl.temp_highest[cid] > 505)//FAN_FIRST_STAGE)
+	do{
 		for (i = a1->num_active_chips; i > 0; i--)
 		{ 
 			if (!inno_cmd_read_reg(a1, i, reg))
 			{
 				applog(LOG_ERR, "%d: Failed to read temperature sensor register for chip %d ", a1->chain_id, i);
+				
 				continue;
 			}
 			
 
 			temp = 0x000003ff & ((reg[7] << 8) | reg[8]);
-			inno_fan_temp_add(&s_fan_ctrl, cid, i, temp);
+			//applog(LOG_ERR,"cid %d,chip %d,temp %d\n",cid, i, temp);
+			inno_fan_temp_add(&g_fan_ctrl, cid, i, temp);
 		} 
 		
-		asic_temp_sort(&s_fan_ctrl, chain_id);
-		inno_fan_temp_highest(&s_fan_ctrl, chain_id,g_type);
-	}
+		asic_temp_sort(&g_fan_ctrl, chain_id);
+		inno_fan_temp_highest(&g_fan_ctrl, chain_id,g_type);
+		inno_fan_speed_set(&g_fan_ctrl,10);
+		//applog(LOG_ERR,"higtest temp %d\n",g_fan_ctrl.temp_highest[cid]);
+	}while(g_fan_ctrl.temp_highest[cid] > START_FAN_TH);
 	return true;
 }
 
@@ -346,16 +352,16 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
 	
 	for (i = 0; i < a1->num_active_chips; i++){
 		check_chip(a1, i);
-        inno_fan_temp_add(&s_fan_ctrl, chain_id, i+1, a1->chips[i].temp);
+        inno_fan_temp_add(&g_fan_ctrl, chain_id, i+1, a1->chips[i].temp);
     }
 
-	inno_fan_temp_update(&s_fan_ctrl,chain_id, g_type);
+	inno_fan_temp_update(&g_fan_ctrl,chain_id, g_type,fan_level);
 	
 	applog(LOG_WARNING, "[chain_ID:%d]: Found %d Chips With Total %d Active Cores",a1->chain_id, a1->num_active_chips, a1->num_cores);
-	applog(LOG_WARNING, "[chain_ID]: Temp:%d\n",s_fan_ctrl.temp_highest[chain_id]);
+	applog(LOG_WARNING, "[chain_ID]: Temp:%d\n",g_fan_ctrl.temp_highest[chain_id]);
 
 #if 1
-	if(s_fan_ctrl.temp_highest[chain_id] < DANGEROUS_TMP){
+	if(g_fan_ctrl.temp_highest[chain_id] < DANGEROUS_TMP){
 		//asic_gpio_write(spi[a1->chain_id]->power_en, 0);
 		//loop_blink_led(spi[a1->chain_id]->led, 10);
 		goto failure;
@@ -509,6 +515,11 @@ static bool detect_A1_chain(void)
 		applog(LOG_WARNING, "Detected the %d A1 chain with %d chips",i, chain[i]->num_active_chips);
 	}
 
+	applog(LOG_ERR, "init_ReadTemp...");
+	for(i = 0; i < ASIC_CHAIN_NUM; i++){
+		init_ReadTemp(chain[i],i);
+	}
+	
 	for(i = 0; i < ASIC_CHAIN_NUM; i++)
 	{		
 		ret = inno_preinit(chain[i], i);
@@ -518,11 +529,6 @@ static bool detect_A1_chain(void)
 	}
 
 	usleep(200000);
-	
-	for(i = 0; i < ASIC_CHAIN_NUM; i++){
-		init_ReadTemp(chain[i],i);
-	}
-	applog(LOG_ERR, "init_ReadTemp...");
 	
 	if(g_hwver == HARDWARE_VERSION_G9){
 
@@ -740,9 +746,9 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 	g_type = inno_get_miner_type();
 	
 	memset(&s_reg_ctrl,0,sizeof(s_reg_ctrl));
-	memset(&s_fan_ctrl,0,sizeof(s_fan_ctrl));
+	memset(&g_fan_ctrl,0,sizeof(g_fan_ctrl));
 	
-	inno_fan_temp_init(&s_fan_ctrl);
+	inno_fan_temp_init(&g_fan_ctrl);
 		
 	A1Pll1 = A1_ConfigA1PLLClock(opt_A1Pll1);
 	A1Pll2 = A1_ConfigA1PLLClock(opt_A1Pll2);
@@ -927,7 +933,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 		a1->last_temp_time = get_current_ms();
 	}
 
-	if(s_fan_ctrl.temp_highest[a1->chain_id] < DANGEROUS_TMP){
+	if(g_fan_ctrl.temp_highest[a1->chain_id] < DANGEROUS_TMP){
 		asic_gpio_write(spi[a1->chain_id]->power_en, 0);
 		loop_blink_led(spi[a1->chain_id]->led, 10);
 	   	//early_quit(1,"Notice Chain %d temp:%d Maybe Has Some Problem in Temperate\n",a1->chain_id,s_fan_ctrl.temp_highest[a1->chain_id]);
@@ -1000,17 +1006,17 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 
             	temp = 0x000003ff & ((reg[7] << 8) | reg[8]);
 				chip->temp = temp;
-            	inno_fan_temp_add(&s_fan_ctrl, cid, i, temp);
+            	inno_fan_temp_add(&g_fan_ctrl, cid, i, temp);
             
 				cnt++;
 				} 
 			 }
 
-			inno_fan_temp_update(&s_fan_ctrl, cid, g_type);
-			cgpu->temp = s_fan_ctrl.temp2float[cid][1];
-			cgpu->temp_max = s_fan_ctrl.temp2float[cid][0];
-			cgpu->temp_min = s_fan_ctrl.temp2float[cid][2];
-			cgpu->fan_duty = s_fan_ctrl.speed;
+			inno_fan_temp_update(&g_fan_ctrl, cid, g_type,fan_level);
+			cgpu->temp = g_fan_ctrl.temp2float[cid][1];
+			cgpu->temp_max = g_fan_ctrl.temp2float[cid][0];
+			cgpu->temp_min = g_fan_ctrl.temp2float[cid][2];
+			cgpu->fan_duty = g_fan_ctrl.speed;
 					
 			cgpu->chip_num = a1->num_active_chips;
 			cgpu->core_num = a1->num_cores; 
