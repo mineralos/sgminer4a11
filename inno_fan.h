@@ -48,16 +48,17 @@
 #define ASIC_INNO_FAN_TEMP_DOWN_THRESHOLD (35)
 #define ERR_HIGH_TEMP                     (400)
 #define ERR_LOW_TEMP                      (655)
-#define FAN_FIRST_STAGE                   (557)//25
+#define FAN_FIRST_STAGE                   (550)//30
 #define FAN_SECOND_STAGE                  (520)//50
-#define FAN_THIRD_STAGE                   (483)//75
-#define FAN_FOUR_STAGE                    (445)//100
+#define FAN_THIRD_STAGE                   (490)//70
+#define FAN_FOUR_STAGE                    (460)//90
 #define FAN_DELTA                         (23)//15
 #define TEMP_LABEL                        (594)
 #define ACTIVE_STAT                       (6)
-#define START_FAN_TH                      (550)
+#define START_FAN_TH                      (550)//30
 #define PREHEAT_SPEED                     (0)
-#define  DANGEROUS_TMP                    (453)// 505 //445
+#define DANGEROUS_TMP                     (460)//90
+#define PRE_DGR_TEMP                      (456)//92.x
 
 #define MAGIC_NUM                         (100) 
 
@@ -69,7 +70,7 @@
 #define ASIC_INNO_FAN_TEMP_MARGIN_RATE  (5.0f / 100.0f)
 #define ASIC_INNO_FAN_CTLR_FREQ_DIV     (0)
 
-
+//{"chain":"1","chip":"2","temp":"30"}
 
 /*********************************** 类型定义 **********************************/
 
@@ -85,6 +86,7 @@ typedef struct {
     int speed;                              /* 0 - 100用于设置风扇转速(可能32档) */
     int last_fan_speed;
 	int auto_ctrl;
+	int pre_warn[4];
 
     int temp_arvarge[ASIC_CHAIN_NUM];          /*对应链上的平均温度*/
     int temp_highest[ASIC_CHAIN_NUM];            /*对应链上的最高温度*/

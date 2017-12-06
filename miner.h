@@ -498,13 +498,15 @@ struct cgpu_info {
 
 	bool new_work;
 
-	int temp;
+	float temp;
 	//add by witt
-	int temp_max;
-	int temp_min;
+	float temp_max;
+	float temp_min;
 	int chip_num;
 //	int core_num;
 	int fan_duty;
+    int pre_heat;
+    int temp_prewarn[4];
 	
 	int cutofftemp;
 

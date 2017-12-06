@@ -265,10 +265,55 @@ int chain_detect_reload(struct A1_chain *a1)
 	return a1->num_chips;
 }
 
+ #define NET_PORT 53
+ #define NET_IP "8.8.8.8" //谷歌DNS
+
+ //获取联网状态
+static int check_net(void)
+ {
+
+         int fd; 
+         int in_len=0;
+         struct sockaddr_in servaddr;
+         //char buf[128];
+ 
+         in_len = sizeof(struct sockaddr_in);
+         fd = socket(AF_INET,SOCK_STREAM,0);
+         if(fd < 0)
+         {   
+                 perror("socket");
+                 return -1; 
+         }   
+ 
+         /*设置默认服务器的信息*/
+         servaddr.sin_family = AF_INET;
+         servaddr.sin_port = htons(NET_PORT);
+         servaddr.sin_addr.s_addr = inet_addr(NET_IP);
+         memset(servaddr.sin_zero,0,sizeof(servaddr.sin_zero));
+ 
+         /*connect 函数*/
+         if(connect(fd,(struct sockaddr* )&servaddr,in_len) < 0 ) 
+         {   
+ 
+               //  printf("not connect to internet!\n ");
+                 close(fd);
+                 return -2; //没有联网成功
+         }   
+         else
+         {   
+              //   printf("=====connect ok!=====\n");
+                 close(fd);
+                 return 1;
+         }   
+ }
+
+
 bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 {
-	int i;
+	int i,j;
 	uint8_t reg[64];
+	static int cnt = 0;
+	
 	//applog(LOG_ERR, "start read temp cid %d, a1 addr 0x%x\n", chain_id,a1);
 	/* update temp database */
 	uint32_t temp = 0;
@@ -277,7 +322,9 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 	{
 		return ;
 	}
+	
 	int cid = a1->chain_id;
+	//struct cgpu_info *cgpu = a1->cgpu;
 
 	//while(s_fan_ctrl.temp_highest[cid] > 505)//FAN_FIRST_STAGE)
 	do{
@@ -299,8 +346,31 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 		asic_temp_sort(&g_fan_ctrl, chain_id);
 		inno_fan_temp_highest(&g_fan_ctrl, chain_id,g_type);
 		inno_fan_speed_set(&g_fan_ctrl,PREHEAT_SPEED);
+		a1->pre_heat = 1;
+
+        if(check_net()== -2)
+		{
+		  cnt++;
+          //printf("cnt = %d\n",cnt);
+		}
+		else
+		{
+		 //printf("ping ok\n");
+		 cnt = 0;
+		}
+		
+		if(cnt > 20)
+		{
+		  printf("shutdown spi link\n");
+		  power_down_all_chain();
+		  
+		  for(j=0; j<ASIC_CHAIN_NUM; j++)
+		    loop_blink_led(spi[j]->led,10);
+		  
+		}
 		//applog(LOG_ERR,"higtest temp %d\n",g_fan_ctrl.temp_highest[cid]);
 	}while(g_fan_ctrl.temp_highest[cid] > START_FAN_TH);
+	a1->pre_heat = 0;
 	return true;
 }
 
@@ -1016,7 +1086,11 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 			cgpu->temp_max = g_fan_ctrl.temp2float[cid][0];
 			cgpu->temp_min = g_fan_ctrl.temp2float[cid][2];
 			cgpu->fan_duty = g_fan_ctrl.speed;
-					
+			cgpu->pre_heat = a1->pre_heat;
+			//printf("g_fan_ctrl: cid %d,chip %d, chip %d,hi %d\n",g_fan_ctrl.pre_warn[0],g_fan_ctrl.pre_warn[1],g_fan_ctrl.pre_warn[2],g_fan_ctrl.pre_warn[3]);
+			memcpy(cgpu->temp_prewarn,g_fan_ctrl.pre_warn, 4*sizeof(int));
+			//printf("cgpu: cid %d,chip %d, chip %d,hi %d\n",cgpu->temp_prewarn[0],cgpu->temp_prewarn[1],cgpu->temp_prewarn[2],cgpu->temp_prewarn[3]);
+
 			cgpu->chip_num = a1->num_active_chips;
 			cgpu->core_num = a1->num_cores; 
 

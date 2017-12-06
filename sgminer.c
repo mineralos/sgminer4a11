@@ -6485,6 +6485,7 @@ static void *stratum_rthread(void *userdata)
 	        {
 				power_down_all_chain();
 				zynq_spi_exit();
+				
                cnt = 0;
 				exit(1);		
 	         }
@@ -9981,7 +9982,10 @@ int main(int argc, char *argv[])
 				applog(LOG_ERR, "Press any key to exit, or sgminer will wait indefinitely for an alive pool.");
 		}
 		if (!use_curses)
+		{
+		    power_down_all_chain();
 			early_quit(0, "No servers could be used! Exiting.");
+		}	
 #ifdef HAVE_CURSES
 		touchwin(logwin);
 		wrefresh(logwin);

@@ -19,7 +19,7 @@
 /*----------------------------------- 声明区 ----------------------------------*/
 /********************************** 变量声明区 *********************************/
 /* FAN CTRL */
-extern inno_fan_temp_s g_fan_ctrl;
+//extern inno_fan_temp_s g_fan_ctrl;
 int g_auto_fan = 1;
 int g_fan_speed = 1;
 int fan_speed[4]={10,50,80,100};
@@ -258,20 +258,45 @@ int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e i
    case INNO_TYPE_A6:
    case INNO_TYPE_A7:
    case INNO_TYPE_A8:
-	for(i=0; i<ACTIVE_STAT; i++)
+	for(i=0; i<ASIC_CHIP_NUM; i++)
 	{
-	 if(fan_temp->temp[chain_id][i] != 0)
-	   high_avg += fan_temp->temp[chain_id][i];
-	 else
-	 	stat_hi++;
-	}
-	
-	if(stat_hi != ACTIVE_STAT)  
-	  fan_temp->temp_highest[chain_id] = (high_avg/(ACTIVE_STAT - stat_hi));
-
-   stat_hi = 0;
-	 break;
-   
+	   if(fan_temp->temp[chain_id][i] != 0)
+	   {
+	 	  if(fan_temp->temp[chain_id][i] < PRE_DGR_TEMP)
+	 	  {
+	 	     fan_temp->pre_warn[0] = chain_id;
+			 fan_temp->pre_warn[1] = i;
+			 fan_temp->pre_warn[2] = 0;
+			 fan_temp->pre_warn[3] = fan_temp->temp[chain_id][i];
+	 	     printf("There maybe some problem in chain %d, chip %d,The highest temp %d\n",chain_id,i,fan_temp->temp[chain_id][i]);
+		     //fan_temp->temp_highest[chain_id] = fan_temp->temp[chain_id][i];
+	      // break;
+	 	  }
+		  
+	 	    if(stat_hi < 2)
+	 		{
+              high_avg += fan_temp->temp[chain_id][i];
+			  //printf("There maybe some problem in chain %d, chip %d,The highest temp %d\n",chain_id,i,fan_temp->temp[chain_id][i]);
+		      stat_hi++;
+	 	    }
+			else
+			{
+			   fan_temp->temp_highest[chain_id] = (high_avg/stat_hi);
+                if(fan_temp->temp_highest[chain_id] < DANGEROUS_TMP)
+                {
+                 fan_temp->pre_warn[0] = chain_id;
+			     fan_temp->pre_warn[1] = i;
+			     fan_temp->pre_warn[2] = i-1;
+			     fan_temp->pre_warn[3] = fan_temp->temp[chain_id][i];
+				 printf("There maybe some problem in chain %d, chip %d and chip %d,The highest temp %d\n",chain_id,i,i-1,fan_temp->temp_highest[chain_id]);              
+                }
+			   stat_hi = 0;
+			   break;
+			 }
+		   }
+	     }     
+	  
+     break;
    case INNO_TYPE_A9:
 	printf("Sorry do not have such type named INNO_TYPE_A9\n");
    default:
