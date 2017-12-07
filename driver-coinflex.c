@@ -777,7 +777,10 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 	if (hotplug){
 		return;
 	}
-    
+	
+    struct timeval test_tv;
+	int j = 0;
+	
 	/* parse bimine-a1-options */
 	if ((opt_bitmine_a1_options != NULL) && (parsed_config_options == NULL)) {
 		int ref_clk = 0;
@@ -818,6 +821,20 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 	memset(&g_fan_ctrl,0,sizeof(g_fan_ctrl));
 	
 	inno_fan_temp_init(&g_fan_ctrl);
+
+	 // update time
+	for(j = 0; j < 100; j++)
+	{
+		 cgtime(&test_tv);
+		 if(test_tv.tv_sec > 1000000000)
+		 {
+			 break;
+		 }
+	
+		 usleep(500000);
+	}
+
+
 		
 	A1Pll1 = A1_ConfigA1PLLClock(opt_A1Pll1);
 	A1Pll2 = A1_ConfigA1PLLClock(opt_A1Pll2);
@@ -1053,7 +1070,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 	}
 	else
 	{
-		if(update_temp[cid] > 3)
+		if(update_temp[cid] > 2)
 		{
 			for (i = a1->num_active_chips; i > 0; i--) 
 			{

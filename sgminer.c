@@ -713,6 +713,12 @@ static char *set_int_1_to_65535(const char *arg, int *i)
 	return set_int_range(arg, i, 1, 65535);
 }
 
+static char *set_int_0_to_1(const char *arg, int *i)
+{
+	return set_int_range(arg, i, 0, 1);
+}
+
+
 static char *set_int_0_to_10(const char *arg, int *i)
 {
 	return set_int_range(arg, i, 0, 10);
@@ -1228,9 +1234,9 @@ static struct opt_table opt_config_table[] = {
     OPT_WITH_ARG("--A1Fanspd",
 			 set_int_0_to_100, opt_show_intval, &g_fan_speed,
 			 "set fan speed (0 ~ 100)"),
-	OPT_WITHOUT_ARG("--A1Fanmode",
-			 opt_set_bool, &g_auto_fan,
-			 "set fan control (manual ~ auto)"),
+	OPT_WITH_ARG("--A1Fanmode",
+			 set_int_0_to_1, opt_show_intval, &g_auto_fan,
+			 "set fan control (0 ~ 1)"),
 #endif
 
 #ifdef HAVE_CURSES
