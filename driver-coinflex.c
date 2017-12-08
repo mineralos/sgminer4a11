@@ -927,7 +927,7 @@ static void coinflex_flush_work(struct cgpu_info *coinflex)
 
 
 #define VOLTAGE_UPDATE_INT  6000
-#define  LOG_FILE_PREFIX "/home/www/conf/analys"
+#define  LOG_FILE_PREFIX "/tmp/log/analys"
 
 uint8_t cLevelError1[3] = "!";
 uint8_t cLevelError2[3] = "#";
