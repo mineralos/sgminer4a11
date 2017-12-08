@@ -45,9 +45,9 @@ int asic_gpio_read(int gpio);
 
 void asic_spi_init(void);
 
-uint32_t set_spi_speed(uint32_t speed);
+int32_t set_spi_speed(uint32_t speed);
 
-uint32_t get_spi_speed(void);
+int32_t get_spi_speed(void);
 
 void set_vid_value(int level);
 

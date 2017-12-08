@@ -89,6 +89,7 @@ void set_vid_value_G9(int level)
     if(ioctl(fd, IOCTL_SET_VAL_0, 0x0100 | level) < 0)
     {
         fprintf(stderr, "set vid value fail.\n");
+		close(fd);
         return;
     }
     close(fd);	
@@ -110,12 +111,14 @@ void set_vid_value_G19(int chainNum, int level)
     if(ioctl(fd, IOCTL_SET_CHAIN_0, chainNum) < 0)
     {
         fprintf(stderr, "set vid value fail.\n");
+		close(fd);
         return;
     }
 
     if(ioctl(fd, IOCTL_SET_VALUE_0, 0x100 | level) < 0)
     {
         fprintf(stderr, "set vid value fail.\n");
+		close(fd);
         return;
     }
     close(fd);	
@@ -136,6 +139,7 @@ void set_vid_value(int level)
 
     if(ioctl(fd, IOCTL_SET_VAL_0, 0x100 | level) < 0){
         fprintf(stderr, "Set Vid Value Failed.\n");
+		 close(fd);
         return;
     }
     close(fd);	
@@ -159,7 +163,7 @@ void asic_spi_init(void)
 	close(fd);
 }
 
-uint32_t set_spi_speed(uint32_t speed)
+int32_t set_spi_speed(uint32_t speed)
 {
 	int fd; 							  
 	char fvalue[64];				  
@@ -182,12 +186,13 @@ uint32_t set_spi_speed(uint32_t speed)
 	memset(fvalue, 0, sizeof(fvalue));
 	read(fd, fvalue, 12);			  
 	rdspeed = atoi(fvalue); 		  
-									  
+	close(fd);
+	
 	return rdspeed;
 
 }
 
-uint32_t get_spi_speed(void)
+int32_t get_spi_speed(void)
 {
 	int fd; 																	  
 	char fvalue[64];															  
@@ -200,7 +205,8 @@ uint32_t get_spi_speed(void)
 	memset(fvalue, 0, sizeof(fvalue));	  
 	read(fd, fvalue, 12);				  
 	speed = atoi(fvalue);				  
-										  
+	close(fd);
+	
 	return speed;
 }
 
