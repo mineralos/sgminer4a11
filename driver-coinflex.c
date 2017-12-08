@@ -112,6 +112,8 @@ int fan_level[4]={10,50,80,100};
 
 hardware_version_e g_hwver;
 inno_type_e g_type;
+int g_reset_delay = 0xffff;
+int g_miner_state = 0;
 
 /* added by yex in 20170907 */
 /*

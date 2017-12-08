@@ -137,6 +137,8 @@ extern int opt_voltage8;
 
 extern int g_auto_fan;
 extern int g_fan_speed;
+extern int g_reset_delay;
+extern int g_miner_state;
 
 #endif
 

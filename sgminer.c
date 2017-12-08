@@ -10066,6 +10066,14 @@ begin_bench:
 		struct pool *pool, *cp;
 		bool lagging = false;
 
+		//
+		if(g_reset_delay != 0xffff)
+		{
+			applog(LOG_INFO, "powerdown for api commond");
+			power_down_all_chain();
+			sleep(g_reset_delay);
+			exit(1);
+		}
 		if (opt_work_update)
 			signal_work_update();
 		opt_work_update = false;
