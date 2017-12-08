@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <math.h>
 #include <pthread.h>
+#include <error.h>
 
 #include "logging.h"
 #include "miner.h"
@@ -927,6 +928,7 @@ static void coinflex_flush_work(struct cgpu_info *coinflex)
 
 
 #define VOLTAGE_UPDATE_INT  6000
+//#define  LOG_FILE_PREFIX "/home/www/conf/analys"
 #define  LOG_FILE_PREFIX "/tmp/log/analys"
 
 uint8_t cLevelError1[3] = "!";
@@ -972,7 +974,8 @@ void inno_log_print(int cid, void* log, int len)
 	sprintf(fileName, "%s%d.log", LOG_FILE_PREFIX, cid);
 	fd = fopen(fileName, "w+");	
 	if(fd == NULL){				
-		applog(LOG_ERR, "Open log File%d Failed!", cid);
+		//applog(LOG_ERR, "Open log File%d Failed!%d", cid, errno);
+		applog(LOG_ERR, "Open log File%d Failed!%s", cid, strerror(errno));
 		return; 
 	}
 
