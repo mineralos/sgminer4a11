@@ -108,7 +108,7 @@ static uint32_t check_disbale_flag[ASIC_CHAIN_NUM];
 int spi_plug_status[ASIC_CHAIN_NUM] = {0};
 
 char szShowLog[ASIC_CHAIN_NUM][ASIC_CHIP_NUM][256] = {0};
-int fan_level[4]={30,50,80,100};
+int fan_level[4]={50,60,80,100};
 
 hardware_version_e g_hwver;
 inno_type_e g_type;
