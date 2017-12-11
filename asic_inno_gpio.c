@@ -306,14 +306,20 @@ int asic_gpio_read(int gpio)
 	memset(fpath, 0, sizeof(fpath));
 	sprintf(fpath, SYSFS_GPIO_VAL_STR, gpio);
 	fd = open(fpath, O_RDONLY);
-	if(fd == -1){
+	if(fd == -1)
+	{
 		return -1;
 	}
 	memset(fvalue, 0, sizeof(fvalue));
 	read(fd, fvalue, 1);
-	if(fvalue[0] == '0'){
+	if(fvalue[0] == '0')
+	{
+		close(fd);
 		return 0;
-	}else{
+	}
+	else
+	{
+		close(fd);
 		return 1;
 	}	
 }  
