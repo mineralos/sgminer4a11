@@ -44,4 +44,7 @@ lib/warn-on-use.h
 
 mkinstalldirs
 
+# 忽略临时目录
+/sgminer_lib
+
 *.swp
