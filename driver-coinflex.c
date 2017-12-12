@@ -56,6 +56,7 @@
 #include "asic_inno_gpio.h"
 
 #include "inno_fan.h"
+//#include "inno_led.h"
 
 #define WORK_SIZE				(80)
 #define DEVICE_TARGET_SIZE		(32)
@@ -351,6 +352,7 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 		inno_fan_speed_set(&g_fan_ctrl,PREHEAT_SPEED);
 		a1->pre_heat = 1;
 
+#if 0
         if(check_net()== -2)
 		{
 		  cnt++;
@@ -371,6 +373,8 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 		    loop_blink_led(spi[j]->led,10);
 		  
 		}
+#endif
+
 		//applog(LOG_ERR,"higtest temp %d\n",g_fan_ctrl.temp_highest[cid]);
 	}while(g_fan_ctrl.temp_highest[cid] > START_FAN_TH);
 	a1->pre_heat = 0;
@@ -1249,19 +1253,19 @@ struct device_drv coinflex_drv =
 	.drv_id					= DRIVER_coinflex,
 	.dname					= "HLT_Coinflex",
 	.name					= "HLT",
-	.drv_ver					= COINFLEX_DRIVER_VER,
-	.drv_date					= COINFLEX_DRIVER_DATE,
+	.drv_ver				= COINFLEX_DRIVER_VER,
+	.drv_date				= COINFLEX_DRIVER_DATE,
 	.drv_detect				= coinflex_detect,
-	.get_statline_before		= coinflex_get_statline_before,
-	.queue_full             =   coinflex_queue_full,
-	.get_api_stats				= NULL,
-	.identify_device			= NULL,
+	.get_statline_before	= coinflex_get_statline_before,
+	.queue_full             = coinflex_queue_full,
+	.get_api_stats			= NULL,
+	.identify_device		= NULL,
 	.set_device				= NULL,
 	.thread_prepare			= NULL,
-	.thread_shutdown			= NULL,
+	.thread_shutdown		= NULL,
 	.hw_reset				= NULL,
 	.hash_work				= hash_queued_work,
-	.update_work				= NULL,
+	.update_work			= NULL,
 	.flush_work				= coinflex_flush_work,			// new block detected or work restart 
 	.scanwork				= coinflex_scanwork,				// scan hash
 	.max_diff					= 65536
