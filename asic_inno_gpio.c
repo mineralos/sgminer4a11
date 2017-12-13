@@ -67,10 +67,10 @@ int SPI_PIN_PLUG[] = {
 897,
 898,
 899,
-890,
-891,
-892,
-893
+900,
+901,
+902,
+903
 };
 
 void set_vid_value_G9(int level)

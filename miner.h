@@ -26,6 +26,9 @@ extern char *curly;
 #include "logging.h"
 #include "util.h"
 #include <sys/types.h>
+#include "inno_fan.h"
+#include "log.h"
+
 #ifndef WIN32
 # include <sys/socket.h>
 # include <netdb.h>
@@ -139,6 +142,9 @@ extern int g_auto_fan;
 extern int g_fan_speed;
 extern int g_reset_delay;
 extern int g_miner_state;
+extern int fan_level[4];
+extern inno_fan_temp_s g_fan_ctrl;
+
 
 #endif
 

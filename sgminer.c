@@ -382,6 +382,8 @@ static int include_count;
 #define JSON_MAX_DEPTH 10
 #define JSON_MAX_DEPTH_ERR "Too many levels of JSON includes (limit 10) or a loop"
 #define JSON_WEB_ERROR "WEB config err"
+#define TEMP_UPDATE_INT_MS	10000
+
 
 #if defined(unix) || defined(__APPLE__)
 	static char *opt_stderr_cmd = NULL;
@@ -7516,6 +7518,7 @@ bool test_nonce(struct work *work, uint32_t nonce)
 		case KL_X15MOD:
 		default:
 			diff1targ = 0x000000ffUL;
+			//diff1targ = 0x0000003fUL;
 			break;
 	}
 //	if(le32toh(*hash_32) <= diff1targ)
@@ -10065,7 +10068,25 @@ begin_bench:
 		int ts, max_staged = max_queue;
 		struct pool *pool, *cp;
 		bool lagging = false;
+		static int  last_temp_time = 0;
 
+	   if (last_temp_time + TEMP_UPDATE_INT_MS < get_current_ms())
+	   {
+		inno_fan_speed_update(&g_fan_ctrl,fan_level);
+		last_temp_time = get_current_ms();
+	   }
+
+
+		/*
+		if(!(update_cnt % 500))
+		{
+		 applog(LOG_ERR,"Hello\n");
+		 inno_fan_speed_update(&g_fan_ctrl,fan_level);
+         update_cnt = 1;
+		}else{
+		update_cnt++;
+			}
+		*/
 		//
 		if(g_reset_delay != 0xffff)
 		{

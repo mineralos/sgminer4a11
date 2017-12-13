@@ -230,10 +230,10 @@ int  cfg_tsadc_divider(struct A1_chain *a1,uint32_t pll_clk)
 
 	if(!inno_cmd_write_sec_reg(a1,ADDR_BROADCAST,buffer)){
 		applog(LOG_WARNING, "#####Write t/v sensor Value Failed!\n");
-	}
-	applog(LOG_WARNING, "#####Write t/v sensor Value Success!\n");
+	}else{
+	    applog(LOG_WARNING, "#####Write t/v sensor Value Success!\n");
+        }
 }
-
 
 int chain_detect_reload(struct A1_chain *a1)
 {
@@ -329,10 +329,11 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 	
 	int cid = a1->chain_id;
 	//struct cgpu_info *cgpu = a1->cgpu;
+	inno_fan_speed_set(&g_fan_ctrl,PREHEAT_SPEED);
 
 	//while(s_fan_ctrl.temp_highest[cid] > 505)//FAN_FIRST_STAGE)
 	do{
-		for (i = a1->num_active_chips; i > 0; i--)
+		for (i = a1->num_active_chips; i > 0; i -= 3)
 		{ 
 			if (!inno_cmd_read_reg(a1, i, reg))
 			{
@@ -349,7 +350,6 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 		
 		asic_temp_sort(&g_fan_ctrl, chain_id);
 		inno_fan_temp_highest(&g_fan_ctrl, chain_id,g_type);
-		inno_fan_speed_set(&g_fan_ctrl,PREHEAT_SPEED);
 		a1->pre_heat = 1;
 
 #if 0
@@ -431,7 +431,8 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
         inno_fan_temp_add(&g_fan_ctrl, chain_id, i+1, a1->chips[i].temp);
     }
 
-	inno_fan_temp_update(&g_fan_ctrl,chain_id, g_type,fan_level);
+	chain_temp_update(&g_fan_ctrl,chain_id, g_type);
+	//inno_fan_speed_update(&g_fan_ctrl,fan_level);
 	
 	applog(LOG_WARNING, "[chain_ID:%d]: Found %d Chips With Total %d Active Cores",a1->chain_id, a1->num_active_chips, a1->num_cores);
 	applog(LOG_WARNING, "[chain_ID]: Temp:%d\n",g_fan_ctrl.temp_highest[chain_id]);
@@ -469,7 +470,7 @@ struct A1_chain *init_A1_chain(struct spi_ctx *ctx, int chain_id)
 		goto failure;
 	}
 	usleep(100000);
-
+    //sleep(10);
 	cfg_tsadc_divider(a1,120);//PLL_Clk_12Mhz[A1Pll1].speedMHz);
 
 	applog(LOG_WARNING, "spidev%d.%d: %d: Found %d A1 chips",a1->spi_ctx->config.bus, a1->spi_ctx->config.cs_line,a1->chain_id, a1->num_chips);
@@ -685,6 +686,7 @@ static bool detect_A1_chain(void)
 
 		applog(LOG_WARNING, "Detected the %d A1 chain with %d chips / %d cores",i, chain[i]->num_active_chips, chain[i]->num_cores);
 	}
+	inno_fan_speed_update(&g_fan_ctrl,fan_level);
 
 #if 0
 	Test_bench_Array[0].uiVol = opt_voltage;
@@ -992,7 +994,7 @@ void inno_log_print(int cid, void* log, int len)
 
 static int64_t coinflex_scanwork(struct thr_info *thr)
 {
-	static uint8_t cnt = 0;
+	//static uint8_t cnt = 0;
 	//static uint8_t reset_buf[2] = {0x20,0x20};
 	int i;
 	int32_t A1Pll = 1000;
@@ -1097,17 +1099,19 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 
                 /* update temp database */
                 uint32_t temp = 0;
-				struct A1_chip *chip = &a1->chips[i - 1];
+				//struct A1_chip *chip = &a1->chips[i - 1];
 
             	temp = 0x000003ff & ((reg[7] << 8) | reg[8]);
-				chip->temp = temp;
+				//chip->temp = temp;
             	inno_fan_temp_add(&g_fan_ctrl, cid, i, temp);
             
-				cnt++;
+				//cnt++;
 				} 
 			 }
 
-			inno_fan_temp_update(&g_fan_ctrl, cid, g_type,fan_level);
+			chain_temp_update(&g_fan_ctrl, cid, g_type);
+			//inno_fan_speed_update(&g_fan_ctrl,fan_level);
+			
 			cgpu->temp = g_fan_ctrl.temp2float[cid][1];
 			cgpu->temp_max = g_fan_ctrl.temp2float[cid][0];
 			cgpu->temp_min = g_fan_ctrl.temp2float[cid][2];
@@ -1159,15 +1163,18 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 		} 
      }
   }
-	
-  if(cnt > VOLTAGE_UPDATE_INT){
+
+	static int last_temp_time = 0;
+	if (last_temp_time + 60*TEMP_UPDATE_INT_MS < get_current_ms())
+	{
+  //if(cnt > VOLTAGE_UPDATE_INT){
 	   //configure for vsensor
 		inno_configure_tvsensor(a1,ADDR_BROADCAST,0);
 
 		for (i = 0; i < a1->num_active_chips; i++){
         	inno_check_voltage(a1, i+1, &s_reg_ctrl);
     	}
-		cnt = 0;
+		last_temp_time = get_current_ms();
     	//configure for tsensor
 		inno_configure_tvsensor(a1,ADDR_BROADCAST,1);
 		usleep(200);
@@ -1204,7 +1211,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 	cgtime(&a1->tvScryptCurr);
 	timersub(&a1->tvScryptCurr, &a1->tvScryptLast, &a1->tvScryptDiff);
 	cgtime(&a1->tvScryptLast);
-	
+	/*
 	switch(cgpu->device_id){
 		case 0:A1Pll = PLL_Clk_12Mhz[A1Pll1].speedMHz;break;
 		case 1:A1Pll = PLL_Clk_12Mhz[A1Pll2].speedMHz;break;
@@ -1216,7 +1223,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 		case 7:A1Pll = PLL_Clk_12Mhz[A1Pll8].speedMHz;break;
 		default:break;
 	}
-	
+	*/
 	//return (int64_t)(2011173.18 * A1Pll / 1000 * (a1->num_cores/9.0) * (a1->tvScryptDiff.tv_usec / 1000000.0));
 	return ((((double)PLL_Clk_12Mhz[A1Pll1].speedMHz*a1->tvScryptDiff.tv_usec /2) * (a1->num_cores))/13);
 }
