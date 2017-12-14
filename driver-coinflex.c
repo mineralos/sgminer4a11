@@ -569,13 +569,15 @@ static bool detect_A1_chain(void)
 	
 	for(i = 0; i < ASIC_CHAIN_NUM; i++){
 		asic_gpio_write(spi[i]->power_en, 1);
+        sleep(1)
 		asic_gpio_write(spi[i]->start_en, 1);
+        sleep(1)
 		asic_gpio_write(spi[i]->reset, 1);
-		usleep(500000);
+        sleep(1)
 		asic_gpio_write(spi[i]->reset, 0);
-		usleep(500000);
+        sleep(1)
 		asic_gpio_write(spi[i]->reset, 1);
-		usleep(500000);
+        sleep(1)
 		spi_plug_status[i] = asic_gpio_read(spi[i]->plug);
 		applog(LOG_ERR, "Plug Status[%d] = %d\n",i,spi_plug_status[i]);
 	}
