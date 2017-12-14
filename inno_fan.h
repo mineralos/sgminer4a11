@@ -25,7 +25,7 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include <unistd.h>
-#include "log.h"
+#include "inno_log.h"
 
 /************************************ ∫Í∂®“Â ***********************************/
 #define A7

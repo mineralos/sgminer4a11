@@ -27,7 +27,7 @@ extern char *curly;
 #include "util.h"
 #include <sys/types.h>
 #include "inno_fan.h"
-#include "log.h"
+#include "inno_log.h"
 
 #ifndef WIN32
 # include <sys/socket.h>
