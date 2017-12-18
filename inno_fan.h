@@ -25,7 +25,7 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include <unistd.h>
-#include "inno_log.h"
+#include "log.h"
 
 /************************************ 宏定义 ***********************************/
 #define A7
@@ -49,16 +49,16 @@
 #define ERR_LOW_TEMP                      (655)
 #define FAN_FIRST_STAGE                   (527)//45
 #define FAN_SECOND_STAGE                  (505)//60
-#define FAN_THIRD_STAGE                   (483)//75
-#define FAN_FOUR_STAGE                    (460)//90
-#define FAN_DELTA                         (23)//15
+#define FAN_THIRD_STAGE                   (490)//70
+#define FAN_FOUR_STAGE                    (468)//85
+#define FAN_DELTA                         (15)//10
 #define TEMP_LABEL                        (594)
 #define ACTIVE_STAT                       (6)
 #define START_FAN_TH                      (550)//30
 #define PREHEAT_SPEED                     (0)
 #define DANGEROUS_TMP                     (460)//90
 #define PRE_DGR_TEMP                      (456)//92.x
-
+#define DEFAULT_HI_TEMP                   (652) //-40
 #define MAGIC_NUM                         (100)
 
 #define IOCTL_SET_FREQ(X) _IOR(MAGIC_NUM, (2*X), char *)
@@ -75,7 +75,7 @@
 /*********************************** 全局变量 **********************************/
 typedef struct {
     int temp[ASIC_CHAIN_NUM][ASIC_CHIP_NUM];    /* 用于存放所有链上的芯片温度*/
-    bool valid_temp[ASIC_CHAIN_NUM][ASIC_CHIP_NUM];  //用于判断该温度是否有效
+    int valid_chain[ASIC_CHAIN_NUM];           //用于判断该chain是否有效
     int index[ASIC_CHAIN_NUM];                  /*对应链上的chip_id */
 
     int speed;                              /* 0 - 100用于设置风扇转速(可能32档) */

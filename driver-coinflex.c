@@ -316,7 +316,7 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 {
 	int i,j;
 	uint8_t reg[64];
-	static int cnt = 0;
+	static int last_time = 0;
 	
 	//applog(LOG_ERR, "start read temp cid %d, a1 addr 0x%x\n", chain_id,a1);
 	/* update temp database */
@@ -342,7 +342,6 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 				continue;
 			}
 			
-
 			temp = 0x000003ff & ((reg[7] << 8) | reg[8]);
 			//applog(LOG_ERR,"cid %d,chip %d,temp %d\n",cid, i, temp);
 			inno_fan_temp_add(&g_fan_ctrl, cid, i, temp);
@@ -351,6 +350,12 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 		asic_temp_sort(&g_fan_ctrl, chain_id);
 		inno_fan_temp_highest(&g_fan_ctrl, chain_id,g_type);
 		a1->pre_heat = 1;
+		
+		if((last_time + 3*TEMP_UPDATE_INT_MS) < get_current_ms())
+		{
+          applog(LOG_WARNING,"chain %d higtest temp %d\n",cid, g_fan_ctrl.temp_highest[cid]);
+          last_time = get_current_ms();
+		}
 
 #if 0
         if(check_net()== -2)
@@ -378,6 +383,7 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 		//applog(LOG_ERR,"higtest temp %d\n",g_fan_ctrl.temp_highest[cid]);
 	}while(g_fan_ctrl.temp_highest[cid] > START_FAN_TH);
 	a1->pre_heat = 0;
+	applog(LOG_WARNING,"Now chain %d preheat is over\n",cid);
 	return true;
 }
 
@@ -579,6 +585,7 @@ static bool detect_A1_chain(void)
 		asic_gpio_write(spi[i]->reset, 1);
         sleep(1);
 		spi_plug_status[i] = asic_gpio_read(spi[i]->plug);
+		g_fan_ctrl.valid_chain[i] = spi_plug_status[i];
 		applog(LOG_ERR, "Plug Status[%d] = %d\n",i,spi_plug_status[i]);
 	}
 

@@ -18,16 +18,17 @@ make -j${MAKE_JOBS}
 make install
 
 # step3: 编译libinno.so库
-cd ../inno_miner
-echo $PWD
-echo $SGMINER_DIR
-./runmake.sh
-./runinstall.sh ${SGMINER_DIR} ${SGMINER_DIR}
+#cd ../inno_miner
+#echo $PWD
+#echo $SGMINER_DIR
+#./runmake.sh
+#./runinstall.sh ${SGMINER_DIR} ${SGMINER_DIR}
 
 # step4: 编译sgminer库
 cd ../sgminer
-LDFLAGS="-L${SGMINER_DIR}/lib -linno " \
-CFLAGS="-I${SGMINER_DIR}/include -Wall " \
+#LDFLAGS="-L${SGMINER_DIR}/lib -linno " \
+LDFLAGS="-L${SGMINER_DIR}/lib " \
+CFLAGS="-I${SGMINER_DIR}/include " \
 ./configure --prefix=${SGMINER_DIR} \
 --enable-coinflex --without-curses --host=arm-xilinx-linux-gnueabi --build=x86_64-pc-linux-gnu #--target=arm
 
