@@ -13,6 +13,6 @@ CFLAGS="-I${ROOTFS_DIR}/include -Wall " \
 --enable-coinflex --without-curses --host=arm-xilinx-linux-gnueabi --build=x86_64-pc-linux-gnu #--target=arm
 
 make -j${MAKE_JOBS}
-
+arm-xilinx-linux-gnueabi-strip sgminer
 cp sgminer innominer_T3
 
