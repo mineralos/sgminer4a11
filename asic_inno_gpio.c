@@ -17,6 +17,7 @@
 #define IOCTL_SET_VALUE_0 _IOR(MAGIC_NUM, 0, char *)
 #define IOCTL_SET_CHAIN_0 _IOR(MAGIC_NUM, 1, char *)
 
+extern hardware_version_e g_hwver;
 
 int SPI_PIN_POWER_EN[] = {
 872,
@@ -127,24 +128,18 @@ void set_vid_value_G19(int chainNum, int level)
 
 void set_vid_value(int level)
 {
-	int fd; 
-    
-    printf("%s:%d.\n", __func__, level);
-
-    fd = open(SYSFS_VID_DEV, O_RDWR);
-	if(fd < 0){
-        fprintf(stderr, "Open %s Failed.\n", SYSFS_VID_DEV);
-        return;
-    }
-
-    if(ioctl(fd, IOCTL_SET_VAL_0, 0x100 | level) < 0){
-        fprintf(stderr, "Set Vid Value Failed.\n");
-		 close(fd);
-        return;
-    }
-    close(fd);	
-
-	
+	int i;
+	if(HARDWARE_VERSION_G9 == g_hwver){
+		set_vid_value_G9(level);
+	}else if(HARDWARE_VERSION_G19 == g_hwver){
+		for(i = 0; i < ASIC_CHAIN_NUM; i++)
+		{
+			set_vid_value_G19(i, level);
+		}	
+	}else{
+		fprintf(stderr, "Set vid but hardware version is unknown!!!");
+	}
+	return;
 }
 
 void asic_spi_init(void)

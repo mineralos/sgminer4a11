@@ -507,7 +507,7 @@ failure:
 
  int inno_preinit(struct A1_chain *a1, int chain_id)
 {
-	int i,ret;
+	int i,ret=-1;
 	if(a1 == NULL){
 		return -1;
 	}
@@ -534,7 +534,7 @@ int chain_flag[ASIC_CHAIN_NUM] = {0};
 static bool detect_A1_chain(void)
 {
 	int i,j,ret,res = 0;
-	applog(LOG_WARNING, "A1: checking A1 chain");
+	applog(LOG_ERR, "A1: checking A1 chain %d,%d,%d,%d,%d,%d,%d,%d",opt_voltage1,opt_voltage2,opt_voltage3,opt_voltage4,opt_voltage5,opt_voltage6,opt_voltage7,opt_voltage8);
 
 	for(i = 0; i < ASIC_CHAIN_NUM; i++)
 	{
@@ -564,6 +564,7 @@ static bool detect_A1_chain(void)
 		asic_gpio_init(spi[i]->reset, 0);
 		asic_gpio_init(spi[i]->led, 0);
 		asic_gpio_init(spi[i]->plug, 1);
+		
 
 		update_temp[i] = 0;
 		show_log[i] = 0;
@@ -605,7 +606,8 @@ static bool detect_A1_chain(void)
 	for(i = 0; i < ASIC_CHAIN_NUM; i++){
 		init_ReadTemp(chain[i],i);
 	}
-	
+
+	applog(LOG_ERR, "pre init_pll...");
 	for(i = 0; i < ASIC_CHAIN_NUM; i++)
 	{		
 		ret = inno_preinit(chain[i], i);
@@ -653,7 +655,7 @@ static bool detect_A1_chain(void)
 			case 7: chain[i]->vid = opt_voltage8; break;
 		}
 
-			if(vid > 8){
+			if(chain[i]->vid > 8){
 				for(j=9; j<=chain[i]->vid; j++){
 				//applog(LOG_ERR,"set_vid_value_G19 vid > 8");
 					set_vid_value_G19(i, j);
@@ -661,7 +663,7 @@ static bool detect_A1_chain(void)
 				}
 			}
 				
-			if(vid < 8){
+			if(chain[i]->vid < 8){
 				for(j=7; j>=chain[i]->vid; j--){
 				//applog(LOG_ERR,"set_vid_value_G19 vid < 8");
 					set_vid_value_G19(i, j);
