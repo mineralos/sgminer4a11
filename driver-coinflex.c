@@ -568,7 +568,7 @@ static bool detect_A1_chain(void)
 
 		update_temp[i] = 0;
 		show_log[i] = 0;
-
+        
 		asic_gpio_write(spi[i]->power_en, 0);
         sleep(1);
 		asic_gpio_write(spi[i]->start_en, 0);
@@ -1197,7 +1197,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 	
 	if(check_disbale_flag[cid] > CHECK_DISABLE_TIME)
 	{
-		applog(LOG_INFO, "start to check disable chips");
+		//applog(LOG_INFO, "start to check disable chips");
 		switch(cid){
 			case 0:check_disabled_chips(a1, A1Pll1);;break;
 			case 1:check_disabled_chips(a1, A1Pll2);;break;
