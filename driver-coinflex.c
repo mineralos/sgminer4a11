@@ -568,27 +568,29 @@ static bool detect_A1_chain(void)
 
 		update_temp[i] = 0;
 		show_log[i] = 0;
+
+		asic_gpio_write(spi[i]->power_en, 0);
+        sleep(1);
+		asic_gpio_write(spi[i]->start_en, 0);
+		asic_gpio_write(spi[i]->reset, 0);	
 	}
 
-	set_vid_value(8);
-	
-	sleep(2);
-	
+	sleep(5);
+
 	for(i = 0; i < ASIC_CHAIN_NUM; i++){
 		asic_gpio_write(spi[i]->power_en, 1);
-        sleep(1);
+        sleep(5);
+		asic_gpio_write(spi[i]->reset, 1);
+		sleep(1);
 		asic_gpio_write(spi[i]->start_en, 1);
-        sleep(1);
-		asic_gpio_write(spi[i]->reset, 1);
-        sleep(1);
-		asic_gpio_write(spi[i]->reset, 0);
-        sleep(1);
-		asic_gpio_write(spi[i]->reset, 1);
-        sleep(1);
+        
 		spi_plug_status[i] = asic_gpio_read(spi[i]->plug);
 		g_fan_ctrl.valid_chain[i] = spi_plug_status[i];
 		applog(LOG_ERR, "Plug Status[%d] = %d\n",i,spi_plug_status[i]);
-	}
+	} 	
+
+	set_vid_value(8);
+	
 
 	for(i = 0; i < ASIC_CHAIN_NUM; i++){
 		chain[i] = init_A1_chain(spi[i], i);
@@ -1044,7 +1046,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 	if(g_fan_ctrl.temp_highest[a1->chain_id] < DANGEROUS_TMP){
 		asic_gpio_write(spi[a1->chain_id]->power_en, 0);
 		loop_blink_led(spi[a1->chain_id]->led, 10);
-	   	//early_quit(1,"Notice Chain %d temp:%d Maybe Has Some Problem in Temperate\n",a1->chain_id,s_fan_ctrl.temp_highest[a1->chain_id]);
+	   	applog(LOG_ERR,"Notice Chain %d temp:%d Maybe Has Some Problem in Temperate\n",a1->chain_id,g_fan_ctrl.temp_highest[a1->chain_id]);
 	}
 
 	/* poll queued results */
@@ -1123,6 +1125,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 			chain_temp_update(&g_fan_ctrl, cid, g_type);
 			//inno_fan_speed_update(&g_fan_ctrl,fan_level);
 			
+			applog(LOG_ERR,"cid %d,hi %d,lo:%d,av:%d\n",cid,g_fan_ctrl.temp_highest[cid],g_fan_ctrl.temp_lowest[cid],g_fan_ctrl.temp_arvarge[cid]);
+
 			cgpu->temp = g_fan_ctrl.temp2float[cid][1];
 			cgpu->temp_max = g_fan_ctrl.temp2float[cid][0];
 			cgpu->temp_min = g_fan_ctrl.temp2float[cid][2];

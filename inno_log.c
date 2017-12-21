@@ -44,12 +44,12 @@
  *
  ******************************************************************************/
 static void log_out(int prio, const char *str);
-#define INNO_CONFIG_LOG_LINE_BUF_SIZE           (512)
 
 /********************************** 变量实现区 *********************************/
 /* 调试级别 */
 int g_log_level = 0;
 
+#define INNO_CONFIG_LOG_LINE_BUF_SIZE (512)
 /********************************** 函数实现区 *********************************/
 void inno_log_init(int default_level, const char *indent)
 {
