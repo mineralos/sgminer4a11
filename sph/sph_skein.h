@@ -78,10 +78,10 @@
  */
 typedef struct {
 #ifndef DOXYGEN_IGNORE
-	unsigned char buf[64];    /* first field, for alignment */
-	size_t ptr;
-	sph_u64 h0, h1, h2, h3, h4, h5, h6, h7;
-	sph_u64 bcount;
+    unsigned char buf[64];    /* first field, for alignment */
+    size_t ptr;
+    sph_u64 h0, h1, h2, h3, h4, h5, h6, h7;
+    sph_u64 bcount;
 #endif
 } sph_skein_big_context;
 
@@ -148,7 +148,7 @@ void sph_skein224_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_skein224_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void *cc, unsigned ub, unsigned n, void *dst);
 
 /**
  * Initialize a Skein-256 context. This process performs no memory allocation.
@@ -193,7 +193,7 @@ void sph_skein256_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_skein256_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void *cc, unsigned ub, unsigned n, void *dst);
 
 /**
  * Initialize a Skein-384 context. This process performs no memory allocation.
@@ -238,7 +238,7 @@ void sph_skein384_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_skein384_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void *cc, unsigned ub, unsigned n, void *dst);
 
 /**
  * Initialize a Skein-512 context. This process performs no memory allocation.
@@ -283,7 +283,7 @@ void sph_skein512_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_skein512_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void *cc, unsigned ub, unsigned n, void *dst);
 
 #endif
 

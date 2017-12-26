@@ -5,15 +5,15 @@
 #include "asic_inno_cmd.h"
 #include "inno_fan.h"
 
-#define WEAK_CHIP_THRESHOLD	1
+#define WEAK_CHIP_THRESHOLD 1
 #define BROKEN_CHIP_THRESHOLD 1
-#define WEAK_CHIP_SYS_CLK	(600 * 1000)
-#define BROKEN_CHIP_SYS_CLK	(400 * 1000)
+#define WEAK_CHIP_SYS_CLK   (600 * 1000)
+#define BROKEN_CHIP_SYS_CLK (400 * 1000)
 
 #define CHIP_A7 
 
-#define INNO_MINER_TYPE_FILE			"/tmp/type"
-#define INNO_HARDWARE_VERSION_FILE		"/tmp/hwver"
+#define INNO_MINER_TYPE_FILE            "/tmp/type"
+#define INNO_HARDWARE_VERSION_FILE      "/tmp/hwver"
 
 typedef enum{
 HARDWARE_VERSION_NONE = 0x00,

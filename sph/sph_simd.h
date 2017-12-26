@@ -72,10 +72,10 @@
  */
 typedef struct {
 #ifndef DOXYGEN_IGNORE
-	unsigned char buf[64];    /* first field, for alignment */
-	size_t ptr;
-	sph_u32 state[16];
-	sph_u32 count_low, count_high;
+    unsigned char buf[64];    /* first field, for alignment */
+    size_t ptr;
+    sph_u32 state[16];
+    sph_u32 count_low, count_high;
 #endif
 } sph_simd_small_context;
 
@@ -92,10 +92,10 @@ typedef struct {
  */
 typedef struct {
 #ifndef DOXYGEN_IGNORE
-	unsigned char buf[128];    /* first field, for alignment */
-	size_t ptr;
-	sph_u32 state[32];
-	sph_u32 count_low, count_high;
+    unsigned char buf[128];    /* first field, for alignment */
+    size_t ptr;
+    sph_u32 state[32];
+    sph_u32 count_low, count_high;
 #endif
 } sph_simd_big_context;
 
@@ -162,7 +162,7 @@ void sph_simd224_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_simd224_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void *cc, unsigned ub, unsigned n, void *dst);
 
 /**
  * Initialize an SIMD-256 context. This process performs no memory allocation.
@@ -207,7 +207,7 @@ void sph_simd256_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_simd256_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void *cc, unsigned ub, unsigned n, void *dst);
 
 /**
  * Initialize an SIMD-384 context. This process performs no memory allocation.
@@ -252,7 +252,7 @@ void sph_simd384_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_simd384_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void *cc, unsigned ub, unsigned n, void *dst);
 
 /**
  * Initialize an SIMD-512 context. This process performs no memory allocation.
@@ -297,6 +297,6 @@ void sph_simd512_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_simd512_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void *cc, unsigned ub, unsigned n, void *dst);
 
 #endif

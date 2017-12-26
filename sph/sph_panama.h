@@ -77,13 +77,13 @@
  */
 typedef struct {
 #ifndef DOXYGEN_IGNORE
-	unsigned char data[32];   /* first field, for alignment */
-	unsigned data_ptr;
+    unsigned char data[32];   /* first field, for alignment */
+    unsigned data_ptr;
 
-	sph_u32 buffer[32][8];
-	unsigned buffer_ptr;
+    sph_u32 buffer[32][8];
+    unsigned buffer_ptr;
 
-	sph_u32 state[17];
+    sph_u32 state[17];
 #endif
 } sph_panama_context;
 
