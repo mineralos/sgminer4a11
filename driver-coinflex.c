@@ -109,7 +109,7 @@ static uint32_t check_disbale_flag[ASIC_CHAIN_NUM];
 int spi_plug_status[ASIC_CHAIN_NUM] = {0};
 
 char szShowLog[ASIC_CHAIN_NUM][ASIC_CHIP_NUM][256] = {0};
-int fan_level[8]={40,50,60,70,80,90,100};
+int fan_level[8]={30,40,50,60,70,80,90,100};
 
 hardware_version_e g_hwver;
 inno_type_e g_type;
@@ -185,8 +185,8 @@ static bool coinflex_queue_full(struct cgpu_info *cgpu)
     int queue_full = false;
 
     mutex_lock(&a1->lock);
-//  applog(LOG_NOTICE, "%d, A1 running queue_full: %d/%d",
-  //     a1->chain_id, a1->active_wq.num_elems, a1->num_active_chips);
+    //  applog(LOG_NOTICE, "%d, A1 running queue_full: %d/%d",
+    //     a1->chain_id, a1->active_wq.num_elems, a1->num_active_chips);
 
     if (a1->active_wq.num_elems >= a1->num_active_chips * 2)
         queue_full = true;
@@ -220,11 +220,11 @@ int  cfg_tsadc_divider(struct A1_chain *a1,uint32_t pll_clk)
     uint8_t  tsadc_divider;
     //cmd0d(0x0d00, 0x0250, 0xa006 | (BYPASS_AUXPLL<<6), 0x2800 | tsadc_divider, 0x0300, 0x0000, 0x0000, 0x0000)
     uint8_t    buffer[64] = {0x02,0x50,0xa0,0x06,0x28,0x00,0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-    #ifdef MPW
-        tsadc_divider_tmp = (pll_clk/2)*1000/256/650;
-    #else
-        tsadc_divider_tmp = (pll_clk/2)*1000/16/650;
-    #endif
+#ifdef MPW
+    tsadc_divider_tmp = (pll_clk/2)*1000/256/650;
+#else
+    tsadc_divider_tmp = (pll_clk/2)*1000/16/650;
+#endif
     tsadc_divider = tsadc_divider_tmp & 0xff;
 
     buffer[5] = 0x00 | tsadc_divider;
@@ -233,7 +233,7 @@ int  cfg_tsadc_divider(struct A1_chain *a1,uint32_t pll_clk)
         applog(LOG_WARNING, "#####Write t/v sensor Value Failed!\n");
     }else{
         applog(LOG_WARNING, "#####Write t/v sensor Value Success!\n");
-        }
+    }
 }
 
 int chain_detect_reload(struct A1_chain *a1)
@@ -270,47 +270,47 @@ int chain_detect_reload(struct A1_chain *a1)
     return a1->num_chips;
 }
 
- #define NET_PORT 53
- #define NET_IP "8.8.8.8" //谷歌DNS
+#define NET_PORT 53
+#define NET_IP "8.8.8.8" //谷歌DNS
 
- //获取联网状态
+//获取联网状态
 static int check_net(void)
- {
+{
 
-         int fd; 
-         int in_len=0;
-         struct sockaddr_in servaddr;
-         //char buf[128];
- 
-         in_len = sizeof(struct sockaddr_in);
-         fd = socket(AF_INET,SOCK_STREAM,0);
-         if(fd < 0)
-         {   
-                 perror("socket");
-                 return -1; 
-         }   
- 
-         /*设置默认服务器的信息*/
-         servaddr.sin_family = AF_INET;
-         servaddr.sin_port = htons(NET_PORT);
-         servaddr.sin_addr.s_addr = inet_addr(NET_IP);
-         memset(servaddr.sin_zero,0,sizeof(servaddr.sin_zero));
- 
-         /*connect 函数*/
-         if(connect(fd,(struct sockaddr* )&servaddr,in_len) < 0 ) 
-         {   
- 
-               //  printf("not connect to internet!\n ");
-                 close(fd);
-                 return -2; //没有联网成功
-         }   
-         else
-         {   
-              //   printf("=====connect ok!=====\n");
-                 close(fd);
-                 return 1;
-         }   
- }
+    int fd; 
+    int in_len=0;
+    struct sockaddr_in servaddr;
+    //char buf[128];
+
+    in_len = sizeof(struct sockaddr_in);
+    fd = socket(AF_INET,SOCK_STREAM,0);
+    if(fd < 0)
+    {   
+        perror("socket");
+        return -1; 
+    }   
+
+    /*设置默认服务器的信息*/
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(NET_PORT);
+    servaddr.sin_addr.s_addr = inet_addr(NET_IP);
+    memset(servaddr.sin_zero,0,sizeof(servaddr.sin_zero));
+
+    /*connect 函数*/
+    if(connect(fd,(struct sockaddr* )&servaddr,in_len) < 0 ) 
+    {   
+
+        //  printf("not connect to internet!\n ");
+        close(fd);
+        return -2; //没有联网成功
+    }   
+    else
+    {   
+        //   printf("=====connect ok!=====\n");
+        close(fd);
+        return 1;
+    }   
+}
 
 
 bool init_ReadTemp(struct A1_chain *a1, int chain_id)
@@ -318,7 +318,7 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
     int i,j;
     uint8_t reg[64];
     static int last_time = 0;
-    
+
     //applog(LOG_ERR, "start read temp cid %d, a1 addr 0x%x\n", chain_id,a1);
     /* update temp database */
     uint32_t temp = 0;
@@ -327,7 +327,7 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
     {
         return false;
     }
-    
+
     int cid = a1->chain_id;
     //struct cgpu_info *cgpu = a1->cgpu;
     inno_fan_speed_set(&g_fan_ctrl,PREHEAT_SPEED);
@@ -339,45 +339,45 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
             if (!inno_cmd_read_reg(a1, i, reg))
             {
                 applog(LOG_ERR, "%d: Failed to read temperature sensor register for chip %d ", a1->chain_id, i);
-                
+
                 continue;
             }
-            
+
             temp = 0x000003ff & ((reg[7] << 8) | reg[8]);
             //applog(LOG_ERR,"cid %d,chip %d,temp %d\n",cid, i, temp);
             inno_fan_temp_add(&g_fan_ctrl, cid, i, temp);
         } 
-        
+
         asic_temp_sort(&g_fan_ctrl, chain_id);
         inno_fan_temp_highest(&g_fan_ctrl, chain_id,g_type);
         a1->pre_heat = 1;
-        
+
         if((last_time + 3*TEMP_UPDATE_INT_MS) < get_current_ms())
         {
-          applog(LOG_WARNING,"chain %d higtest temp %d\n",cid, g_fan_ctrl.temp_highest[cid]);
-          last_time = get_current_ms();
+            applog(LOG_WARNING,"chain %d higtest temp %d\n",cid, g_fan_ctrl.temp_highest[cid]);
+            last_time = get_current_ms();
         }
 
 #if 0
         if(check_net()== -2)
         {
-          cnt++;
-          //printf("cnt = %d\n",cnt);
+            cnt++;
+            //printf("cnt = %d\n",cnt);
         }
         else
         {
-         //printf("ping ok\n");
-         cnt = 0;
+            //printf("ping ok\n");
+            cnt = 0;
         }
-        
+
         if(cnt > 10)
         {
-          printf("shutdown spi link\n");
-          power_down_all_chain();
-          
-          for(j=0; j<ASIC_CHAIN_NUM; j++)
-            loop_blink_led(spi[j]->led,10);
-          
+            printf("shutdown spi link\n");
+            power_down_all_chain();
+
+            for(j=0; j<ASIC_CHAIN_NUM; j++)
+                loop_blink_led(spi[j]->led,10);
+
         }
 #endif
 
@@ -397,7 +397,7 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
     }
 
     applog(LOG_DEBUG, "%d: A1 init chain reload", chain_id);
-    
+
     a1->num_chips =  chain_detect_reload(a1);
     usleep(10000);
 
@@ -429,10 +429,10 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
     for (i = 0; i < a1->num_active_chips; i++){
         inno_check_voltage(a1, i+1, &s_reg_ctrl);
     }
-    
+
     //configure for tsensor
     inno_configure_tvsensor(a1,ADDR_BROADCAST,1);
-    
+
     for (i = 0; i < a1->num_active_chips; i++){
         check_chip(a1, i);
         inno_fan_temp_add(&g_fan_ctrl, chain_id, i+1, a1->chips[i].temp);
@@ -440,7 +440,7 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
 
     chain_temp_update(&g_fan_ctrl,chain_id, g_type);
     //inno_fan_speed_update(&g_fan_ctrl,fan_level);
-    
+
     applog(LOG_WARNING, "[chain_ID:%d]: Found %d Chips With Total %d Active Cores",a1->chain_id, a1->num_active_chips, a1->num_cores);
     applog(LOG_WARNING, "[chain_ID]: Temp:%d\n",g_fan_ctrl.temp_highest[chain_id]);
 
@@ -467,7 +467,7 @@ struct A1_chain *init_A1_chain(struct spi_ctx *ctx, int chain_id)
     assert(a1 != NULL);
 
     applog(LOG_DEBUG, "%d: A1 init chain", chain_id);
-    
+
     memset(a1, 0, sizeof(*a1));
     a1->spi_ctx = ctx;
     a1->chain_id = chain_id;
@@ -555,7 +555,7 @@ rept_cfgpll:
         prepll_chip_temp(chain[i]);
         if(-1 == ret[i])
         {
-            if((g_fan_ctrl.temp_highest[i]<DANGEROUS_TMP) && (g_fan_ctrl.temp_lowest[i] < START_FAN_TH))
+            if((g_fan_ctrl.temp_highest[i] > DANGEROUS_TMP) && (g_fan_ctrl.temp_lowest[i] < START_FAN_TH))
             {
                 rep_cnt++;
                 if(rep_cnt < 5)
@@ -593,7 +593,7 @@ static int chain_spi_init()
         }
 
         //mutex_init(&spi[i]->spi_lock);
-        
+
         spi[i]->power_en = SPI_PIN_POWER_EN[i];     
         spi[i]->start_en = SPI_PIN_START_EN[i];     
         spi[i]->reset = SPI_PIN_RESET[i];
@@ -605,11 +605,11 @@ static int chain_spi_init()
         asic_gpio_init(spi[i]->reset, 0);
         asic_gpio_init(spi[i]->led, 0);
         asic_gpio_init(spi[i]->plug, 1);
-        
+
 
         update_temp[i] = 0;
         show_log[i] = 0;
-        
+
         asic_gpio_write(spi[i]->power_en, 0);
         sleep(1);
         asic_gpio_write(spi[i]->start_en, 0);
@@ -624,7 +624,7 @@ static int chain_spi_init()
         asic_gpio_write(spi[i]->reset, 1);
         sleep(1);
         asic_gpio_write(spi[i]->start_en, 1);
-        
+
         spi_plug_status[i] = asic_gpio_read(spi[i]->plug);
         g_fan_ctrl.valid_chain[i] = spi_plug_status[i];
         applog(LOG_ERR, "Plug Status[%d] = %d\n",i,spi_plug_status[i]);
@@ -641,14 +641,17 @@ static int inc_pll(void)
 
     applog(LOG_ERR, "pre init_pll...");
     for(i = PLL_Clk_12Mhz[0].speedMHz; i < opt_A1Pll1; i+=200)
-    {		
+    {
         ret = inno_preinit(i,last_pll);
         last_pll = i;
 
         for(j=0; j<ASIC_CHAIN_NUM; j++)
-        {	
+        {
             if (-1 == ret[j]){
-                asic_gpio_init(chain[j]->spi_ctx->power_en, 0);
+                asic_gpio_write(chain[i]->spi_ctx->power_en, 0);
+                sleep(1);
+                asic_gpio_write(chain[i]->spi_ctx->start_en, 0);
+                asic_gpio_write(chain[i]->spi_ctx->reset, 0);  
 
             }else{
                 applog(LOG_ERR,"pll %d finished\n",i);
@@ -663,13 +666,16 @@ static int inc_pll(void)
         for(j=0; j<ASIC_CHAIN_NUM; j++)
         {
             if (-1 == ret[j]){
-                asic_gpio_init(chain[j]->spi_ctx->power_en, 0);
+                asic_gpio_write(chain[i]->spi_ctx->power_en, 0);
+                sleep(1);
+                asic_gpio_write(chain[i]->spi_ctx->start_en, 0);
+                asic_gpio_write(chain[i]->spi_ctx->reset, 0);  
 
             }else{
                 applog(LOG_ERR,"pll %d finished\n",i);
             }
         }
-    }	
+    }
     return 0;
 }
 
@@ -683,7 +689,7 @@ static bool detect_A1_chain(void)
         return false;
 
     set_vid_value(8);
-    
+
 
     for(i = 0; i < ASIC_CHAIN_NUM; i++){
         chain[i] = init_A1_chain(spi[i], i);
@@ -704,7 +710,7 @@ static bool detect_A1_chain(void)
     inc_pll();
 
     usleep(200000);
-    
+
     if(g_hwver == HARDWARE_VERSION_G9){
 
         //divide the init to break two part
@@ -714,7 +720,7 @@ static bool detect_A1_chain(void)
                 usleep(500000);
             }
         }
-            
+
         if(opt_voltage < 8){
             for(i=7; i>=opt_voltage; i--){
                 set_vid_value(i);
@@ -723,43 +729,43 @@ static bool detect_A1_chain(void)
         }
     }else if(g_hwver == HARDWARE_VERSION_G19)
     {
-    
+
         int j, vid;
         for(i = 0; i < ASIC_CHAIN_NUM; i++){
 
-        if(chain[i] == NULL)
-          continue;
-        
-        switch(i)
-        {
-            case 0: chain[i]->vid = opt_voltage1; break;
-            case 1: chain[i]->vid = opt_voltage2; break;
-            case 2: chain[i]->vid = opt_voltage3; break;
-            case 3: chain[i]->vid = opt_voltage4; break;
-            case 4: chain[i]->vid = opt_voltage5; break;
-            case 5: chain[i]->vid = opt_voltage6; break;
-            case 6: chain[i]->vid = opt_voltage7; break;
-            case 7: chain[i]->vid = opt_voltage8; break;
-        }
+            if(chain[i] == NULL)
+                continue;
+
+            switch(i)
+            {
+                case 0: chain[i]->vid = opt_voltage1; break;
+                case 1: chain[i]->vid = opt_voltage2; break;
+                case 2: chain[i]->vid = opt_voltage3; break;
+                case 3: chain[i]->vid = opt_voltage4; break;
+                case 4: chain[i]->vid = opt_voltage5; break;
+                case 5: chain[i]->vid = opt_voltage6; break;
+                case 6: chain[i]->vid = opt_voltage7; break;
+                case 7: chain[i]->vid = opt_voltage8; break;
+            }
 
             if(chain[i]->vid > 8){
                 for(j=9; j<=chain[i]->vid; j++){
-                //applog(LOG_ERR,"set_vid_value_G19 vid > 8");
+                    //applog(LOG_ERR,"set_vid_value_G19 vid > 8");
                     set_vid_value_G19(i, j);
                     usleep(500000);
                 }
             }
-                
+
             if(chain[i]->vid < 8){
                 for(j=7; j>=chain[i]->vid; j--){
-                //applog(LOG_ERR,"set_vid_value_G19 vid < 8");
+                    //applog(LOG_ERR,"set_vid_value_G19 vid < 8");
                     set_vid_value_G19(i, j);
                     usleep(500000);
                 }
             }
         }       
     }
-    
+
     for(i = 0; i < ASIC_CHAIN_NUM; i++){
         ret = init_A1_chain_reload(chain[i], i);
         if (false == ret){
@@ -769,7 +775,7 @@ static bool detect_A1_chain(void)
 
         struct cgpu_info *cgpu = malloc(sizeof(*cgpu));
         assert(cgpu != NULL);
-    
+
         memset(cgpu, 0, sizeof(*cgpu));
         cgpu->drv = &coinflex_drv;
         cgpu->name = "BitmineA1.SingleChain";
@@ -824,7 +830,7 @@ static bool detect_A1_chain(void)
         set_vid_value(Test_bench_Array[0].uiVol - i);
         sleep(1);
     }
-    
+
     for(i = 3; i < 5; i++)
     {
         if(Test_bench_Array[0].uiVol + i - 2 > 31)
@@ -856,7 +862,7 @@ static bool detect_A1_chain(void)
     for(j = 1; j < 5; j++)
     {
         cur = Test_bench_Array[j].uiScore + 5 * (Test_bench_Array[j].uiVol - Test_bench_Array[index].uiVol);
-        
+
         if(cur > Test_bench_Array[index].uiScore)
         {
             index = j;
@@ -869,7 +875,7 @@ static bool detect_A1_chain(void)
     }
 
     printf("The best group is %d. vid is %d! \t \n", index, Test_bench_Array[index].uiVol);
-    
+
     for(i=Test_bench_Array[0].uiVol + 2; i>=Test_bench_Array[index].uiVol; i--){
         set_vid_value(i);
         usleep(500000);
@@ -884,10 +890,10 @@ static void coinflex_detect(bool __maybe_unused hotplug)
     if (hotplug){
         return;
     }
-    
+
     struct timeval test_tv;
     int j = 0;
-    
+
     /* parse bimine-a1-options */
     if ((opt_bitmine_a1_options != NULL) && (parsed_config_options == NULL)) {
         int ref_clk = 0;
@@ -895,7 +901,7 @@ static void coinflex_detect(bool __maybe_unused hotplug)
         int spi_clk = 0;
         int override_chip_num = 0;
         int wiper = 0;
-        
+
         sscanf(opt_bitmine_a1_options, "%d:%d:%d:%d:%d",&ref_clk, &sys_clk, &spi_clk, &override_chip_num,&wiper);
         if (ref_clk != 0){
             A1_config_options.ref_clk_khz = ref_clk;
@@ -915,39 +921,39 @@ static void coinflex_detect(bool __maybe_unused hotplug)
         if (wiper != 0){
             A1_config_options.wiper = wiper;
         }
-        
+
         /* config options are global, scan them once */
         parsed_config_options = &A1_config_options;
     }
     applog(LOG_DEBUG, "A1 detect");
-    
+
     g_hwver = inno_get_hwver();
     g_type = inno_get_miner_type();
-    
+
     memset(&s_reg_ctrl,0,sizeof(s_reg_ctrl));
     memset(&g_fan_ctrl,0,sizeof(g_fan_ctrl));
 
     inno_fan_temp_init(&g_fan_ctrl,fan_level);
 
-     // update time
+    // update time
     for(j = 0; j < 100; j++)
     {
-         cgtime(&test_tv);
-         if(test_tv.tv_sec > 1000000000)
-         {
-             break;
-         }
-    
-         usleep(500000);
+        cgtime(&test_tv);
+        if(test_tv.tv_sec > 1000000000)
+        {
+            break;
+        }
+
+        usleep(500000);
     }
 
 
     if(detect_A1_chain()){
         return ;
     }
-    
+
     applog(LOG_WARNING, "A1 dectect finish");
-    
+
     int i = 0;
     /* release SPI context if no A1 products found */
     for(i = 0; i < ASIC_CHAIN_NUM; i++){
@@ -973,53 +979,53 @@ static void coinflex_flush_work(struct cgpu_info *coinflex)
 {
 #if 1
     struct A1_chain *a1 = coinflex->device_data;
-        int cid = a1->chain_id;
-        //board_selector->select(cid);
-        int i;
-    
-        mutex_lock(&a1->lock);
-        /* stop chips hashing current work */
-        if (!abort_work(a1)) 
-        {
-            applog(LOG_ERR, "%d: failed to abort work in chip chain!", cid);
-        }
-        /* flush the work chips were currently hashing */
-        for (i = 0; i < a1->num_active_chips; i++) 
-        {
-            int j;
-            struct A1_chip *chip = &a1->chips[i];
-            for (j = 0; j < 4; j++) 
-            {
-                struct work *work = chip->work[j];
-                if (work == NULL)
-                    continue;
-                //applog(LOG_DEBUG, "%d: flushing chip %d, work %d: 0x%p",
-                //       cid, i, j + 1, work);
-                work_completed(coinflex, work);
-                chip->work[j] = NULL;
-            }
-            
-            chip->last_queued_id = 0;
-    
-            if(!inno_cmd_resetjob(a1, i+1))
-            {
-                applog(LOG_WARNING, "chip %d clear work false", i);\
-                continue;
-            }
-            
-            //applog(LOG_INFO, "chip :%d flushing queued work success", i);
-        }
-        /* flush queued work */
-        //applog(LOG_DEBUG, "%d: flushing queued work...", cid);
-        while (a1->active_wq.num_elems > 0) 
-        {
-            struct work *work = wq_dequeue(&a1->active_wq);
-            assert(work != NULL);
-            work_completed(coinflex, work);
-        }
-        mutex_unlock(&a1->lock);
+    int cid = a1->chain_id;
+    //board_selector->select(cid);
+    int i;
 
-    #endif
+    mutex_lock(&a1->lock);
+    /* stop chips hashing current work */
+    if (!abort_work(a1)) 
+    {
+        applog(LOG_ERR, "%d: failed to abort work in chip chain!", cid);
+    }
+    /* flush the work chips were currently hashing */
+    for (i = 0; i < a1->num_active_chips; i++) 
+    {
+        int j;
+        struct A1_chip *chip = &a1->chips[i];
+        for (j = 0; j < 4; j++) 
+        {
+            struct work *work = chip->work[j];
+            if (work == NULL)
+                continue;
+            //applog(LOG_DEBUG, "%d: flushing chip %d, work %d: 0x%p",
+            //       cid, i, j + 1, work);
+            work_completed(coinflex, work);
+            chip->work[j] = NULL;
+        }
+
+        chip->last_queued_id = 0;
+
+        if(!inno_cmd_resetjob(a1, i+1))
+        {
+            applog(LOG_WARNING, "chip %d clear work false", i);\
+                continue;
+        }
+
+        //applog(LOG_INFO, "chip :%d flushing queued work success", i);
+    }
+    /* flush queued work */
+    //applog(LOG_DEBUG, "%d: flushing queued work...", cid);
+    while (a1->active_wq.num_elems > 0) 
+    {
+        struct work *work = wq_dequeue(&a1->active_wq);
+        assert(work != NULL);
+        work_completed(coinflex, work);
+    }
+    mutex_unlock(&a1->lock);
+
+#endif
 }
 
 
@@ -1057,16 +1063,16 @@ void Inno_Log_Save(struct A1_chip *chip,int nChip,int nChain)
     if((chip->hw_errors == 0) && (chip->stales == 0) && ((chip->temp < 564) && (chip->temp > 445)) &&((chip->nVol < 550) && (chip->nVol > 450)) && (chip->num_cores == 8)){
         strcat(szInNormal,cLevelNormal);
     }
-    
+
     sprintf(szShowLog[nChain][nChip], "\n%-8s|%32d|%8d|%8d|%8d|%8d|%8d|%8d|%8d",szInNormal,chip->nonces_found,
-        chip->hw_errors, chip->stales,chip->temp,chip->nVol,chip->num_cores,nChip,nChain);
+            chip->hw_errors, chip->stales,chip->temp,chip->nVol,chip->num_cores,nChip,nChain);
 }
 
 void inno_log_print(int cid, void* log, int len)
 {
     FILE* fd;
     char fileName[128] = {0};
-    
+
     sprintf(fileName, "%s%d.log", LOG_FILE_PREFIX, cid);
     fd = fopen(fileName, "w+"); 
     if(fd == NULL){             
@@ -1092,12 +1098,12 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     //struct A1_chip *a7 = &a1->chips[0];
     struct work local_work;
     int32_t nonce_ranges_processed = 0;
-    
+
     uint32_t nonce;
     uint8_t chip_id;
     uint8_t job_id;
     bool work_updated = false;
-//  static uint8_t RD_result = 3;
+    //  static uint8_t RD_result = 3;
 
     if (a1->num_cores == 0) {
         cgpu->deven = DEV_DISABLED;
@@ -1114,7 +1120,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
         check_disbale_flag[cid]++;
 
         inno_log_print(cid, szShowLog[cid], sizeof(szShowLog[0]));
-        
+
         a1->last_temp_time = get_current_ms();
     }
 
@@ -1129,7 +1135,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
         if (!get_nonce(a1, (uint8_t*)&nonce, &chip_id, &job_id)){
             break;
         }
-        
+
         work_updated = true;
         if (chip_id < 1 || chip_id > a1->num_active_chips) {
             applog(LOG_WARNING, "%d: wrong chip_id %d", cid, chip_id);
@@ -1140,7 +1146,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
             flush_spi(a1);
             continue;
         }
-    
+
         struct A1_chip *chip = &a1->chips[chip_id - 1];
         struct work *work = chip->work[job_id - 1];
         if (work == NULL){
@@ -1176,26 +1182,26 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
                 //uint8_t c = i;
                 if (is_chip_disabled(a1, i))
                 {
-                 printf("chip %d is disabled\n ",i);
-                 continue;
+                    printf("chip %d is disabled\n ",i);
+                    continue;
                 }
-             if(!inno_cmd_read_reg(a1, i, reg))
-               {
-                 applog(LOG_ERR,"chip %d reg read failed\n ",i);
-                 continue;
+                if(!inno_cmd_read_reg(a1, i, reg))
+                {
+                    applog(LOG_ERR,"chip %d reg read failed\n ",i);
+                    continue;
                 }else{
 
-                /* update temp database */
-                uint32_t temp = 0;
-                //struct A1_chip *chip = &a1->chips[i - 1];
+                    /* update temp database */
+                    uint32_t temp = 0;
+                    //struct A1_chip *chip = &a1->chips[i - 1];
 
-                temp = 0x000003ff & ((reg[7] << 8) | reg[8]);
-                //chip->temp = temp;
-                inno_fan_temp_add(&g_fan_ctrl, cid, i, temp);
-            
-                //cnt++;
+                    temp = 0x000003ff & ((reg[7] << 8) | reg[8]);
+                    //chip->temp = temp;
+                    inno_fan_temp_add(&g_fan_ctrl, cid, i, temp);
+
+                    //cnt++;
                 } 
-             }
+            }
 
             chain_temp_update(&g_fan_ctrl, cid, g_type);
             //inno_fan_speed_update(&g_fan_ctrl,fan_level);
@@ -1214,9 +1220,9 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
             cgpu->chip_num = a1->num_active_chips;
             cgpu->core_num = a1->num_cores; 
 
-            
+
             update_temp[cid] = 0;
-            
+
         }
         if( inno_cmd_read_reg(a1, 10, reg) ||  inno_cmd_read_reg(a1, 11, reg) ||  inno_cmd_read_reg(a1, 12, reg))
         {
@@ -1249,16 +1255,16 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
                         Inno_Log_Save(chip,c-1,cid);
                         if(i==1) show_log[cid] = 0; 
                     }
-            }
-        } 
-     }
-  }
+                }
+            } 
+        }
+    }
 
     static int last_temp_time = 0;
     if (last_temp_time + 60*TEMP_UPDATE_INT_MS < get_current_ms())
     {
-  //if(cnt > VOLTAGE_UPDATE_INT){
-       //configure for vsensor
+        //if(cnt > VOLTAGE_UPDATE_INT){
+        //configure for vsensor
         inno_configure_tvsensor(a1,ADDR_BROADCAST,0);
 
         for (i = 0; i < a1->num_active_chips; i++){
@@ -1268,8 +1274,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
         //configure for tsensor
         inno_configure_tvsensor(a1,ADDR_BROADCAST,1);
         usleep(200);
-   }
-    
+    }
+
     if(check_disbale_flag[cid] > CHECK_DISABLE_TIME)
     {
         //applog(LOG_INFO, "start to check disable chips");
@@ -1285,35 +1291,35 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
         check_disbale_flag[cid] = 0;
     }
     mutex_unlock(&a1->lock);
-    
+
     if (nonce_ranges_processed < 0){
-            applog(LOG_INFO, "nonce_ranges_processed less than 0");
-            nonce_ranges_processed = 0;
+        applog(LOG_INFO, "nonce_ranges_processed less than 0");
+        nonce_ranges_processed = 0;
     }
-    
+
     if (nonce_ranges_processed != 0) {
-            applog(LOG_INFO, "%d, nonces processed %d", cid, nonce_ranges_processed);
+        applog(LOG_INFO, "%d, nonces processed %d", cid, nonce_ranges_processed);
     }
     /* in case of no progress, prevent busy looping */
     //if (!work_updated)
     //  cgsleep_ms(40);
-    
+
     cgtime(&a1->tvScryptCurr);
     timersub(&a1->tvScryptCurr, &a1->tvScryptLast, &a1->tvScryptDiff);
     cgtime(&a1->tvScryptLast);
     /*
-    switch(cgpu->device_id){
-        case 0:A1Pll = PLL_Clk_12Mhz[A1Pll1].speedMHz;break;
-        case 1:A1Pll = PLL_Clk_12Mhz[A1Pll2].speedMHz;break;
-        case 2:A1Pll = PLL_Clk_12Mhz[A1Pll3].speedMHz;break;
-        case 3:A1Pll = PLL_Clk_12Mhz[A1Pll4].speedMHz;break;
-        case 4:A1Pll = PLL_Clk_12Mhz[A1Pll5].speedMHz;break;
-        case 5:A1Pll = PLL_Clk_12Mhz[A1Pll6].speedMHz;break;
-        case 6:A1Pll = PLL_Clk_12Mhz[A1Pll7].speedMHz;break;
-        case 7:A1Pll = PLL_Clk_12Mhz[A1Pll8].speedMHz;break;
-        default:break;
-    }
-    */
+       switch(cgpu->device_id){
+       case 0:A1Pll = PLL_Clk_12Mhz[A1Pll1].speedMHz;break;
+       case 1:A1Pll = PLL_Clk_12Mhz[A1Pll2].speedMHz;break;
+       case 2:A1Pll = PLL_Clk_12Mhz[A1Pll3].speedMHz;break;
+       case 3:A1Pll = PLL_Clk_12Mhz[A1Pll4].speedMHz;break;
+       case 4:A1Pll = PLL_Clk_12Mhz[A1Pll5].speedMHz;break;
+       case 5:A1Pll = PLL_Clk_12Mhz[A1Pll6].speedMHz;break;
+       case 6:A1Pll = PLL_Clk_12Mhz[A1Pll7].speedMHz;break;
+       case 7:A1Pll = PLL_Clk_12Mhz[A1Pll8].speedMHz;break;
+       default:break;
+       }
+       */
     //return (int64_t)(2011173.18 * A1Pll / 1000 * (a1->num_cores/9.0) * (a1->tvScryptDiff.tv_usec / 1000000.0));
     //applog(LOG_ERR,"speed:%d,cores:%d,time:%d",PLL_Clk_12Mhz[A1Pll1].speedMHz,a1->num_cores,a1->tvScryptDiff.tv_usec);
 
@@ -1322,163 +1328,163 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     }
 
 
-static void coinflex_print_hw_error(char *drv_name, int device_id, struct work *work, uint32_t nonce)
-{
-    char        *twork;
-    char        twork_data[BUF_SIZE];
-    int     twork_index;
-    int     display_size = 16;      // 16 Bytes
-
-    applog(LOG_ERR, "---------------------------------------------------------");
-    applog(LOG_ERR, "[%s %d]:ERROR  - Nonce = 0x%X,Work_ID = %3d", drv_name, device_id, nonce, work->work_id);
-    twork = bin2hex(work->data, WORK_SIZE);                     // Multiply 2 for making string in bin2hex()
-    for(twork_index = 0; twork_index < (WORK_SIZE * 2); twork_index += (display_size * 2))
+    static void coinflex_print_hw_error(char *drv_name, int device_id, struct work *work, uint32_t nonce)
     {
-        snprintf(twork_data, (display_size * 2) + 1, "%s", &twork[twork_index]);
-        applog(LOG_ERR, "Work Data      = %s", twork_data);
-    }
-    free(twork);
-    twork = bin2hex(work->device_target, DEVICE_TARGET_SIZE);       // Multiply 2 for making string in bin2hex()
-    for(twork_index = 0; twork_index < (DEVICE_TARGET_SIZE * 2); twork_index += (display_size * 2))
-    {
-        snprintf(twork_data, (display_size * 2) + 1, "%s", &twork[twork_index]);
-        applog(LOG_ERR, "Device Target  = %s", twork_data);
-    }
-    free(twork);
-    applog(LOG_ERR, "---------------------------------------------------------");
-}
+        char        *twork;
+        char        twork_data[BUF_SIZE];
+        int     twork_index;
+        int     display_size = 16;      // 16 Bytes
 
-struct device_drv coinflex_drv = 
-{
-    .drv_id                 = DRIVER_coinflex,
-    .dname                  = "HLT_Coinflex",
-    .name                   = "HLT",
-    .drv_ver                = COINFLEX_DRIVER_VER,
-    .drv_date               = COINFLEX_DRIVER_DATE,
-    .drv_detect             = coinflex_detect,
-    .get_statline_before    = coinflex_get_statline_before,
-    .queue_full             = coinflex_queue_full,
-    .get_api_stats          = NULL,
-    .identify_device        = NULL,
-    .set_device             = NULL,
-    .thread_prepare         = NULL,
-    .thread_shutdown        = NULL,
-    .hw_reset               = NULL,
-    .hash_work              = hash_queued_work,
-    .update_work            = NULL,
-    .flush_work             = coinflex_flush_work,          // new block detected or work restart 
-    .scanwork               = coinflex_scanwork,                // scan hash
-    .max_diff                   = 65536
-};
+        applog(LOG_ERR, "---------------------------------------------------------");
+        applog(LOG_ERR, "[%s %d]:ERROR  - Nonce = 0x%X,Work_ID = %3d", drv_name, device_id, nonce, work->work_id);
+        twork = bin2hex(work->data, WORK_SIZE);                     // Multiply 2 for making string in bin2hex()
+        for(twork_index = 0; twork_index < (WORK_SIZE * 2); twork_index += (display_size * 2))
+        {
+            snprintf(twork_data, (display_size * 2) + 1, "%s", &twork[twork_index]);
+            applog(LOG_ERR, "Work Data      = %s", twork_data);
+        }
+        free(twork);
+        twork = bin2hex(work->device_target, DEVICE_TARGET_SIZE);       // Multiply 2 for making string in bin2hex()
+        for(twork_index = 0; twork_index < (DEVICE_TARGET_SIZE * 2); twork_index += (display_size * 2))
+        {
+            snprintf(twork_data, (display_size * 2) + 1, "%s", &twork[twork_index]);
+            applog(LOG_ERR, "Device Target  = %s", twork_data);
+        }
+        free(twork);
+        applog(LOG_ERR, "---------------------------------------------------------");
+    }
+
+    struct device_drv coinflex_drv = 
+    {
+        .drv_id                 = DRIVER_coinflex,
+        .dname                  = "HLT_Coinflex",
+        .name                   = "HLT",
+        .drv_ver                = COINFLEX_DRIVER_VER,
+        .drv_date               = COINFLEX_DRIVER_DATE,
+        .drv_detect             = coinflex_detect,
+        .get_statline_before    = coinflex_get_statline_before,
+        .queue_full             = coinflex_queue_full,
+        .get_api_stats          = NULL,
+        .identify_device        = NULL,
+        .set_device             = NULL,
+        .thread_prepare         = NULL,
+        .thread_shutdown        = NULL,
+        .hw_reset               = NULL,
+        .hash_work              = hash_queued_work,
+        .update_work            = NULL,
+        .flush_work             = coinflex_flush_work,          // new block detected or work restart 
+        .scanwork               = coinflex_scanwork,                // scan hash
+        .max_diff                   = 65536
+    };
 
 #if COINFLEX_TEST_MODE
 #if 0
-char dataX11[80] =  { 0x00,0x00,0x00,0x02,0x75,0xd6,0x91,0x99,0x65,0x07,0x7e,0x96,0xb8,0x04,0xb1,0xbf,0x77,0x8a,0xe9,0x2a,0x6d,0xe7,0x5f,0xeb,0x56,0x91,0x11,0x00,0x00,0x04,0xbe,0x72,0x00,0x00,0x00,0x00,0x62,0x22,0x72,0xad,0xf6,0x99,0x66,0x75,0xf2,0xa0,0xf9,0xe5,0x54,0xb3,0x67,0x54,0xfb,0x40,0xf8,0x1f,0x2d,0xad,0x5e,0xd8,0x4a,0x34,0x56,0x09,0xd7,0x58,0x2c,0xe9,0x53,0x95,    0x16,0xe7,0x1b,0x14,0x76,0x0a,0x00,0x10,0x6b,0x0d };
-char targetX11[4] = { 0x00,0x00,0x00,0xff };
-uint32_t nonceX11 = 225120256;  // 0xd6b1000
+    char dataX11[80] =  { 0x00,0x00,0x00,0x02,0x75,0xd6,0x91,0x99,0x65,0x07,0x7e,0x96,0xb8,0x04,0xb1,0xbf,0x77,0x8a,0xe9,0x2a,0x6d,0xe7,0x5f,0xeb,0x56,0x91,0x11,0x00,0x00,0x04,0xbe,0x72,0x00,0x00,0x00,0x00,0x62,0x22,0x72,0xad,0xf6,0x99,0x66,0x75,0xf2,0xa0,0xf9,0xe5,0x54,0xb3,0x67,0x54,0xfb,0x40,0xf8,0x1f,0x2d,0xad,0x5e,0xd8,0x4a,0x34,0x56,0x09,0xd7,0x58,0x2c,0xe9,0x53,0x95,    0x16,0xe7,0x1b,0x14,0x76,0x0a,0x00,0x10,0x6b,0x0d };
+    char targetX11[4] = { 0x00,0x00,0x00,0xff };
+    uint32_t nonceX11 = 225120256;  // 0xd6b1000
 #else
-char dataX11[82] = {0x00,0x00, 0x20,0x00,0x00, 0x00, 0x5c, 0x3c, 0xf5, 0x94, 0xeb, 0x10, 0x71, 0x3b, 0x0e, 0x5b, 0xe7, 0x5c, 0xb9, 0x01, 0x09, 0xc2, 0x16, 0xea, 0xfd,0x1c,0xba, 0xba, 0x9c, 0x5e, 0x00, 0x00, 0x59, 0x16, 0x00, 0x00, 0x00, 0x00, 0xc7, 0x82, 0xa0, 0xa7, 0xc5, 0xa6, 0xf2, 0x08, 0x21, 0x6a, 0xe8, 0x49, 0x21, 0xbc, 0x8c, 0xa3, 0x7b, 0xee, 0x8c, 0x08, 0x5f, 0x93, 0x95, 0x06, 0x04, 0x02, 0xe9, 0x15, 0x70, 0x6b, 0x76, 0x19, 0x59, 0x28, 0xd7, 0x2c, 0x1b, 0x00, 0x81, 0xd5, 0xe4, 0x2e, 0x36, 0x40};
-//char dataX11[82] =  {0x00,0x00, 0x00,0x00,0x00,0x20,0x94,0xf5,0x3c,0x5c,0x3b,0x71,0x10,0xeb,0x5c,0xe7,0x5b,0x0e,0xc2,0x09,0x01,0xb9,0x1c,0xfd,0xea,0x16,0x5e,0x9c,0xba,0xba,0x16,0x59,0x00,0x00,0x00,0x00,0x00,0x00,0xa7,0xa0,0x82,0xc7,0x08,0xf2,0xa6,0xc5,0x49,0xe8,0x6a,0x21,0xa3,0x8c,0xbc,0x21,0x08,0x8c,0xee,0x7b,0x06,0x95,0x93,0x5f,0x15,0xe9,0x02,0x04,0x19,0x76,0x6b,0x70,0x2c,0xd7,0x28,0x59,0xd5,0x81,0x00,0x1b,0xe4,0x2e,0x36,0x40 };//0x40,0x36,0x2e,0xe4
-//ffd80000_00000027
-char targetX11[4] = { 0x00,0x00,0x00,0x27 };
-uint32_t nonceX11 = 0x40362ee4;//e42e3650;  // 0xd6b1000
+    char dataX11[82] = {0x00,0x00, 0x20,0x00,0x00, 0x00, 0x5c, 0x3c, 0xf5, 0x94, 0xeb, 0x10, 0x71, 0x3b, 0x0e, 0x5b, 0xe7, 0x5c, 0xb9, 0x01, 0x09, 0xc2, 0x16, 0xea, 0xfd,0x1c,0xba, 0xba, 0x9c, 0x5e, 0x00, 0x00, 0x59, 0x16, 0x00, 0x00, 0x00, 0x00, 0xc7, 0x82, 0xa0, 0xa7, 0xc5, 0xa6, 0xf2, 0x08, 0x21, 0x6a, 0xe8, 0x49, 0x21, 0xbc, 0x8c, 0xa3, 0x7b, 0xee, 0x8c, 0x08, 0x5f, 0x93, 0x95, 0x06, 0x04, 0x02, 0xe9, 0x15, 0x70, 0x6b, 0x76, 0x19, 0x59, 0x28, 0xd7, 0x2c, 0x1b, 0x00, 0x81, 0xd5, 0xe4, 0x2e, 0x36, 0x40};
+    //char dataX11[82] =  {0x00,0x00, 0x00,0x00,0x00,0x20,0x94,0xf5,0x3c,0x5c,0x3b,0x71,0x10,0xeb,0x5c,0xe7,0x5b,0x0e,0xc2,0x09,0x01,0xb9,0x1c,0xfd,0xea,0x16,0x5e,0x9c,0xba,0xba,0x16,0x59,0x00,0x00,0x00,0x00,0x00,0x00,0xa7,0xa0,0x82,0xc7,0x08,0xf2,0xa6,0xc5,0x49,0xe8,0x6a,0x21,0xa3,0x8c,0xbc,0x21,0x08,0x8c,0xee,0x7b,0x06,0x95,0x93,0x5f,0x15,0xe9,0x02,0x04,0x19,0x76,0x6b,0x70,0x2c,0xd7,0x28,0x59,0xd5,0x81,0x00,0x1b,0xe4,0x2e,0x36,0x40 };//0x40,0x36,0x2e,0xe4
+    //ffd80000_00000027
+    char targetX11[4] = { 0x00,0x00,0x00,0x27 };
+    uint32_t nonceX11 = 0x40362ee4;//e42e3650;  // 0xd6b1000
 #endif
 
-char dataX13[80] =  { 0x00,0x00,0x00,0x02,0x5b,0x4a,0xbb,0x46,0x95,0x9d,0x93,0xd0,0x49,0x1a,0x8c,0x97,0xb0,0x02,0x37,0x29,0x5d,0x1e,0xf8,0xfd,0xe0,0x74,0x2c,0xf7,0x00,0xdd,0x5c,0xb2,0x00,0x00,0x00,0x00,0x56,0xc0,0x2f,0x12,0x82,0x24,0xd3,0xb8,0xe9,0x37,0x67,0x9f,0x9d,0x00,0x10,0x00,0x2e,0x32,0x02,0x6b,0xf2,0x9d,0x22,0xd5,0x30,0x68,0xcb,0x13,0xc0,0x14,0x4d,0xa5,0x53,0x95,    0x89,0xad,0x1c,0x02,0xac,0x3d,0x00,0x0a,0x1e,0xf1 };
-char targetX13[4] = { 0xff,0x00,0x00,0x00 };
-uint32_t nonceX13 = 4045277696; // 0xf11e0a00
+    char dataX13[80] =  { 0x00,0x00,0x00,0x02,0x5b,0x4a,0xbb,0x46,0x95,0x9d,0x93,0xd0,0x49,0x1a,0x8c,0x97,0xb0,0x02,0x37,0x29,0x5d,0x1e,0xf8,0xfd,0xe0,0x74,0x2c,0xf7,0x00,0xdd,0x5c,0xb2,0x00,0x00,0x00,0x00,0x56,0xc0,0x2f,0x12,0x82,0x24,0xd3,0xb8,0xe9,0x37,0x67,0x9f,0x9d,0x00,0x10,0x00,0x2e,0x32,0x02,0x6b,0xf2,0x9d,0x22,0xd5,0x30,0x68,0xcb,0x13,0xc0,0x14,0x4d,0xa5,0x53,0x95,    0x89,0xad,0x1c,0x02,0xac,0x3d,0x00,0x0a,0x1e,0xf1 };
+    char targetX13[4] = { 0xff,0x00,0x00,0x00 };
+    uint32_t nonceX13 = 4045277696; // 0xf11e0a00
 
-static void coinflex_set_testdata(struct work *work)
-{
-    char        *data;
-    char        *target;
-    uint32_t    nonce;
-    uint8_t i,j;
-
-    switch(kernel)
+    static void coinflex_set_testdata(struct work *work)
     {
-        case KL_SCRYPT:
-            break;
-        case KL_X11MOD:
-            data = dataX11;
-            target = targetX11;
-            nonce = nonceX11;
-            break;
-        case KL_X13MOD:
-            data = dataX13;
-            target = targetX13;
-            nonce = nonceX13;
-            break;
-        case KL_X15MOD:
-        case KL_NONE:
-        default:
-            return;
+        char        *data;
+        char        *target;
+        uint32_t    nonce;
+        uint8_t i,j;
+
+        switch(kernel)
+        {
+            case KL_SCRYPT:
+                break;
+            case KL_X11MOD:
+                data = dataX11;
+                target = targetX11;
+                nonce = nonceX11;
+                break;
+            case KL_X13MOD:
+                data = dataX13;
+                target = targetX13;
+                nonce = nonceX13;
+                break;
+            case KL_X15MOD:
+            case KL_NONE:
+            default:
+                return;
+        }
+
+        work->data[0] = ((0x01 & 0x0f) << 4) | CMD_WRITE_JOB;
+        work->data[1] = 0x01;
+
+
+
+        memcpy(&work->data[2], data, 80);
+        memcpy(&work->device_target[28], target, 4);
+        work->nonce = nonce;
+
+
+        for(i=0; i<10;i++)
+        {
+            for(j=0;j<8;j++)
+                printf("  %02x ",work->data[i*10+j]);
+
+            printf("\n");
+        }
+
+        printf("target\n");
+
+        for(i=0;i<4; i++){
+            printf("0x%08x",work->target[i+28]);
+        }
     }
-    
-    work->data[0] = ((0x01 & 0x0f) << 4) | CMD_WRITE_JOB;
-    work->data[1] = 0x01;
 
 
-
-    memcpy(&work->data[2], data, 80);
-    memcpy(&work->device_target[28], target, 4);
-    work->nonce = nonce;
-
-    
-    for(i=0; i<10;i++)
+    static void coinflex_print_hash(struct work *work, uint32_t nonce)
     {
-      for(j=0;j<8;j++)
-        printf("  %02x ",work->data[i*10+j]);
-    
-      printf("\n");
+        uint32_t    *work_nonce = (uint32_t *)(work->data + 64 + 12);
+        uint32_t    *ohash = (uint32_t *)(work->hash);
+        unsigned char hash_swap[32], target_swap[32];
+        char        *hash_str, *target_str;
+
+        *work_nonce = htole32(nonce);
+
+        switch(kernel)
+        {
+            case KL_SCRYPT:
+                break;
+            case KL_X11MOD:
+                darkcoin_regenhash(work);
+                break;
+            case KL_X13MOD:
+                marucoin_regenhash(work);
+                break;
+            case KL_X15MOD:
+            case KL_NONE:
+            default:
+                //regen_hash(work);
+                break;
+        }
+
+        swab256(hash_swap, work->hash);
+        swab256(target_swap, work->target);
+        hash_str = bin2hex(hash_swap, 32);
+        target_str = bin2hex(target_swap, 32);
+
+        applog(LOG_ERR, "nonce : %x(%u) => Hash : %08x : %08x : %08x : %08x : %08x : %08x : %08x : %08x",
+                nonce, nonce, ohash[0], ohash[1], ohash[2], ohash[3], ohash[4], ohash[5], ohash[6], ohash[7]);
+        applog(LOG_NOTICE, "COINFLEX Hash  : %s", hash_str);
+        applog(LOG_NOTICE, "COINFLEX Target: %s", target_str);
+
+        free(hash_str);
+        free(target_str);
     }
-    
-    printf("target\n");
-    
-    for(i=0;i<4; i++){
-      printf("0x%08x",work->target[i+28]);
-    }
-}
-
-
-static void coinflex_print_hash(struct work *work, uint32_t nonce)
-{
-    uint32_t    *work_nonce = (uint32_t *)(work->data + 64 + 12);
-    uint32_t    *ohash = (uint32_t *)(work->hash);
-    unsigned char hash_swap[32], target_swap[32];
-    char        *hash_str, *target_str;
-
-    *work_nonce = htole32(nonce);
-
-    switch(kernel)
-    {
-        case KL_SCRYPT:
-            break;
-        case KL_X11MOD:
-            darkcoin_regenhash(work);
-            break;
-        case KL_X13MOD:
-            marucoin_regenhash(work);
-            break;
-        case KL_X15MOD:
-        case KL_NONE:
-        default:
-            //regen_hash(work);
-            break;
-    }
-
-    swab256(hash_swap, work->hash);
-    swab256(target_swap, work->target);
-    hash_str = bin2hex(hash_swap, 32);
-    target_str = bin2hex(target_swap, 32);
-
-    applog(LOG_ERR, "nonce : %x(%u) => Hash : %08x : %08x : %08x : %08x : %08x : %08x : %08x : %08x",
-                        nonce, nonce, ohash[0], ohash[1], ohash[2], ohash[3], ohash[4], ohash[5], ohash[6], ohash[7]);
-    applog(LOG_NOTICE, "COINFLEX Hash  : %s", hash_str);
-    applog(LOG_NOTICE, "COINFLEX Target: %s", target_str);
-
-    free(hash_str);
-    free(target_str);
-}
 #endif
 

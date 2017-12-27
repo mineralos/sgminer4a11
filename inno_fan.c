@@ -23,7 +23,7 @@
 //extern inno_fan_temp_s g_fan_ctrl;
 int g_auto_fan = 1;  //风扇自动/手动控制句柄
 int g_fan_speed = 1; //风扇分位句柄
-int fan_speed[8]={40,50,60,70,80,90,100}; //风扇分档
+int fan_speed[8]={30,40,50,60,70,80,90,100}; //风扇分档
 //inno_fan_temp_s g_fan_ctrl;
 
 

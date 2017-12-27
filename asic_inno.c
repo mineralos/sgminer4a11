@@ -826,13 +826,13 @@ int prechain_detect(struct A1_chain *a1, int idxpll, int lastidx)
         memcpy(temp_reg, default_reg[i], REG_LENGTH);
         if(!inno_cmd_write_reg(a1, ADDR_BROADCAST, temp_reg))
         {
-            usleep(100);
+            usleep(500000);
             nCount++;
             applog(LOG_WARNING, "Set Default PLL Five Times! nCount %d",nCount);
             while(nCount < 6){
 
                 if(!inno_cmd_write_reg(a1, ADDR_BROADCAST, temp_reg)){
-                    usleep(100);
+                    usleep(500000);
                     if(nCount >= 5){
                         applog(LOG_ERR, "set default PLL fail,count = %d",nCount);
                         return -1;
