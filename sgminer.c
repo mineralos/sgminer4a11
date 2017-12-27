@@ -93,14 +93,14 @@ struct strategies strategies[] = {
 char *opt_bitmine_a1_options = NULL;
 
 //for A4
-int opt_A1Pll1=1100; // -1 Default
-int opt_A1Pll2=1100; // -1 Default
-int opt_A1Pll3=1100; // -1 Default
-int opt_A1Pll4=1100; // -1 Default
-int opt_A1Pll5=1100; // -1 Default
-int opt_A1Pll6=1100; // -1 Default
-int opt_A1Pll7=1100; // -1 Default
-int opt_A1Pll8=1100; // -1 Default
+uint32_t opt_A1Pll1=1100; // -1 Default
+uint32_t opt_A1Pll2=1100; // -1 Default
+uint32_t opt_A1Pll3=1100; // -1 Default
+uint32_t opt_A1Pll4=1100; // -1 Default
+uint32_t opt_A1Pll5=1100; // -1 Default
+uint32_t opt_A1Pll6=1100; // -1 Default
+uint32_t opt_A1Pll7=1100; // -1 Default
+uint32_t opt_A1Pll8=1100; // -1 Default
 
 #endif
 
@@ -10070,11 +10070,11 @@ begin_bench:
         bool lagging = false;
         static int  last_temp_time = 0;
 
-       if (last_temp_time + TEMP_UPDATE_INT_MS < get_current_ms())
-       {
-        inno_fan_speed_update(&g_fan_ctrl,fan_level);
-        last_temp_time = get_current_ms();
-       }
+	   if (last_temp_time + TEMP_UPDATE_INT_MS < get_current_ms())
+	   {
+		inno_fan_speed_update(&g_fan_ctrl);
+		last_temp_time = get_current_ms();
+	   }
 
 
         /*

@@ -109,12 +109,13 @@ static uint32_t check_disbale_flag[ASIC_CHAIN_NUM];
 int spi_plug_status[ASIC_CHAIN_NUM] = {0};
 
 char szShowLog[ASIC_CHAIN_NUM][ASIC_CHIP_NUM][256] = {0};
-int fan_level[4]={50,60,80,100};
+int fan_level[8]={40,50,60,70,80,90,100};
 
 hardware_version_e g_hwver;
 inno_type_e g_type;
 int g_reset_delay = 0xffff;
 int g_miner_state = 0;
+int chain_flag[ASIC_CHAIN_NUM] = {0};
 
 /* added by yex in 20170907 */
 /*
@@ -324,7 +325,7 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 
     if(a1 == NULL)
     {
-        return ;
+        return false;
     }
     
     int cid = a1->chain_id;
@@ -505,36 +506,76 @@ failure:
     return NULL;
 }
 
- int inno_preinit(struct A1_chain *a1, int chain_id)
+static  int prepll_chip_temp(struct A1_chain *a1)
 {
-    int i,ret=-1;
-    if(a1 == NULL){
-        return -1;
-    }
+    int i;
+    uint8_t reg[64];
+    int cid = a1->chain_id;
+    int temp;
+    memset(reg,0,sizeof(reg));
 
-    applog(LOG_INFO, "%d: A1 init chain", chain_id);
-    
-    switch(chain_id){
-        case 0:ret = prechain_detect(a1, A1Pll1);break;
-        case 1:ret = prechain_detect(a1, A1Pll2);break;
-        case 2:ret = prechain_detect(a1, A1Pll3);break;
-        case 3:ret = prechain_detect(a1, A1Pll4);break;
-        case 4:ret = prechain_detect(a1, A1Pll5);break;
-        case 5:ret = prechain_detect(a1, A1Pll6);break;
-        case 6:ret = prechain_detect(a1, A1Pll7);break;
-        case 7:ret = prechain_detect(a1, A1Pll8);break;
-        default:;
+    //while(s_fan_ctrl.temp_highest[cid] > 505)//FAN_FIRST_STAGE)
+    for (i = a1->num_active_chips; i > 0; i --)
+    { 
+        if (!inno_cmd_read_reg(a1, i, reg))
+        {
+            applog(LOG_ERR, "%d: Failed to read temperature sensor register for chip %d ", a1->chain_id, i);
+
+            continue;
+        }
+
+        temp = 0x000003ff & ((reg[7] << 8) | reg[8]);
+        //applog(LOG_ERR,"cid %d,chip %d,temp %d\n",cid, i, temp);
+        inno_fan_temp_add(&g_fan_ctrl, cid, i, temp);
+    } 
+
+    chain_temp_update(&g_fan_ctrl,cid,g_type);
+
+    return 0;
+
+}
+
+int* inno_preinit( uint32_t pll, uint32_t last_pll)
+{ 
+    int i;
+    static int ret[ASIC_CHAIN_NUM]={0};
+    int rep_cnt = 0;
+    memset(ret,-1,sizeof(ret));
+
+    for(i=0; i<ASIC_CHAIN_NUM; i++)
+    {
+        if((chain[i] == NULL)||(!chain_flag[i])){
+            ret[i] = -2;
+            continue;
+        }
+
+rept_cfgpll:
+        ret[i] = prechain_detect(chain[i], A1_ConfigA1PLLClock(pll),A1_ConfigA1PLLClock(last_pll));
+        usleep(200000);
+        prepll_chip_temp(chain[i]);
+        if(-1 == ret[i])
+        {
+            if((g_fan_ctrl.temp_highest[i]<DANGEROUS_TMP) && (g_fan_ctrl.temp_lowest[i] < START_FAN_TH))
+            {
+                rep_cnt++;
+                if(rep_cnt < 5)
+                    goto rept_cfgpll;
+                else
+                    goto out_cfgpll;
+            }
+        }
     }
+out_cfgpll:
+    inno_fan_speed_update(&g_fan_ctrl);
+
 
     return ret;
 }
 
-int chain_flag[ASIC_CHAIN_NUM] = {0};
 
-static bool detect_A1_chain(void)
+static int chain_spi_init()
 {
-    int i,j,ret,res = 0;
-    applog(LOG_ERR, "A1: checking A1 chain %d,%d,%d,%d,%d,%d,%d,%d",opt_voltage1,opt_voltage2,opt_voltage3,opt_voltage4,opt_voltage5,opt_voltage6,opt_voltage7,opt_voltage8);
+    int i,j;
 
     for(i = 0; i < ASIC_CHAIN_NUM; i++)
     {
@@ -587,7 +628,59 @@ static bool detect_A1_chain(void)
         spi_plug_status[i] = asic_gpio_read(spi[i]->plug);
         g_fan_ctrl.valid_chain[i] = spi_plug_status[i];
         applog(LOG_ERR, "Plug Status[%d] = %d\n",i,spi_plug_status[i]);
-    }   
+    }	
+
+    return true;
+}
+
+static int inc_pll(void)
+{
+    int i = 0,j = 0; 
+    int *ret;
+    static uint32_t last_pll;
+
+    applog(LOG_ERR, "pre init_pll...");
+    for(i = PLL_Clk_12Mhz[0].speedMHz; i < opt_A1Pll1; i+=200)
+    {		
+        ret = inno_preinit(i,last_pll);
+        last_pll = i;
+
+        for(j=0; j<ASIC_CHAIN_NUM; j++)
+        {	
+            if (-1 == ret[j]){
+                asic_gpio_init(chain[j]->spi_ctx->power_en, 0);
+
+            }else{
+                applog(LOG_ERR,"pll %d finished\n",i);
+            }
+        }
+    }
+
+    if((i > (opt_A1Pll1 - 200)) && (i < (opt_A1Pll1 + 200)))
+    {
+        ret = inno_preinit(opt_A1Pll1,last_pll);
+
+        for(j=0; j<ASIC_CHAIN_NUM; j++)
+        {
+            if (-1 == ret[j]){
+                asic_gpio_init(chain[j]->spi_ctx->power_en, 0);
+
+            }else{
+                applog(LOG_ERR,"pll %d finished\n",i);
+            }
+        }
+    }	
+    return 0;
+}
+
+static bool detect_A1_chain(void)
+{
+    int i,j,ret,res = 0;
+    applog(LOG_ERR, "A1: checking A1 chain %d,%d,%d,%d,%d,%d,%d,%d",opt_voltage1,opt_voltage2,opt_voltage3,opt_voltage4,opt_voltage5,opt_voltage6,opt_voltage7,opt_voltage8);
+
+    ret = chain_spi_init();
+    if(!ret)
+        return false;
 
     set_vid_value(8);
     
@@ -604,19 +697,11 @@ static bool detect_A1_chain(void)
         applog(LOG_WARNING, "Detected the %d A1 chain with %d chips",i, chain[i]->num_active_chips);
     }
 
-    applog(LOG_ERR, "init_ReadTemp...");
-    for(i = 0; i < ASIC_CHAIN_NUM; i++){
-        init_ReadTemp(chain[i],i);
-    }
-
-    applog(LOG_ERR, "pre init_pll...");
-    for(i = 0; i < ASIC_CHAIN_NUM; i++)
-    {       
-        ret = inno_preinit(chain[i], i);
-        if ((chain[i] != NULL) && (ret < 0)){
-            asic_gpio_init(chain[i]->spi_ctx->power_en, 0);
-        }
-    }
+    //applog(LOG_ERR, "init_ReadTemp...");
+    //for(i = 0; i < ASIC_CHAIN_NUM; i++){
+    //init_ReadTemp(chain[i],i);
+    //}
+    inc_pll();
 
     usleep(200000);
     
@@ -699,7 +784,7 @@ static bool detect_A1_chain(void)
 
         applog(LOG_WARNING, "Detected the %d A1 chain with %d chips / %d cores",i, chain[i]->num_active_chips, chain[i]->num_cores);
     }
-    inno_fan_speed_update(&g_fan_ctrl,fan_level);
+    inno_fan_speed_update(&g_fan_ctrl);
 
 #if 0
     Test_bench_Array[0].uiVol = opt_voltage;
@@ -841,8 +926,8 @@ static void coinflex_detect(bool __maybe_unused hotplug)
     
     memset(&s_reg_ctrl,0,sizeof(s_reg_ctrl));
     memset(&g_fan_ctrl,0,sizeof(g_fan_ctrl));
-    
-    inno_fan_temp_init(&g_fan_ctrl);
+
+    inno_fan_temp_init(&g_fan_ctrl,fan_level);
 
      // update time
     for(j = 0; j < 100; j++)
@@ -857,16 +942,6 @@ static void coinflex_detect(bool __maybe_unused hotplug)
     }
 
 
-        
-    A1Pll1 = A1_ConfigA1PLLClock(opt_A1Pll1);
-    A1Pll2 = A1_ConfigA1PLLClock(opt_A1Pll2);
-    A1Pll3 = A1_ConfigA1PLLClock(opt_A1Pll3);
-    A1Pll4 = A1_ConfigA1PLLClock(opt_A1Pll4);
-    A1Pll5 = A1_ConfigA1PLLClock(opt_A1Pll5);
-    A1Pll6 = A1_ConfigA1PLLClock(opt_A1Pll6);
-    A1Pll7 = A1_ConfigA1PLLClock(opt_A1Pll7);
-    A1Pll8 = A1_ConfigA1PLLClock(opt_A1Pll8);
-        
     if(detect_A1_chain()){
         return ;
     }
@@ -1081,7 +1156,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
             nonce_ranges_processed--;
             continue;
         }
-        applog(LOG_INFO, "YEAH: %d: chip %d / job_id %d: nonce 0x%08x", cid, chip_id, job_id, nonce);
+        //applog(LOG_ERR, "YEAH: %d: chip %d / job_id %d: nonce 0x%08x,sdiff:0x%x", cid, chip_id, job_id, nonce,work->sdiff);
         chip->nonces_found++;
     }
 
@@ -1124,8 +1199,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 
             chain_temp_update(&g_fan_ctrl, cid, g_type);
             //inno_fan_speed_update(&g_fan_ctrl,fan_level);
-            
-            applog(LOG_ERR,"cid %d,hi %d,lo:%d,av:%d\n",cid,g_fan_ctrl.temp_highest[cid],g_fan_ctrl.temp_lowest[cid],g_fan_ctrl.temp_arvarge[cid]);
+
+            applog(LOG_INFO,"cid %d,hi %d,lo:%d,av:%d\n",cid,g_fan_ctrl.temp_highest[cid],g_fan_ctrl.temp_lowest[cid],g_fan_ctrl.temp_arvarge[cid]);
 
             cgpu->temp = g_fan_ctrl.temp2float[cid][1];
             cgpu->temp_max = g_fan_ctrl.temp2float[cid][0];
@@ -1240,8 +1315,11 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     }
     */
     //return (int64_t)(2011173.18 * A1Pll / 1000 * (a1->num_cores/9.0) * (a1->tvScryptDiff.tv_usec / 1000000.0));
-    return ((((double)PLL_Clk_12Mhz[A1Pll1].speedMHz*a1->tvScryptDiff.tv_usec /2) * (a1->num_cores))/13);
-}
+    //applog(LOG_ERR,"speed:%d,cores:%d,time:%d",PLL_Clk_12Mhz[A1Pll1].speedMHz,a1->num_cores,a1->tvScryptDiff.tv_usec);
+
+    return ((((double)opt_A1Pll1*a1->tvScryptDiff.tv_usec /2) * (a1->num_cores))/13);
+    //	return ((((double)PLL_Clk_12Mhz[A1Pll1].speedMHz*a1->tvScryptDiff.tv_usec /2) * (a1->num_cores))/13);
+    }
 
 
 static void coinflex_print_hw_error(char *drv_name, int device_id, struct work *work, uint32_t nonce)

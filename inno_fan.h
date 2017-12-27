@@ -39,19 +39,25 @@
 
 #define ASIC_INNO_FAN_PWM_STEP            (5)
 #define ASIC_INNO_FAN_PWM_DUTY_MAX        (100)
-#define ASIC_INNO_FAN_PWM_FREQ_TARGET     (7000)
-#define ASIC_INNO_FAN_PWM_FREQ            (50000000 / ASIC_INNO_FAN_PWM_FREQ_TARGET)
+#define ASIC_INNO_FAN_PWM_FREQ_TARGET     (20000)
+#define ASIC_INNO_FAN_PWM_FREQ            (20000)
 #define FAN_CNT                           ( 2 )
 #define ASIC_INNO_FAN_TEMP_MAX_THRESHOLD  (100)
 #define ASIC_INNO_FAN_TEMP_UP_THRESHOLD   (55)
 #define ASIC_INNO_FAN_TEMP_DOWN_THRESHOLD (35)
 #define ERR_HIGH_TEMP                     (400)
 #define ERR_LOW_TEMP                      (655)
-#define FAN_FIRST_STAGE                   (527)//45
-#define FAN_SECOND_STAGE                  (505)//60
-#define FAN_THIRD_STAGE                   (490)//70
-#define FAN_FOUR_STAGE                    (468)//85
-#define FAN_DELTA                         (15)//10
+#define FAN_FIRST_STAGE                   (535)//40
+#define FAN_SECOND_STAGE                  (520)//50
+#define FAN_THIRD_STAGE                   (505)//60
+#define FAN_FOUR_STAGE                    (498)//65
+#define FAN_FIVE_STAGE                    (490)//70
+#define FAN_SIX_STAGE                     (483)//75
+#define FAN_SEVEN_STAGE                   (475)//80
+#define FAN_EIGHT_STAGE                   (468)//85
+
+#define FAN_DELTA1                        (10)//6
+#define FAN_DELTA2                        (5) //3
 #define TEMP_LABEL                        (594)
 #define ACTIVE_STAT                       (6)
 #define START_FAN_TH                      (550)//30
@@ -103,14 +109,14 @@ typedef enum{
 }inno_type_e;
 
 /*********************************** 接口函数 **********************************/
-void inno_fan_temp_init(inno_fan_temp_s *fan_temp);   /*主要用于Ax系列初始化风扇控制与温度显示*/
+void inno_fan_temp_init(inno_fan_temp_s *fan_temp,int *fan_level);   /*主要用于Ax系列初始化风扇控制与温度显示*/
 bool inno_fan_temp_add(inno_fan_temp_s *fan_temp,int chain_id, int chip_id, int temp); /*用于实时更新统计到的当前温度值，异常记录*/
 void asic_temp_sort(inno_fan_temp_s *fan_temp, int chain_id);   /*对单条链统计到的所有温度做一次升序排列*/
 int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e inno_type); /*提供当前链统计到的实时最高温度(chip_type)*/
 int inno_fan_temp_lowest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e inno_type); /*提供当前链统计到的实时最低温（chip_type）*/
 int inno_fan_temp_avg(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e inno_type); /*提供当前链所有芯片统计的实时平均温度*/
 //void inno_fan_temp_update(inno_fan_temp_s *fan_temp,int chain_id, inno_type_e inno_type, int *fan_level);  /*用于更新风扇转速与温度显示数据*/
-void inno_fan_speed_update(inno_fan_temp_s *fan_temp, int *fan_level);
+void inno_fan_speed_update(inno_fan_temp_s *fan_temp);
 void chain_temp_update(inno_fan_temp_s *fan_temp,int chain_id,inno_type_e inno_type);
 void inno_fan_speed_set(inno_fan_temp_s *fan_temp, int speed);  /*设置风扇转速 */
 

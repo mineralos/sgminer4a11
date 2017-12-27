@@ -60,7 +60,7 @@ void disable_chip(struct A1_chain *a1, uint8_t chip_id);
 bool get_nonce(struct A1_chain *a1, uint8_t *nonce, uint8_t *chip_id, uint8_t *job_id);
 bool set_work(struct A1_chain *a1, uint8_t chip_id, struct work *work, uint8_t queue_states);
 void check_disabled_chips(struct A1_chain *a1, int pllnum);
-int prechain_detect(struct A1_chain *a1, int idxpll);
+int prechain_detect(struct A1_chain *a1, int idxpll,int last_pll);
 
 #endif
 

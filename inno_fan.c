@@ -23,7 +23,7 @@
 //extern inno_fan_temp_s g_fan_ctrl;
 int g_auto_fan = 1;  //风扇自动/手动控制句柄
 int g_fan_speed = 1; //风扇分位句柄
-int fan_speed[4]={30,50,80,100}; //风扇分档
+int fan_speed[8]={40,50,60,70,80,90,100}; //风扇分档
 //inno_fan_temp_s g_fan_ctrl;
 
 
@@ -146,6 +146,7 @@ void inno_fan_speed_set(inno_fan_temp_s *fan_temp, int speed)
     int fan_id;
     int duty_driver = 0;
     duty_driver = ASIC_INNO_FAN_PWM_FREQ_TARGET / 100 * (100 - speed);
+	inno_log(IM_LOG_ERR, "set fan speed %d\n", speed);
     pthread_mutex_lock(&fan_temp->lock);
 
     /* 开启风扇结点 */
@@ -180,7 +181,7 @@ void inno_fan_speed_set(inno_fan_temp_s *fan_temp, int speed)
     return;
 }
 
-void inno_fan_temp_init(inno_fan_temp_s *fan_temp)
+void inno_fan_temp_init(inno_fan_temp_s *fan_temp,int *fan_level)
 {
     int chain_id = 0;
     int speed = 80;
@@ -188,6 +189,11 @@ void inno_fan_temp_init(inno_fan_temp_s *fan_temp)
 
     fan_temp->auto_ctrl = g_auto_fan;
     fan_temp->speed = speed;
+
+	if(fan_level != NULL){
+		   // printf("size %d, %d\n",sizeof(fan_speed),sizeof(fan_speed[0]));
+		   memcpy(fan_speed, fan_level,sizeof(fan_speed));
+	   }
 
     if(g_auto_fan)
     {
@@ -424,24 +430,25 @@ void chain_temp_update(inno_fan_temp_s *fan_temp,int chain_id,inno_type_e inno_t
   return; 
 }
 
-void inno_fan_speed_update(inno_fan_temp_s *fan_temp, int *fan_level)
+void inno_fan_speed_update(inno_fan_temp_s *fan_temp)
 {
     int i = 0;
-    int temp_hi = DEFAULT_HI_TEMP; //fan_temp->temp_highest[0];
-    int delta[4][2]={
+
+	int temp_hi = DEFAULT_HI_TEMP; //fan_temp->temp_highest[0];
+    int delta[8][2]={
+
         //{FAN_FIRST_STAGE + FAN_DELTA,0},
-        {FAN_FIRST_STAGE + FAN_DELTA,FAN_FIRST_STAGE - FAN_DELTA},
-        {FAN_SECOND_STAGE + FAN_DELTA,FAN_SECOND_STAGE - FAN_DELTA},
-        {FAN_THIRD_STAGE + FAN_DELTA,FAN_THIRD_STAGE - FAN_DELTA},
-        {FAN_FOUR_STAGE + FAN_DELTA,FAN_FOUR_STAGE - FAN_DELTA}
+        {FAN_FIRST_STAGE + FAN_DELTA1, FAN_FIRST_STAGE - FAN_DELTA1},
+        {FAN_SECOND_STAGE + FAN_DELTA1,FAN_SECOND_STAGE - FAN_DELTA1},
+        {FAN_THIRD_STAGE + FAN_DELTA1, FAN_THIRD_STAGE - FAN_DELTA2},
+        {FAN_FOUR_STAGE + FAN_DELTA2,  FAN_FOUR_STAGE - FAN_DELTA2},
+        {FAN_FIVE_STAGE + FAN_DELTA2,  FAN_FIVE_STAGE - FAN_DELTA2,},
+        {FAN_SIX_STAGE + FAN_DELTA2,   FAN_SIX_STAGE - FAN_DELTA2, },
+        {FAN_SEVEN_STAGE + FAN_DELTA2, FAN_SEVEN_STAGE - FAN_DELTA2, },
+        {FAN_EIGHT_STAGE + FAN_DELTA2, FAN_EIGHT_STAGE - FAN_DELTA2, },
     };
 
     //printf("fan_speed %d, %d, %d, %d\n",fan_level[0],fan_level[1],fan_level[2],fan_level[3]);
-
-    if(fan_level != NULL){
-        // printf("size %d, %d\n",sizeof(fan_speed),sizeof(fan_speed[0]));
-        memcpy(fan_speed, fan_level,sizeof(fan_speed));
-    }
 
     //printf("level_speed %d, %d, %d, %d\n",fan_level[0],fan_level[1],fan_level[2],fan_level[3]);
     //printf("after fan_speed %d, %d, %d, %d\n",fan_speed[0],fan_speed[1],fan_speed[2],fan_speed[3]);
@@ -470,7 +477,7 @@ void inno_fan_speed_update(inno_fan_temp_s *fan_temp, int *fan_level)
             //applog(LOG_ERR, "%s +:arv:%5.2f, lest:%5.2f, hest:%5.2f, speed:%d%%", __func__, arvarge_f, lowest_f, highest_f, 100 - fan_ctrl->duty);
         }else if (temp_hi < delta[fan_temp->last_fan_temp][1])
         {
-            if(fan_temp->last_fan_temp < 3)
+            if(fan_temp->last_fan_temp < 7)
             {
                 fan_temp->last_fan_temp += 1;
             }

@@ -636,15 +636,15 @@ void check_disabled_chips(struct A1_chain *a1, int pllnum)
             applog(LOG_WARNING, "****core:%d*start to reset the chain:%d******************", a1->num_cores, cid);
 
             asic_gpio_write(ctx->power_en, 0);
-            sleep(3);
+            sleep(5);
             asic_gpio_write(ctx->power_en, 1);
-            sleep(2);
+            sleep(5);
             asic_gpio_write(ctx->reset, 1);
             sleep(1);
             asic_gpio_write(ctx->start_en, 1);
             sleep(2);
 
-            inno_preinit(ctx, cid);
+            inno_preinit(opt_A1Pll1,120);
 
             a1->num_chips =  chain_detect(a1);
             usleep(10000);
@@ -812,44 +812,44 @@ bool check_chip(struct A1_chain *a1, int i)
     return true;
 }
 
-int prechain_detect(struct A1_chain *a1, int idxpll)
+int prechain_detect(struct A1_chain *a1, int idxpll, int lastidx)
 {
     uint8_t buffer[64];
     int cid = a1->chain_id;
     uint8_t temp_reg[REG_LENGTH];
     int i,nCount = 0;
 
-    asic_spi_init();
-    set_spi_speed(1500000);
 
-    inno_cmd_reset(a1, ADDR_BROADCAST,NULL);
-
-    usleep(1000);
-
-    for(i=0; i<idxpll+1; i++)
+    for(i=lastidx; i<idxpll+1; i++)
     {
-        memcpy(temp_reg, default_reg[i], REG_LENGTH-2);
+        //nCount = 0;
+        memcpy(temp_reg, default_reg[i], REG_LENGTH);
         if(!inno_cmd_write_reg(a1, ADDR_BROADCAST, temp_reg))
         {
-            applog(LOG_WARNING, "Set Default PLL Five Times!");
+            usleep(100);
             nCount++;
-            while(nCount < 5){
+            applog(LOG_WARNING, "Set Default PLL Five Times! nCount %d",nCount);
+            while(nCount < 6){
+
                 if(!inno_cmd_write_reg(a1, ADDR_BROADCAST, temp_reg)){
+                    usleep(100);
                     if(nCount >= 5){
-                        applog(LOG_WARNING, "set default PLL fail,count = %d",nCount);
+                        applog(LOG_ERR, "set default PLL fail,count = %d",nCount);
                         return -1;
                     }
                     nCount++;
                 }else{
-                    applog(LOG_WARNING, "set default PLL  %d Times Success",nCount+1);
+                    applog(LOG_ERR, "set default PLL  %d Times Success",nCount+1);
+
                     nCount = 0;
                     break;
                 }
             }
         }
-        //applog(LOG_WARNING, "set default %d PLL success", i);
+        applog(LOG_WARNING, "set default %d PLL success", i);
 
-        usleep(120000);
+        usleep(500000);
+
     }
     return 0;
 }

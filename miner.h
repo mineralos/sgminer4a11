@@ -119,14 +119,14 @@ static inline int fsync (int fd)
 
 #if defined(USE_COINFLEX)
 extern char *opt_bitmine_a1_options;
-extern int opt_A1Pll1;
-extern int opt_A1Pll2;
-extern int opt_A1Pll3;
-extern int opt_A1Pll4;
-extern int opt_A1Pll5;
-extern int opt_A1Pll6;
-extern int opt_A1Pll7;
-extern int opt_A1Pll8;
+extern uint32_t opt_A1Pll1;
+extern uint32_t opt_A1Pll2;
+extern uint32_t opt_A1Pll3;
+extern uint32_t opt_A1Pll4;
+extern uint32_t opt_A1Pll5;
+extern uint32_t opt_A1Pll6;
+extern uint32_t opt_A1Pll7;
+extern uint32_t opt_A1Pll8;
 
 extern int opt_voltage;
 extern int opt_voltage1;
@@ -142,7 +142,7 @@ extern int g_auto_fan;
 extern int g_fan_speed;
 extern int g_reset_delay;
 extern int g_miner_state;
-extern int fan_level[4];
+extern int fan_level[8];
 extern inno_fan_temp_s g_fan_ctrl;
 
 

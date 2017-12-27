@@ -34,7 +34,7 @@ CFLAGS="-I${SGMINER_DIR}/include " \
 
 make -j${MAKE_JOBS}
 
-#cp sgminer /home/public/update/sgminer_a7.$1
-#chmod 777 /home/public/update/sgminer_a7.$1
+cp sgminer innominer_T3
+chmod 777 innominer_T3
 
 #rm -rf ${SGMINER_DIR}
