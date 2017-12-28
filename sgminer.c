@@ -10081,6 +10081,7 @@ begin_bench:
         {
             applog(LOG_INFO, "powerdown for api commond");
             power_down_all_chain();
+            sleep(10);
             sleep(g_reset_delay);
             exit(1);
         }

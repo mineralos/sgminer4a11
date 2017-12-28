@@ -227,7 +227,6 @@ bool inno_cmd_reset(struct A1_chain *pChain, uint8_t chip_id, uint8_t *buff)
 {
     uint8_t spi_tx[MAX_CMD_LENGTH];
     uint8_t spi_rx[MAX_CMD_LENGTH];
-    //uint8_t tmp_reg[12] = {0x02,0x50,0x41,0xc2,0x00,0x00,0x00,0xa7,0xff,0x24,0x00,0x00};
     
     //applog(LOG_INFO,"send command [reset] \n");
 

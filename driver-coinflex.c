@@ -464,7 +464,6 @@ struct A1_chain *init_A1_chain(struct spi_ctx *ctx, int chain_id)
 {
     int i;
     struct A1_chain *a1 = malloc(sizeof(*a1)); 
-    static uint8_t reg = 0xe3;
     assert(a1 != NULL);
     memset(a1,0,sizeof(struct A1_chain));
 
@@ -623,8 +622,12 @@ static int chain_spi_init()
     }
 
     sleep(5);
+    applog(LOG_ERR,"spi init");
 
     for(i = 0; i < ASIC_CHAIN_NUM; i++){
+       if(spi[i] == NULL)
+           continue;
+        
         asic_gpio_write(spi[i]->led, 0);
         asic_gpio_write(spi[i]->power_en, 1);
         sleep(5);
@@ -697,6 +700,10 @@ static bool detect_A1_chain(void)
         return false;
 
     set_vid_value(8);
+
+   //add for A7
+   asic_spi_init();
+   set_spi_speed(1500000);
 
 
     for(i = 0; i < ASIC_CHAIN_NUM; i++){

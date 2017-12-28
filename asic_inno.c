@@ -933,7 +933,7 @@ void inno_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor)
  
  //chip_id = 0;
 
-  memset(tmp_reg, 0, sizeof(tmp_reg));
+  memset(tmp_reg, 0, 128);
   memcpy(src_reg,reg,REG_LENGTH-2);
   inno_cmd_write_reg(a1,chip_id,src_reg);
   usleep(200);
