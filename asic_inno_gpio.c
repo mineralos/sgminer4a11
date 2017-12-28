@@ -209,11 +209,12 @@ void loop_blink_led(int pos, int cnt)
 {
        int i;
     //while(--cnt)
-      // while(1)
+       while(1)
        {
+               usleep(500000);
                asic_gpio_write(pos, 1);
                usleep(500000);
-               //asic_gpio_write(pos, 0);
+               asic_gpio_write(pos, 0);
        }
 }
 

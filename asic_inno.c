@@ -635,6 +635,13 @@ void check_disabled_chips(struct A1_chain *a1, int pllnum)
           //  applog(LOG_WARNING, "****core:%d*start to reset the chain:%d******************", a1->num_cores, cid);
             applog(LOG_WARNING, "****core:%d*start to reset the chain:%d******************", a1->num_cores, cid);
 
+            asic_gpio_write(spi[i]->power_en, 0);
+            sleep(1);
+            asic_gpio_write(spi[i]->start_en, 0);
+            asic_gpio_write(spi[i]->reset, 0);
+            asic_gpio_write(spi[i]->led, 1);
+           
+#if 0
             asic_gpio_write(ctx->power_en, 0);
             sleep(5);
             asic_gpio_write(ctx->power_en, 1);
@@ -644,9 +651,11 @@ void check_disabled_chips(struct A1_chain *a1, int pllnum)
             asic_gpio_write(ctx->start_en, 1);
             sleep(2);
 
+           
             inno_preinit(opt_A1Pll1,120);
 
-            a1->num_chips =  chain_detect(a1);
+            a1->num_chips =  chain_detect_reload(a1);
+            
             usleep(10000);
 
             if (a1->num_chips <= 0)
@@ -657,14 +666,20 @@ void check_disabled_chips(struct A1_chain *a1, int pllnum)
             for (i = 0; i < a1->num_active_chips; i++)
             {
                 check_chip(a1, i);
-            }
+
+          }
+#endif
+
         }
     }else{
          //applog(LOG_WARNING, "******there is no board insert******");
          applog(LOG_WARNING, "chain %d not insert,change all gpio to zero****", cid);
-         asic_gpio_write(ctx->power_en, 0);
-         asic_gpio_write(ctx->reset, 0);
-         asic_gpio_write(ctx->start_en, 0);
+         asic_gpio_write(spi[i]->power_en, 0);
+         sleep(1);
+         asic_gpio_write(spi[i]->start_en, 0);
+         asic_gpio_write(spi[i]->reset, 0);
+         asic_gpio_write(spi[i]->led, 1);
+
     }
     
     return;

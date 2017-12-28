@@ -646,7 +646,7 @@ static int chain_spi_init()
 
 static int inc_pll(void)
 {
-    int i = 0,j = 0; 
+    uint32_t i = 0,j = 0; 
     int *ret;
     static uint32_t last_pll;
 
