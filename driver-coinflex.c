@@ -225,7 +225,7 @@ int  cfg_tsadc_divider(struct A1_chain *a1,uint32_t pll_clk)
 #else
     tsadc_divider_tmp = (pll_clk/2)*1000/16/650;
 #endif
-    tsadc_divider = tsadc_divider_tmp & 0xff;
+    tsadc_divider = (uint8_t)(tsadc_divider_tmp & 0xff);
 
     buffer[5] = 0x00 | tsadc_divider;
 
@@ -463,14 +463,19 @@ failure:
 struct A1_chain *init_A1_chain(struct spi_ctx *ctx, int chain_id)
 {
     int i;
-    struct A1_chain *a1 = malloc(sizeof(*a1));
+    struct A1_chain *a1 = malloc(sizeof(*a1)); 
+    static uint8_t reg = 0xe3;
     assert(a1 != NULL);
+    memset(a1,0,sizeof(struct A1_chain));
 
-    applog(LOG_DEBUG, "%d: A1 init chain", chain_id);
+    applog(LOG_ERR, "%d: A1 init chain", chain_id);
 
     memset(a1, 0, sizeof(*a1));
     a1->spi_ctx = ctx;
     a1->chain_id = chain_id;
+    
+   // inno_cmd_reset(a1,ADDR_BROADCAST, &reg);
+    usleep(200000);
 
     a1->num_chips =  chain_detect(a1);
     if (a1->num_chips < 1){
@@ -613,22 +618,25 @@ static int chain_spi_init()
         asic_gpio_write(spi[i]->power_en, 0);
         sleep(1);
         asic_gpio_write(spi[i]->start_en, 0);
-        asic_gpio_write(spi[i]->reset, 0);  
+        asic_gpio_write(spi[i]->reset, 0);
+        asic_gpio_write(spi[i]->led, 1);
     }
 
     sleep(5);
 
     for(i = 0; i < ASIC_CHAIN_NUM; i++){
+        asic_gpio_write(spi[i]->led, 0);
         asic_gpio_write(spi[i]->power_en, 1);
         sleep(5);
         asic_gpio_write(spi[i]->reset, 1);
         sleep(1);
         asic_gpio_write(spi[i]->start_en, 1);
+        
 
         spi_plug_status[i] = asic_gpio_read(spi[i]->plug);
         g_fan_ctrl.valid_chain[i] = spi_plug_status[i];
-        applog(LOG_ERR, "Plug Status[%d] = %d\n",i,spi_plug_status[i]);
-    }	
+        applog(LOG_ERR, "Plug Status[%d] = %d",i,spi_plug_status[i]);
+    }
 
     return true;
 }
@@ -648,11 +656,11 @@ static int inc_pll(void)
         for(j=0; j<ASIC_CHAIN_NUM; j++)
         {
             if (-1 == ret[j]){
-                asic_gpio_write(chain[i]->spi_ctx->power_en, 0);
+                asic_gpio_write(chain[j]->spi_ctx->power_en, 0);
                 sleep(1);
-                asic_gpio_write(chain[i]->spi_ctx->start_en, 0);
-                asic_gpio_write(chain[i]->spi_ctx->reset, 0);  
-
+                asic_gpio_write(chain[j]->spi_ctx->start_en, 0);
+                asic_gpio_write(chain[j]->spi_ctx->reset, 0);  
+                
             }else{
                 applog(LOG_ERR,"pll %d finished\n",i);
             }
@@ -666,10 +674,10 @@ static int inc_pll(void)
         for(j=0; j<ASIC_CHAIN_NUM; j++)
         {
             if (-1 == ret[j]){
-                asic_gpio_write(chain[i]->spi_ctx->power_en, 0);
+                asic_gpio_write(chain[j]->spi_ctx->power_en, 0);
                 sleep(1);
-                asic_gpio_write(chain[i]->spi_ctx->start_en, 0);
-                asic_gpio_write(chain[i]->spi_ctx->reset, 0);  
+                asic_gpio_write(chain[j]->spi_ctx->start_en, 0);
+                asic_gpio_write(chain[j]->spi_ctx->reset, 0);  
 
             }else{
                 applog(LOG_ERR,"pll %d finished\n",i);
@@ -700,16 +708,12 @@ static bool detect_A1_chain(void)
             res++;
             chain_flag[i] = 1;
         }
+        inno_cmd_reset(chain[i], ADDR_BROADCAST,NULL);
         applog(LOG_WARNING, "Detected the %d A1 chain with %d chips",i, chain[i]->num_active_chips);
     }
 
-    //applog(LOG_ERR, "init_ReadTemp...");
-    //for(i = 0; i < ASIC_CHAIN_NUM; i++){
-    //init_ReadTemp(chain[i],i);
-    //}
-    inc_pll();
-
     usleep(200000);
+    inc_pll();
 
     if(g_hwver == HARDWARE_VERSION_G9){
 

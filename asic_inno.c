@@ -818,8 +818,9 @@ int prechain_detect(struct A1_chain *a1, int idxpll, int lastidx)
     int cid = a1->chain_id;
     uint8_t temp_reg[REG_LENGTH];
     int i,nCount = 0;
-
-
+  
+    usleep(500000);
+    
     for(i=lastidx; i<idxpll+1; i++)
     {
         //nCount = 0;
@@ -878,7 +879,9 @@ bool zynq_spi_exit(void)
 int inno_chain_power_down(struct A1_chain *a1)
 {
     asic_gpio_write(a1->spi_ctx->power_en, 0);
+    sleep(1);
     asic_gpio_write(a1->spi_ctx->start_en, 0);
+    asic_gpio_write(a1->spi_ctx->reset, 0);  
 
     return 0;
 }
@@ -909,12 +912,12 @@ int chain_detect(struct A1_chain *a1)
 
     memset(buffer, 0, sizeof(buffer));
     if(!inno_cmd_bist_start(a1, ADDR_BROADCAST, buffer)){
-        applog(LOG_WARNING, "bist start fail");
+        applog(LOG_ERR, "bist start fail");
         return -1;
     }
 
     a1->num_chips = buffer[3]; 
-    applog(LOG_WARNING, "%d: detected %d chips", cid, a1->num_chips);
+    applog(LOG_ERR, "%d: detected %d chips", cid, a1->num_chips);
 
     return a1->num_chips;
 }

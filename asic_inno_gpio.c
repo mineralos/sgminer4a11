@@ -78,7 +78,7 @@ void set_vid_value_G9(int level)
 {
     int fd; 
     
-    applog(LOG_INFO, "set vid value %d", level);
+    applog(LOG_ERR, "set vid value %d", level);
 
     fd = open(SYSFS_VID_DEV, O_RDWR);
     if(fd < 0)
