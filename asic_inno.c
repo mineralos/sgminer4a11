@@ -64,27 +64,6 @@ extern inno_reg_ctrl_t s_reg_ctrl;
 
 int nReadVolTimes = 0;
 int nVolTotal = 0;
-int opt_diff=15;
-
-static const uint8_t difficult_Tbl[24][4] = {
-    {0x1e, 0xff, 0xff, 0xff},   // 1
-    {0x1e, 0x7f, 0xff, 0xff},   // 2
-    {0x1e, 0x3f, 0xff, 0xff},   // 4
-    {0x1e, 0x1f, 0xff, 0xff},   // 8
-    {0x1e, 0x0f, 0xff, 0xff},   // 16
-    {0x1e, 0x07, 0xff, 0xff},   // 32
-    {0x1e, 0x03, 0xff, 0xff},   // 64 
-    {0x1e, 0x01, 0xff, 0xff},   // 128
-    {0x1e, 0x00, 0xff, 0xff},   // 256
-    {0x1e, 0x00, 0x7f, 0xff},   // 512
-    {0x1e, 0x00, 0x3f, 0xff},   // 1024
-    {0x1e, 0x00, 0x1f, 0xff},   // 2048
-    {0x1e, 0x00, 0x0f, 0xff},   // 4096
-    {0x1e, 0x00, 0x07, 0xff},   // 8192
-    {0x1e, 0x00, 0x03, 0xff},   // 16384
-    {0x1e, 0x00, 0x01, 0xff},   // 32768
-    {0x1e, 0x00, 0x00, 0xff}    // 65536
-};
 
 static const uint8_t default_reg[119][12] = 
 {
@@ -357,9 +336,6 @@ static uint8_t *create_job(uint8_t chip_id, uint8_t job_id, struct work *work)
 #endif      
         // crc
         memset(tmp_buf, 0, sizeof(tmp_buf));
-    //  memset(spi_tx, 0, sizeof(spi_tx));
-    //  memset(spi_rx, 0, sizeof(spi_rx));
-    //  memcpy(spi_tx, job, sizeof(job));
         
         for(i = 0; i < 47; i++)
         {
@@ -385,166 +361,6 @@ static uint8_t *create_job(uint8_t chip_id, uint8_t job_id, struct work *work)
 
     memcpy(job,spi_tx,98);
         return job;
-
-    #if 0
-        ret = spi_transfer(ctx, spi_tx, spi_rx, 96 + 8);
-        if(!ret)
-        {
-            return false;
-        }
-    
-        memset(spi_tx, 0, sizeof(spi_tx));
-        for(i = 0; i < 10; i++)
-        {
-            usleep(1);
-            ret = spi_transfer(ctx, NULL, spi_rx, 2);
-            if(!ret)
-            {
-                printf("write job error! \r\n");
-                return false;
-            }
-    
-            //printf("spi_rx: 0x%02x, 0x%02x \r\n", spi_rx[0], spi_rx[1]);
-            if((spi_rx[0] & 0x0f) == CMD_WRITE_JOB)
-            {
-                return true;
-            }
-        }
-    
-        return false;
-#endif
-#if 0
-    unsigned char *wdata = work->data;
-    double sdiff = work->sdiff;
-    uint8_t tmp_buf[JOB_LENGTH],spi_tx[128];
-    uint16_t crc;
-    uint8_t i;
-
-    unsigned char dataX11[80] = {0x00,0x00,0x00, 0x20, 0xa9, 0x58, 0x39, 0x35, 0x8d, 0x73, 0xd5, 0x76, 0x4b, 0xed, 0x1d, 0x01, 0xb6, 0x44, 0x99, 0x04, 0xda, 0xef, 0x59,0xc5,0x8a, 0x56, 0xa9, 0x89, 0x0a, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x73, 0x45, 0xac, 0xb9, 0xf2, 0xb2, 0xcf, 0x91, 0xb7, 0x73, 0x8f, 0xe4, 0x1a, 0x01, 0x9d, 0xdf, 0xb8, 0x65, 0xa6, 0xe4, 0xe2, 0xe1, 0x7c, 0xa0, 0x5c, 0xe2, 0x48, 0x77, 0x97, 0xc9, 0x83, 0xe3, 0xef, 0xcd, 0xb7, 0x59, 0x62, 0x14, 0x0b, 0x1a, 0x00, 0x00, 0x00, 0x00};
-//char dataX11[82] =  {0x00,0x00, 0x00,0x00,0x00,0x20,0x94,0xf5,0x3c,0x5c,0x3b,0x71,0x10,0xeb,0x5c,0xe7,0x5b,0x0e,0xc2,0x09,0x01,0xb9,0x1c,0xfd,0xea,0x16,0x5e,0x9c,0xba,0xba,0x16,0x59,0x00,0x00,0x00,0x00,0x00,0x00,0xa7,0xa0,0x82,0xc7,0x08,0xf2,0xa6,0xc5,0x49,0xe8,0x6a,0x21,0xa3,0x8c,0xbc,0x21,0x08,0x8c,0xee,0x7b,0x06,0x95,0x93,0x5f,0x15,0xe9,0x02,0x04,0x19,0x76,0x6b,0x70,0x2c,0xd7,0x28,0x59,0xd5,0x81,0x00,0x1b,0xe4,0x2e,0x36,0x40 };//0x40,0x36,0x2e,0xe4
-//ffd80000_00000027
-  unsigned char targetX11[32] = {0x00,0x00, 0x00,0x00, 0x00,0x00,0x00,0x00,0x00,0x00, 0x00,0x00, 0x00,0x00,0x00,0x00,0x00,0x00, 0x00,0x00, 0x00,0x00,0x00,0x00,0xff,0xe0, 0x00,0x00, 0x00,0x00,0x00,0x1f };
-   uint32_t nonceX11 = 0x26f10d07;  // 0x40362ee4;//
-   
-   memcpy(work->data, dataX11,80);
-   memcpy(work->target, targetX11,32);
-   work->nonce = nonceX11;
-
-
-    static uint8_t job[JOB_LENGTH] = {
-        /* command */
-        0x00, 0x00,
-        /* wdata  75 to 0 */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        /* start nonce */
-        0x00, 0x00, 0x00, 0x00,
-        /* difficulty */
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        /* end nonce */
-        0x00, 0x00, 0x00, 0x00,
-        /* crc data */
-        0x00, 0x00
-    };
-
-    
-#if 1
-    memset(spi_tx, 0, sizeof(spi_tx));
-    //memset(spi_rx, 0, sizeof(spi_rx));
-
-    printf("send command [writ_job] \r\n");
-    
-    // cmd
-    spi_tx[0] = ((job_id & 0x0f) << 4) | CMD_WRITE_JOB;
-    spi_tx[1] = chip_id;
-    
-    // data
-    for(i = 0; i < 19; i++)
-    {
-#if 0
-        spi_tx[2 + (i * 4) + 0] = (uint8_t)((work->data[i] >>  0) & 0xff);
-        spi_tx[2 + (i * 4) + 1] = (uint8_t)((work->data[i] >>  8) & 0xff);
-        spi_tx[2 + (i * 4) + 2] = (uint8_t)((work->data[i] >> 16) & 0xff);
-        spi_tx[2 + (i * 4) + 3] = (uint8_t)((work->data[i] >> 24) & 0xff);
-#else
-        spi_tx[2 + (i * 4) + 0] = (uint8_t)((work->data[4*i+3] ) & 0xff);
-        spi_tx[2 + (i * 4) + 1] = (uint8_t)((work->data[4*i+2] ) & 0xff);
-        spi_tx[2 + (i * 4) + 2] = (uint8_t)((work->data[4*i+1] ) & 0xff);
-        spi_tx[2 + (i * 4) + 3] = (uint8_t)((work->data[4*i+0] ) & 0xff);
-#endif
-    }
-    
-#if 0
-    spi_tx[78] = (uint8_t)((work->data[19] >> 24) & 0xff);
-    spi_tx[79] = (uint8_t)((work->data[19] >> 16) & 0xff);
-    spi_tx[80] = (uint8_t)((work->data[19] >>  8) & 0xff);
-    spi_tx[81] = (uint8_t)((work->data[19] >>  0) & 0xff);
-#else
-    spi_tx[78] = (uint8_t)((work->data[76]) & 0xff);
-    spi_tx[79] = (uint8_t)((work->data[77]) & 0xff);
-    spi_tx[80] = (uint8_t)((work->data[78]) & 0xff);
-    spi_tx[81] = (uint8_t)((work->data[79]) & 0xff);
-#endif
-
-    
-    // target
-    for(i = 0; i < 2; i++)
-    {
-#if 0
-        spi_tx[82 + (i * 4) + 0] = (uint8_t)((work->target[20 + 4*i] ) & 0xff);
-        spi_tx[82 + (i * 4) + 1] = (uint8_t)((work->target[21 + 4*i] ) & 0xff);
-        spi_tx[82 + (i * 4) + 2] = (uint8_t)((work->target[22 + 4*i] ) & 0xff);
-        spi_tx[82 + (i * 4) + 3] = (uint8_t)((work->target[23 + 4*i] ) & 0xff);
-#else
-
-        spi_tx[82 + (i * 4) + 0] = (uint8_t)((work->target[27 + 4*i] ) & 0xff);
-        spi_tx[82 + (i * 4) + 1] = (uint8_t)((work->target[26 + 4*i] ) & 0xff);
-        spi_tx[82 + (i * 4) + 2] = (uint8_t)((work->target[25 + 4*i] ) & 0xff);
-        spi_tx[82 + (i * 4) + 3] = (uint8_t)((work->target[24 + 4*i] ) & 0xff);
-#endif      
-    }
-    
-    // end nonce
-    #if 0
-    spi_tx[90] = (uint8_t)((work->nonce>>0 ) & 0xff);
-    spi_tx[91] = (uint8_t)((work->nonce>>8 ) & 0xff);
-    spi_tx[92] = (uint8_t)((work->nonce>>16 ) & 0xff);
-    spi_tx[93] = (uint8_t)((work->nonce>>24) & 0xff);
-    #else
-    spi_tx[90] = 0xff;
-    spi_tx[91] = 0xff;
-    spi_tx[92] =  0xff;
-    spi_tx[93] = 0xff;
-    #endif
-    // crc
-    memset(tmp_buf, 0, sizeof(tmp_buf));
-    for(i = 0; i < 47; i++)
-    {
-        tmp_buf[(2 * i) + 1] = spi_tx[(2 * i) + 0];
-        tmp_buf[(2 * i) + 0] = spi_tx[(2 * i) + 1];
-    }
-    crc = CRC16_2(tmp_buf, 94);
-    spi_tx[94] = (uint8_t)((crc >> 8) & 0xff);
-    spi_tx[95] = (uint8_t)((crc >> 0) & 0xff);
-
-    memcpy(job,spi_tx,98*sizeof(char));
-    return job;
-
-
-#else
-    
-#endif
-
-#endif
-    //return job;
 }
 
 
@@ -744,28 +560,6 @@ bool get_nonce(struct A1_chain *a1, uint8_t *nonce, uint8_t *chip_id, uint8_t *j
     {
         *job_id = buffer[0] >> 4;
         *chip_id = buffer[1];
-        //work->data[19] = (buffer[0] << 0) + (buffer[1] << 8) + (buffer[2] << 16) + (buffer[3] << 24);
-
-        //19
-/*
-        tmp_nonce[0] = buffer[3];
-        tmp_nonce[1] = buffer[2];
-        tmp_nonce[2] = buffer[5];
-        tmp_nonce[3] = buffer[4];
-
-//20
-        tmp_nonce[0] = buffer[5];
-        tmp_nonce[1] = buffer[4];
-        tmp_nonce[2] = buffer[3];
-        tmp_nonce[3] = buffer[2];
-       
-//21
-  
-        tmp_nonce[0] = buffer[4];
-        tmp_nonce[1] = buffer[5];
-        tmp_nonce[2] = buffer[2];
-        tmp_nonce[3] = buffer[3];
-*/
 
         memcpy(nonce, buffer+2, 4);
         //printf("buffer:0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n",buffer[0],buffer[1],buffer[2],buffer[3],buffer[4],buffer[5]);
@@ -838,35 +632,26 @@ int prechain_detect(struct A1_chain *a1, int idxpll, int lastidx)
     
     for(i=lastidx; i<idxpll+1; i++)
     {
-        //nCount = 0;
+        nCount = 0;
         memcpy(temp_reg, default_reg[i], REG_LENGTH);
-        if(!inno_cmd_write_reg(a1, ADDR_BROADCAST, temp_reg))
-        {
-            usleep(500000);
-            nCount++;
-            applog(LOG_WARNING, "Set Default PLL Five Times! nCount %d",nCount);
-            while(nCount < 6){
-
-                if(!inno_cmd_write_reg(a1, ADDR_BROADCAST, temp_reg)){
-                    usleep(500000);
-                    if(nCount >= 5){
-                        applog(LOG_ERR, "set default PLL fail,count = %d",nCount);
-                        return -1;
-                    }
-                    nCount++;
-                }else{
-                    applog(LOG_ERR, "set default PLL  %d Times Success",nCount+1);
-
-                    nCount = 0;
-                    break;
+        
+         while(!inno_cmd_write_reg(a1, ADDR_BROADCAST, temp_reg))
+         {
+               usleep(200000);
+               nCount++;
+               if(nCount > 5) 
+               {
+                  applog(LOG_ERR, "set default PLL fail");
+                  return -1;
                 }
-            }
-        }
-        applog(LOG_WARNING, "set default %d PLL success", i);
+          }
+       
+           usleep(200000);
+      }
+        
+        applog(LOG_WARNING, "chain %d set default %d PLL success",cid, i);
 
         usleep(500000);
-
-    }
     return 0;
 }
 

@@ -70,10 +70,6 @@
 #define IOCTL_SET_FREQ(X) _IOR(MAGIC_NUM, (2*X), char *)
 #define IOCTL_SET_DUTY(X) _IOR(MAGIC_NUM, (2*X+1), char *)
 
-#define ASIC_CHIP_A_BUCKET              (ASIC_CHAIN_NUM * ASIC_CHIP_NUM)
-#define ASIC_INNO_FAN_TEMP_MARGIN_RATE  (5.0f / 100.0f)
-#define ASIC_INNO_FAN_CTLR_FREQ_DIV     (0)
-
 /*********************************** 类型定义 **********************************/
 
 /*--------------------------------- 接口声明区 --------------------------------*/

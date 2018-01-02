@@ -73,6 +73,7 @@
 #define TEMP_UPDATE_INT_MS  10000
 #define CHECK_DISABLE_TIME  0
 
+static int ret_pll[ASIC_CHAIN_NUM] = {0};
 
 struct Test_bench Test_bench_Array[5]={
     {1100,  0,  0,  0},
@@ -539,7 +540,7 @@ static  int prepll_chip_temp(struct A1_chain *a1)
 
 }
 
-int* inno_preinit( uint32_t pll, uint32_t last_pll)
+int inno_preinit( uint32_t pll, uint32_t last_pll)
 { 
     int i;
     static int ret[ASIC_CHAIN_NUM]={0};
@@ -553,27 +554,29 @@ int* inno_preinit( uint32_t pll, uint32_t last_pll)
             continue;
         }
 
-rept_cfgpll:
-        ret[i] = prechain_detect(chain[i], A1_ConfigA1PLLClock(pll),A1_ConfigA1PLLClock(last_pll));
         usleep(200000);
         prepll_chip_temp(chain[i]);
-        if(-1 == ret[i])
+
+        while(prechain_detect(chain[i], A1_ConfigA1PLLClock(pll),A1_ConfigA1PLLClock(last_pll)))
         {
-            if((g_fan_ctrl.temp_highest[i] > DANGEROUS_TMP) && (g_fan_ctrl.temp_lowest[i] < START_FAN_TH))
-            {
-                rep_cnt++;
-                if(rep_cnt < 5)
-                    goto rept_cfgpll;
-                else
-                    goto out_cfgpll;
-            }
+         
+          if(( rep_cnt <= 5) && (g_fan_ctrl.temp_highest[i] > DANGEROUS_TMP) && (g_fan_ctrl.temp_lowest[i] < START_FAN_TH))
+          {
+             rep_cnt++;
+             sleep(5);
+                
+          }else{
+            ret_pll[i] = -1;
+            goto out_cfgpll;
+           }
         }
     }
+    
 out_cfgpll:
     inno_fan_speed_update(&g_fan_ctrl);
 
 
-    return ret;
+    return 0;
 }
 
 
@@ -644,21 +647,23 @@ static int chain_spi_init()
     return true;
 }
 
+
 static int inc_pll(void)
 {
     uint32_t i = 0,j = 0; 
-    int *ret;
     static uint32_t last_pll;
 
     applog(LOG_ERR, "pre init_pll...");
-    for(i = PLL_Clk_12Mhz[0].speedMHz; i < opt_A1Pll1; i+=200)
-    {
-        ret = inno_preinit(i,last_pll);
+    for(i = PLL_Clk_12Mhz[0].speedMHz; i < (opt_A1Pll1+200); i+=200)
+    {      
+        i >= opt_A1Pll1 ? opt_A1Pll1 : i;
+        
+        inno_preinit(i,last_pll);
         last_pll = i;
 
         for(j=0; j<ASIC_CHAIN_NUM; j++)
         {
-            if (-1 == ret[j]){
+            if (-1 == ret_pll[j]){
                 asic_gpio_write(chain[j]->spi_ctx->power_en, 0);
                 sleep(1);
                 asic_gpio_write(chain[j]->spi_ctx->start_en, 0);
@@ -669,26 +674,70 @@ static int inc_pll(void)
             }
         }
     }
-
-    if((i > (opt_A1Pll1 - 200)) && (i < (opt_A1Pll1 + 200)))
-    {
-        ret = inno_preinit(opt_A1Pll1,last_pll);
-
-        for(j=0; j<ASIC_CHAIN_NUM; j++)
-        {
-            if (-1 == ret[j]){
-                asic_gpio_write(chain[j]->spi_ctx->power_en, 0);
-                sleep(1);
-                asic_gpio_write(chain[j]->spi_ctx->start_en, 0);
-                asic_gpio_write(chain[j]->spi_ctx->reset, 0);  
-
-            }else{
-                applog(LOG_ERR,"pll %d finished\n",i);
-            }
-        }
-    }
+    
     return 0;
 }
+
+static void recfg_vid()
+{
+    int i;
+    
+    if(g_hwver == HARDWARE_VERSION_G9){
+    
+           //divide the init to break two part
+           if(opt_voltage > 8){
+               for(i=9; i<=opt_voltage; i++){
+                   set_vid_value(i);
+                   usleep(500000);
+               }
+           }
+    
+           if(opt_voltage < 8){
+               for(i=7; i>=opt_voltage; i--){
+                   set_vid_value(i);
+                   usleep(500000);
+               }
+           }
+       }else if(g_hwver == HARDWARE_VERSION_G19)
+       {
+    
+           int j, vid;
+           for(i = 0; i < ASIC_CHAIN_NUM; i++){
+    
+               if(chain[i] == NULL)
+                   continue;
+    
+               switch(i)
+               {
+                   case 0: chain[i]->vid = opt_voltage1; break;
+                   case 1: chain[i]->vid = opt_voltage2; break;
+                   case 2: chain[i]->vid = opt_voltage3; break;
+                   case 3: chain[i]->vid = opt_voltage4; break;
+                   case 4: chain[i]->vid = opt_voltage5; break;
+                   case 5: chain[i]->vid = opt_voltage6; break;
+                   case 6: chain[i]->vid = opt_voltage7; break;
+                   case 7: chain[i]->vid = opt_voltage8; break;
+               }
+    
+               if(chain[i]->vid > 8){
+                   for(j=9; j<=chain[i]->vid; j++){
+                       //applog(LOG_ERR,"set_vid_value_G19 vid > 8");
+                       set_vid_value_G19(i, j);
+                       usleep(500000);
+                   }
+               }
+    
+               if(chain[i]->vid < 8){
+                   for(j=7; j>=chain[i]->vid; j--){
+                       //applog(LOG_ERR,"set_vid_value_G19 vid < 8");
+                       set_vid_value_G19(i, j);
+                       usleep(500000);
+                   }
+               }
+           }       
+       }
+}
+
 
 static bool detect_A1_chain(void)
 {
@@ -721,61 +770,8 @@ static bool detect_A1_chain(void)
 
     usleep(200000);
     inc_pll();
-
-    if(g_hwver == HARDWARE_VERSION_G9){
-
-        //divide the init to break two part
-        if(opt_voltage > 8){
-            for(i=9; i<=opt_voltage; i++){
-                set_vid_value(i);
-                usleep(500000);
-            }
-        }
-
-        if(opt_voltage < 8){
-            for(i=7; i>=opt_voltage; i--){
-                set_vid_value(i);
-                usleep(500000);
-            }
-        }
-    }else if(g_hwver == HARDWARE_VERSION_G19)
-    {
-
-        int j, vid;
-        for(i = 0; i < ASIC_CHAIN_NUM; i++){
-
-            if(chain[i] == NULL)
-                continue;
-
-            switch(i)
-            {
-                case 0: chain[i]->vid = opt_voltage1; break;
-                case 1: chain[i]->vid = opt_voltage2; break;
-                case 2: chain[i]->vid = opt_voltage3; break;
-                case 3: chain[i]->vid = opt_voltage4; break;
-                case 4: chain[i]->vid = opt_voltage5; break;
-                case 5: chain[i]->vid = opt_voltage6; break;
-                case 6: chain[i]->vid = opt_voltage7; break;
-                case 7: chain[i]->vid = opt_voltage8; break;
-            }
-
-            if(chain[i]->vid > 8){
-                for(j=9; j<=chain[i]->vid; j++){
-                    //applog(LOG_ERR,"set_vid_value_G19 vid > 8");
-                    set_vid_value_G19(i, j);
-                    usleep(500000);
-                }
-            }
-
-            if(chain[i]->vid < 8){
-                for(j=7; j>=chain[i]->vid; j--){
-                    //applog(LOG_ERR,"set_vid_value_G19 vid < 8");
-                    set_vid_value_G19(i, j);
-                    usleep(500000);
-                }
-            }
-        }       
-    }
+    recfg_vid();
+   
 
     for(i = 0; i < ASIC_CHAIN_NUM; i++){
         ret = init_A1_chain_reload(chain[i], i);

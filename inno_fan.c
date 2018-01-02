@@ -434,24 +434,18 @@ void inno_fan_speed_update(inno_fan_temp_s *fan_temp)
 {
     int i = 0;
 
-	int temp_hi = DEFAULT_HI_TEMP; //fan_temp->temp_highest[0];
+    int temp_hi = DEFAULT_HI_TEMP; //fan_temp->temp_highest[0];
     int delta[8][2]={
-
-        //{FAN_FIRST_STAGE + FAN_DELTA,0},
         {FAN_FIRST_STAGE + FAN_DELTA1, FAN_FIRST_STAGE - FAN_DELTA1},
         {FAN_SECOND_STAGE + FAN_DELTA1,FAN_SECOND_STAGE - FAN_DELTA1},
         {FAN_THIRD_STAGE + FAN_DELTA1, FAN_THIRD_STAGE - FAN_DELTA2},
         {FAN_FOUR_STAGE + FAN_DELTA2,  FAN_FOUR_STAGE - FAN_DELTA2},
-        {FAN_FIVE_STAGE + FAN_DELTA2,  FAN_FIVE_STAGE - FAN_DELTA2,},
-        {FAN_SIX_STAGE + FAN_DELTA2,   FAN_SIX_STAGE - FAN_DELTA2, },
-        {FAN_SEVEN_STAGE + FAN_DELTA2, FAN_SEVEN_STAGE - FAN_DELTA2, },
-        {FAN_EIGHT_STAGE + FAN_DELTA2, FAN_EIGHT_STAGE - FAN_DELTA2, },
+        {FAN_FIVE_STAGE + FAN_DELTA2,  FAN_FIVE_STAGE - FAN_DELTA2},
+        {FAN_SIX_STAGE + FAN_DELTA2,   FAN_SIX_STAGE - FAN_DELTA2 },
+        {FAN_SEVEN_STAGE + FAN_DELTA2, FAN_SEVEN_STAGE - FAN_DELTA2},
+        {FAN_EIGHT_STAGE + FAN_DELTA2, FAN_EIGHT_STAGE - FAN_DELTA2},
     };
 
-    //printf("fan_speed %d, %d, %d, %d\n",fan_level[0],fan_level[1],fan_level[2],fan_level[3]);
-
-    //printf("level_speed %d, %d, %d, %d\n",fan_level[0],fan_level[1],fan_level[2],fan_level[3]);
-    //printf("after fan_speed %d, %d, %d, %d\n",fan_speed[0],fan_speed[1],fan_speed[2],fan_speed[3]);
     fan_temp->auto_ctrl = g_auto_fan;
     
    for(i=0; i<ASIC_CHAIN_NUM; i++)
