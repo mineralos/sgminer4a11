@@ -393,11 +393,26 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
 bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
 {
     int i;
+    uint8_t src_reg[128];
+    uint8_t reg[128];
+    
     if(a1 == NULL){
         return false;
     }
 
     applog(LOG_DEBUG, "%d: A1 init chain reload", chain_id);
+
+    
+     inno_cmd_resetbist(a1, ADDR_BROADCAST);
+     sleep(1);
+     
+    //bist mask
+    inno_cmd_read_reg(a1, 0x01, reg);
+    memset(src_reg, 0, sizeof(src_reg));
+    memcpy(src_reg,reg,REG_LENGTH-2);
+    src_reg[7] = src_reg[7] | 0x10;
+    inno_cmd_write_reg(a1,ADDR_BROADCAST,src_reg);
+    usleep(200);
 
     a1->num_chips =  chain_detect_reload(a1);
     usleep(10000);

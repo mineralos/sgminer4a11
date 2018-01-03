@@ -190,10 +190,10 @@ void inno_fan_temp_init(inno_fan_temp_s *fan_temp,int *fan_level)
     fan_temp->auto_ctrl = g_auto_fan;
     fan_temp->speed = speed;
 
-	if(fan_level != NULL){
-		   // printf("size %d, %d\n",sizeof(fan_speed),sizeof(fan_speed[0]));
-		   memcpy(fan_speed, fan_level,sizeof(fan_speed));
-	   }
+    if(fan_level != NULL){
+       // printf("size %d, %d\n",sizeof(fan_speed),sizeof(fan_speed[0]));
+       memcpy(fan_speed, fan_level,sizeof(fan_speed));
+    }
 
     if(g_auto_fan)
     {
