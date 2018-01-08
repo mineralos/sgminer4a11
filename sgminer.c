@@ -9983,8 +9983,8 @@ int main(int argc, char *argv[])
             for (i = 0; i < total_pools; i++) {
                 struct pool *pool = pools[i];
 
-                applog(LOG_WARNING, "Pool: %d  URL: %s  User: %s  Password: %s",
-                i, pool->rpc_url, pool->rpc_user, pool->rpc_pass);
+                applog(LOG_WARNING, "total pools: %d,Pool: %d  URL: %s  User: %s  Password: %s",
+                total_pools,i, pool->rpc_url, pool->rpc_user, pool->rpc_pass);
             }
             pool_msg = true;
             if (use_curses)
@@ -9993,6 +9993,7 @@ int main(int argc, char *argv[])
         if (!use_curses)
         {
             power_down_all_chain();
+            zynq_spi_exit();
             early_quit(0, "No servers could be used! Exiting.");
         }   
 #ifdef HAVE_CURSES

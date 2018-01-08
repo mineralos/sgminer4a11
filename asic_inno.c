@@ -694,7 +694,8 @@ int power_down_all_chain(void)
 
     for(i = 0; i < ASIC_CHAIN_NUM; i++)
     {
-        inno_chain_power_down(chain[i]);
+        if(chain[i] != NULL)
+          inno_chain_power_down(chain[i]);
     }
 }
 
