@@ -94,8 +94,8 @@ static uint8_t A1Pll3=A5_PLL_CLOCK_400MHz;
 static uint8_t A1Pll4=A5_PLL_CLOCK_400MHz;
 static uint8_t A1Pll5=A5_PLL_CLOCK_400MHz;
 static uint8_t A1Pll6=A5_PLL_CLOCK_400MHz;
-static uint8_t A1Pll7=A5_PLL_CLOCK_400MHz;
-static uint8_t A1Pll8=A5_PLL_CLOCK_400MHz;
+//static uint8_t A1Pll7=A5_PLL_CLOCK_400MHz;
+//static uint8_t A1Pll8=A5_PLL_CLOCK_400MHz;
 
 /* FAN CTRL */
 inno_fan_temp_s g_fan_ctrl;
@@ -144,8 +144,8 @@ static void coinflex_set_testdata(struct work *work);
 static void coinflex_print_hash(struct work *work, uint32_t nonce);
 #endif
 
-static void coinflex_print_hw_error(char *drv_name, int device_id, struct work *work, uint32_t nonce);
-static bool coinflex_set_algorithm(struct cgpu_info *coinflex);
+//static void coinflex_print_hw_error(char *drv_name, int device_id, struct work *work, uint32_t nonce);
+//static bool coinflex_set_algorithm(struct cgpu_info *coinflex);
 
 /********** work queue */
 static bool wq_enqueue(struct work_queue *wq, struct work *work)
@@ -216,7 +216,7 @@ void exit_A1_chain(struct A1_chain *a1)
 
 int  cfg_tsadc_divider(struct A1_chain *a1,uint32_t pll_clk)
 {
-    uint8_t  cmd_return;
+   // uint8_t  cmd_return;
     uint32_t tsadc_divider_tmp;
     uint8_t  tsadc_divider;
     //cmd0d(0x0d00, 0x0250, 0xa006 | (BYPASS_AUXPLL<<6), 0x2800 | tsadc_divider, 0x0300, 0x0000, 0x0000, 0x0000)
@@ -235,14 +235,15 @@ int  cfg_tsadc_divider(struct A1_chain *a1,uint32_t pll_clk)
     }else{
         applog(LOG_WARNING, "#####Write t/v sensor Value Success!\n");
     }
+    return 0;
 }
 
 int chain_detect_reload(struct A1_chain *a1)
 {
     uint8_t buffer[64];
     int cid = a1->chain_id;
-    uint8_t temp_reg[REG_LENGTH];
-    int i;
+//    uint8_t temp_reg[REG_LENGTH];
+//    int i;
 
     set_spi_speed(3250000);
     usleep(100000);
@@ -270,6 +271,8 @@ int chain_detect_reload(struct A1_chain *a1)
     applog(LOG_NOTICE, "%d:  A1 chip-chain detected", cid);
     return a1->num_chips;
 }
+
+#if 0
 
 #define NET_PORT 53
 #define NET_IP "8.8.8.8" //π»∏ËDNS
@@ -388,6 +391,7 @@ bool init_ReadTemp(struct A1_chain *a1, int chain_id)
     applog(LOG_WARNING,"Now chain %d preheat is over\n",cid);
     return true;
 }
+#endif
 
 
 bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
@@ -478,7 +482,7 @@ failure:
 
 struct A1_chain *init_A1_chain(struct spi_ctx *ctx, int chain_id)
 {
-    int i;
+    //int i;
     struct A1_chain *a1 = malloc(sizeof(*a1)); 
     assert(a1 != NULL);
     memset(a1,0,sizeof(struct A1_chain));
@@ -597,7 +601,7 @@ out_cfgpll:
 
 static int chain_spi_init()
 {
-    int i,j;
+    int i;
 
     for(i = 0; i < ASIC_CHAIN_NUM; i++)
     {
@@ -671,7 +675,7 @@ static int inc_pll(void)
     applog(LOG_ERR, "pre init_pll...");
     for(i = PLL_Clk_12Mhz[0].speedMHz; i < (opt_A1Pll1+200); i+=200)
     {      
-        i >= opt_A1Pll1 ? opt_A1Pll1 : i;
+        i = (i >= opt_A1Pll1 ? opt_A1Pll1 : i);
         
         inno_preinit(i,last_pll);
         last_pll = i;
@@ -716,7 +720,7 @@ static void recfg_vid()
        }else if(g_hwver == HARDWARE_VERSION_G19)
        {
     
-           int j, vid;
+           int j;
            for(i = 0; i < ASIC_CHAIN_NUM; i++){
     
                if(chain[i] == NULL)
@@ -756,7 +760,7 @@ static void recfg_vid()
 
 static bool detect_A1_chain(void)
 {
-    int i,j,ret,res = 0;
+    int i,ret,res = 0;
     applog(LOG_ERR, "A1: checking A1 chain %d,%d,%d,%d,%d,%d,%d,%d",opt_voltage1,opt_voltage2,opt_voltage3,opt_voltage4,opt_voltage5,opt_voltage6,opt_voltage7,opt_voltage8);
 
     ret = chain_spi_init();
@@ -1055,16 +1059,16 @@ static void coinflex_flush_work(struct cgpu_info *coinflex)
 //#define  LOG_FILE_PREFIX "/home/www/conf/analys"
 #define  LOG_FILE_PREFIX "/tmp/log/analys"
 
-uint8_t cLevelError1[3] = "!";
-uint8_t cLevelError2[3] = "#";
-uint8_t cLevelError3[3] = "$";
-uint8_t cLevelError4[3] = "%";
-uint8_t cLevelError5[3] = "*";
-uint8_t cLevelNormal[3] = "+";
+const char cLevelError1[3] = "!";
+const char cLevelError2[3] = "#";
+const char cLevelError3[3] = "$";
+const char cLevelError4[3] = "%";
+const char cLevelError5[3] = "*";
+const char cLevelNormal[3] = "+";
 
 void Inno_Log_Save(struct A1_chip *chip,int nChip,int nChain)
 {
-    uint8_t szInNormal[8] = {0};
+    char szInNormal[8] = {0};
     memset(szInNormal,0, sizeof(szInNormal));
     if(chip->hw_errors > 0){
         strcat(szInNormal,cLevelError1);
@@ -1113,12 +1117,12 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     //static uint8_t cnt = 0;
     //static uint8_t reset_buf[2] = {0x20,0x20};
     int i;
-    int32_t A1Pll = 1000;
+    //int32_t A1Pll = 1000;
     uint8_t reg[128];
     struct cgpu_info *cgpu = thr->cgpu;
     struct A1_chain *a1 = cgpu->device_data;
     //struct A1_chip *a7 = &a1->chips[0];
-    struct work local_work;
+   // struct work local_work;
     int32_t nonce_ranges_processed = 0;
 
     uint32_t nonce;
@@ -1349,7 +1353,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     //	return ((((double)PLL_Clk_12Mhz[A1Pll1].speedMHz*a1->tvScryptDiff.tv_usec /2) * (a1->num_cores))/13);
     }
 
-
+#if 0
     static void coinflex_print_hw_error(char *drv_name, int device_id, struct work *work, uint32_t nonce)
     {
         char        *twork;
@@ -1375,6 +1379,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
         free(twork);
         applog(LOG_ERR, "---------------------------------------------------------");
     }
+#endif
 
     struct device_drv coinflex_drv = 
     {

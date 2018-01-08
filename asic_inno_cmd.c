@@ -171,7 +171,7 @@ bool spi_send_command(struct A1_chain *pChain, uint8_t cmd, uint8_t chip_id, uin
 
 bool spi_poll_result(struct A1_chain *pChain, uint8_t cmd, uint8_t chip_id, uint8_t *buff, int len)
 {
-    int ret1, ret2;
+   // int ret1, ret2;
     int tx_len;
     int tmp_len;
     int index,ret;
@@ -255,8 +255,8 @@ bool inno_cmd_resetbist(struct A1_chain *pChain, uint8_t chip_id)
 {
     uint8_t spi_tx[MAX_CMD_LENGTH];
     uint8_t spi_rx[MAX_CMD_LENGTH];
-    uint8_t i,tx_len;
-    uint8_t buffer[64]; 
+    //uint8_t i,tx_len;
+    //uint8_t buffer[64]; 
 
     memset(spi_tx, 0, sizeof(spi_tx));
     memset(spi_rx, 0, sizeof(spi_rx));
@@ -288,8 +288,8 @@ bool inno_cmd_resetjob(struct A1_chain *pChain, uint8_t chip_id)
 {
     uint8_t spi_tx[MAX_CMD_LENGTH];
     uint8_t spi_rx[MAX_CMD_LENGTH];
-    uint8_t i,tx_len;
-    uint8_t buffer[64]; 
+    //uint8_t i,tx_len;
+    //uint8_t buffer[64]; 
 
     memset(spi_tx, 0, sizeof(spi_tx));
     memset(spi_rx, 0, sizeof(spi_rx));
@@ -397,7 +397,7 @@ bool inno_cmd_bist_fix(struct A1_chain *pChain, uint8_t chip_id)
 
 bool inno_cmd_write_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg)
 {
-    int tx_len;
+    //int tx_len;
     uint8_t spi_tx[MAX_CMD_LENGTH];
     uint8_t spi_rx[MAX_CMD_LENGTH];
     uint8_t tmp_buf[MAX_CMD_LENGTH];
@@ -443,12 +443,12 @@ bool inno_cmd_write_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg)
 
 bool inno_cmd_write_sec_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg)
 {
-        int tx_len;
+        //int tx_len;
         uint8_t spi_tx[MAX_CMD_LENGTH];
         uint8_t spi_rx[MAX_CMD_LENGTH];
         uint8_t tmp_buf[MAX_CMD_LENGTH];
         uint16_t clc_crc;
-        uint8_t j;
+       // uint8_t j;
         
         //applog(LOG_INFO,"send command [write_reg] \n");
         assert(reg != NULL);
@@ -660,8 +660,8 @@ uint8_t inno_cmd_isBusy(struct A1_chain *pChain, uint8_t chip_id)
 bool inno_cmd_write_job(struct A1_chain *pChain, uint8_t chip_id, uint8_t *job)
 {
     uint8_t spi_tx[MAX_CMD_LENGTH];
-    uint8_t spi_rx[MAX_CMD_LENGTH];
-    uint8_t i;
+    //uint8_t spi_rx[MAX_CMD_LENGTH];
+    //uint8_t i;
     struct spi_ctx *ctx = pChain->spi_ctx;
     
     memset(spi_tx, 0, sizeof(spi_tx));
@@ -699,13 +699,13 @@ bool inno_cmd_write_job(struct A1_chain *pChain, uint8_t chip_id, uint8_t *job)
 
 uint32_t inno_cmd_test_chip(struct A1_chain *pChain)
 {
-    int i, j, k;
-    struct work work1;
-    struct work work2;
+    int i, k;
+    //struct work work1;
+    //struct work work2;
     uint32_t nonce;
     uint8_t chip_id;
     uint8_t job_id;
-    uint16_t micro_job_id;
+    //uint16_t micro_job_id;
     uint8_t c;
     int bad_chip_num = 0;
     uint32_t uiScore = 0;

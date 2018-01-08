@@ -146,7 +146,7 @@ void asic_spi_init(void)
 {
     int fd;
     char fvalue[64];
-    char fpath[64];
+    //char fpath[64];
 
     fd = open(SYSFS_SPI_EXPORT, O_WRONLY);
     if(fd == -1){
@@ -162,7 +162,7 @@ int32_t set_spi_speed(uint32_t speed)
 {
     int fd;                               
     char fvalue[64];                  
-    char fpath[64];                   
+    //char fpath[64];                   
     uint32_t rdspeed;                     
                                       
     fd = open(SYSFS_SPI_VAL_STR, O_WRONLY);
@@ -207,7 +207,7 @@ int32_t get_spi_speed(void)
 
 void loop_blink_led(int pos, int cnt)
 {
-       int i;
+       //int i;
     //while(--cnt)
        while(1)
        {
@@ -252,7 +252,7 @@ void asic_gpio_init(int gpio, int direction)
 void asic_gpio_write(int gpio, int value)
 {
     int fd;
-    char fvalue[64];
+   // char fvalue[64];
     char fpath[64];
 
 #if 0

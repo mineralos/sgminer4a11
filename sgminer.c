@@ -1080,7 +1080,7 @@ static enum cl_kernels select_kernel(char *arg)
 char *set_kernel(char *arg)
 {
     enum cl_kernels kern;
-    int i, device = 0;
+    //int i, device = 0;
     char *nextptr;
 
     nextptr = strtok(arg, ",");
@@ -2997,7 +2997,7 @@ static void show_hash(struct work *work, char *hashshow)
     unsigned long h32;
     uint32_t *hash32;
     uint64_t uintdiff;
-    int intdiff, ofs;
+    int  ofs;
 
     swab256(rhash, work->hash);
     for (ofs = 0; ofs <= 28; ofs ++) {
@@ -7396,7 +7396,7 @@ static void submit_work_async(struct work *work)
 {
     struct pool *pool = work->pool;
     pthread_t submit_thread;
-    uint8_t i;
+//    uint8_t i;
     #if 0
     for(i=0;i<32;i=i+4)
     {
@@ -8111,7 +8111,7 @@ void hash_queued_work(struct thr_info *mythr)
     struct device_drv *drv = cgpu->drv;
     const int thr_id = mythr->id;
     int64_t hashes_done = 0;
-    int i;
+//    int i;
 
     while (likely(!cgpu->shutdown)){
         struct timeval diff;

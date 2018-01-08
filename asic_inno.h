@@ -48,6 +48,11 @@ bool inno_check_voltage(struct A1_chain *a1, int chip_id, inno_reg_ctrl_t *s_reg
 void inno_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor);
 
 
+extern int power_down_all_chain(void);
+extern bool zynq_spi_exit(void);
+extern hardware_version_e inno_get_hwver(void);
+extern inno_type_e inno_get_miner_type(void);
+
 
 bool check_chip(struct A1_chain *a1, int i);
 int chain_detect(struct A1_chain *a1);

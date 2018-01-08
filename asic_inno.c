@@ -188,6 +188,7 @@ static const uint8_t default_reg[119][12] =
     {0x02, 0xd8, 0x40, 0x42, 0x00, 0x00, 0x00, 0xa0, 0x00, 0x20, 0x00, 0x00}, //1296MHz
 };
 
+#if 0
 static void rev(unsigned char *s, size_t l)
 {
     size_t i, j;
@@ -199,11 +200,12 @@ static void rev(unsigned char *s, size_t l)
         s[j] = t;
     }
 }
+#endif
 
 static uint8_t *create_job(uint8_t chip_id, uint8_t job_id, struct work *work)
 {
         int i;
-        bool ret;
+        //bool ret;
         //uint8_t job_id;
         uint16_t crc;
         uint8_t spi_tx[128];
@@ -500,9 +502,9 @@ void check_disabled_chips(struct A1_chain *a1, int pllnum)
     
     return;
 
-failure:
-     exit_A1_chain(a1);
-     return;
+//failure:
+ //    exit_A1_chain(a1);
+  //   return;
  #endif             
 
 }
@@ -554,7 +556,7 @@ bool set_work(struct A1_chain *a1, uint8_t chip_id, struct work *work, uint8_t q
 bool get_nonce(struct A1_chain *a1, uint8_t *nonce, uint8_t *chip_id, uint8_t *job_id)
 {
     uint8_t buffer[64];
-    uint8_t tmp_nonce[4];
+    //uint8_t tmp_nonce[4];
     memset(buffer, 0, sizeof(buffer));
     if(inno_cmd_read_result(a1, ADDR_BROADCAST, buffer))
     {
@@ -623,7 +625,7 @@ bool check_chip(struct A1_chain *a1, int i)
 
 int prechain_detect(struct A1_chain *a1, int idxpll, int lastidx)
 {
-    uint8_t buffer[64];
+    //uint8_t buffer[64];
     int cid = a1->chain_id;
     uint8_t temp_reg[REG_LENGTH];
     int i,nCount = 0;
@@ -697,6 +699,7 @@ int power_down_all_chain(void)
         if(chain[i] != NULL)
           inno_chain_power_down(chain[i]);
     }
+    return 0;
 }
 
 
@@ -708,8 +711,8 @@ int chain_detect(struct A1_chain *a1)
 {
     uint8_t buffer[64];
     int cid = a1->chain_id;
-    uint8_t temp_reg[REG_LENGTH];
-    int i;
+   // uint8_t temp_reg[REG_LENGTH];
+   // int i;
 
     memset(buffer, 0, sizeof(buffer));
     if(!inno_cmd_bist_start(a1, ADDR_BROADCAST, buffer)){
@@ -726,7 +729,7 @@ int chain_detect(struct A1_chain *a1)
 //add 0922
 void inno_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor)
 {
- int i;
+ //int i;
  unsigned char *tmp_reg = malloc(128);
  unsigned char *src_reg = malloc(128);
  unsigned char *reg = malloc(128);
@@ -920,6 +923,7 @@ bool inno_check_voltage(struct A1_chain *a1, int chip_id, inno_reg_ctrl_t *s_reg
             }
             
    }
+    return true;
 }
 
 

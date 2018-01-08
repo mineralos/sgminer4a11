@@ -146,6 +146,8 @@ extern bool inno_cmd_bist_fix(struct A1_chain *pChain, uint8_t chip_id);
 
 extern bool inno_cmd_write_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg);
 
+extern bool inno_cmd_write_sec_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg);
+
 extern bool inno_cmd_read_reg(struct A1_chain *pChain, uint8_t chip_id, uint8_t *reg);
 
 extern bool inno_cmd_read_result(struct A1_chain *pChain, uint8_t chip_id, uint8_t *res);
@@ -153,7 +155,9 @@ extern bool inno_cmd_read_result(struct A1_chain *pChain, uint8_t chip_id, uint8
 extern bool inno_cmd_write_job(struct A1_chain *pChain, uint8_t chip_id, uint8_t *job);
 
 extern uint8_t inno_cmd_isBusy(struct A1_chain *pChain, uint8_t chip_id);
+
 extern uint32_t inno_cmd_test_chip(struct A1_chain *pChain);
+extern bool inno_cmd_resetbist(struct A1_chain *pChain, uint8_t chip_id);
 
 
 void flush_spi(struct A1_chain *pChain);
