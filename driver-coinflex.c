@@ -455,7 +455,7 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
     //configure for tsensor
     inno_configure_tvsensor(a1,ADDR_BROADCAST,1);
     inno_get_voltage_stats(a1, &s_reg_ctrl);
-    sprintf(volShowLog[a1->chain_id], "%8d  |  %8f  |  %8f  |  %8f  |\n",a1->chain_id,   \
+    sprintf(volShowLog[a1->chain_id], "+         %2d  |  %8f  |  %8f  |  %8f  |\n",a1->chain_id,   \
         s_reg_ctrl.highest_vol[a1->chain_id],s_reg_ctrl.avarge_vol[a1->chain_id],s_reg_ctrl.lowest_vol[a1->chain_id]);
 
 
