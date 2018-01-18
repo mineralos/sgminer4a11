@@ -459,7 +459,7 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
         s_reg_ctrl.highest_vol[a1->chain_id],s_reg_ctrl.avarge_vol[a1->chain_id],s_reg_ctrl.lowest_vol[a1->chain_id]);
 
 
-    inno_log_record(a1->chain_id, volShowLog[a1->chain_id], sizeof(volShowLog[0]));
+    inno_log_record(a1->chain_id, volShowLog[a1->chain_id], strlen(volShowLog[0]));
 
 
     for (i = 0; i < a1->num_active_chips; i++){
