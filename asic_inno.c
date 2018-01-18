@@ -863,7 +863,32 @@ void inno_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor)
     free(src_reg);
 }
 
+int inno_get_voltage_stats(struct A1_chain *a1, inno_reg_ctrl_t *s_reg_ctrl)
+{
+   int i = 0;
+   int cid = a1->chain_id;
+   s_reg_ctrl->highest_vol[cid] = s_reg_ctrl->stat_val[cid][0];
+   s_reg_ctrl->lowest_vol[cid] = s_reg_ctrl->stat_val[cid][0];
+   int total_vol = s_reg_ctrl->stat_val[cid][0];
 
+   if((a1->num_active_chips < 1) || (a1 == NULL))
+    return -1;
+
+   for (i = 1; i < a1->num_active_chips; i++)
+   {
+    if(s_reg_ctrl->highest_vol[cid] < s_reg_ctrl->stat_val[cid][i])
+        s_reg_ctrl->highest_vol[cid] = s_reg_ctrl->stat_val[cid][i];
+
+    if(s_reg_ctrl->lowest_vol[cid] > s_reg_ctrl->stat_val[cid][i])
+        s_reg_ctrl->lowest_vol[cid] = s_reg_ctrl->stat_val[cid][i];
+
+    total_vol += s_reg_ctrl->stat_val[cid][i];
+   }
+
+  s_reg_ctrl->avarge_vol[cid] = total_vol / a1->num_active_chips;
+
+  return 0;
+}
 
 bool inno_check_voltage(struct A1_chain *a1, int chip_id, inno_reg_ctrl_t *s_reg_ctrl)
 {
@@ -883,8 +908,11 @@ bool inno_check_voltage(struct A1_chain *a1, int chip_id, inno_reg_ctrl_t *s_reg
             uint32_t rd_v = 0;
             rd_v = 0x000003ff & ((reg[7] << 8) | reg[8]);
             float tmp_v = (float)(rd_v * MUL_COEF)/1024;
-            a1->chips[chip_id-1].nVol = tmp_v *1000;                
+            a1->chips[chip_id-1].nVol = tmp_v *1000; 
+            s_reg_ctrl->stat_val[a1->chain_id][chip_id-1] = a1->chips[chip_id-1].nVol;
+            //s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1]++;
             
+            #if 0
             s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1]++;
             
            if(s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1] == 1)
@@ -901,6 +929,7 @@ bool inno_check_voltage(struct A1_chain *a1, int chip_id, inno_reg_ctrl_t *s_reg
                }
             s_reg_ctrl->avarge_vol[a1->chain_id][chip_id-1] = (s_reg_ctrl->avarge_vol[a1->chain_id][chip_id-1]*(s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1]-1) + tmp_v)/s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1];
            }
+            #endif
             
             //applog(LOG_WARNING,"read tmp %f/%d form chain %d,chip %d h:%f,l:%f,av:%f,cnt:%d\n",tmp_v,rd_v,a1->chain_id, chip_id,s_reg_ctrl->highest_vol[a1->chain_id][chip_id-1],s_reg_ctrl->lowest_vol[a1->chain_id][chip_id-1],s_reg_ctrl->avarge_vol[a1->chain_id][chip_id-1],s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1]);
             nReadVolTimes++;

@@ -110,6 +110,7 @@ static uint32_t check_disbale_flag[ASIC_CHAIN_NUM];
 int spi_plug_status[ASIC_CHAIN_NUM] = {0};
 
 char szShowLog[ASIC_CHAIN_NUM][ASIC_CHIP_NUM][256] = {0};
+char volShowLog[ASIC_CHAIN_NUM][256] = {0};
 int fan_level[8]={30,40,50,60,70,80,90,100};
 
 hardware_version_e g_hwver;
@@ -399,7 +400,8 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
     int i;
     uint8_t src_reg[128];
     uint8_t reg[128];
-    
+
+   
     if(a1 == NULL){
         return false;
     }
@@ -448,10 +450,17 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
 
     for (i = 0; i < a1->num_active_chips; i++){
         inno_check_voltage(a1, i+1, &s_reg_ctrl);
-    }
-
+    } 
+    
     //configure for tsensor
     inno_configure_tvsensor(a1,ADDR_BROADCAST,1);
+    inno_get_voltage_stats(a1, &s_reg_ctrl);
+    sprintf(volShowLog[a1->chain_id], "%8d  |  %8f  |  %8f  |  %8f  |\n",a1->chain_id,   \
+        s_reg_ctrl.highest_vol[a1->chain_id],s_reg_ctrl.avarge_vol[a1->chain_id],s_reg_ctrl.lowest_vol[a1->chain_id]);
+
+
+    inno_log_record(a1->chain_id, volShowLog[a1->chain_id], sizeof(volShowLog[0]));
+
 
     for (i = 0; i < a1->num_active_chips; i++){
         check_chip(a1, i);
@@ -704,15 +713,15 @@ static void recfg_vid()
     if(g_hwver == HARDWARE_VERSION_G9){
     
            //divide the init to break two part
-           if(opt_voltage > 8){
-               for(i=9; i<=opt_voltage; i++){
+           if(opt_voltage1 > 8){
+               for(i=9; i<=opt_voltage1; i++){
                    set_vid_value(i);
                    usleep(500000);
                }
            }
     
-           if(opt_voltage < 8){
-               for(i=7; i>=opt_voltage; i--){
+           if(opt_voltage1 < 8){
+               for(i=7; i>=opt_voltage1; i--){
                    set_vid_value(i);
                    usleep(500000);
                }
@@ -1058,6 +1067,8 @@ static void coinflex_flush_work(struct cgpu_info *coinflex)
 #define VOLTAGE_UPDATE_INT  6000
 //#define  LOG_FILE_PREFIX "/home/www/conf/analys"
 #define  LOG_FILE_PREFIX "/tmp/log/analys"
+#define  LOG_VOL_PREFIX "/tmp/log/volAnalys"
+
 
 const char cLevelError1[3] = "!";
 const char cLevelError2[3] = "#";
@@ -1100,6 +1111,26 @@ void inno_log_print(int cid, void* log, int len)
     char fileName[128] = {0};
 
     sprintf(fileName, "%s%d.log", LOG_FILE_PREFIX, cid);
+    
+    fd = fopen(fileName, "w+"); 
+    
+    if(fd == NULL){             
+        //applog(LOG_ERR, "Open log File%d Failed!%d", cid, errno);
+        applog(LOG_ERR, "Open log File%d Failed!%s", cid, strerror(errno));
+        return; 
+    }
+
+    fwrite(log, len, 1, fd);
+    fflush(fd);
+    fclose(fd);
+}
+
+void inno_log_record(int cid, void* log, int len)
+{
+    FILE* fd;
+    char fileName[128] = {0};
+
+    sprintf(fileName, "%s%d.log", LOG_VOL_PREFIX, cid);
     fd = fopen(fileName, "w+"); 
     if(fd == NULL){             
         //applog(LOG_ERR, "Open log File%d Failed!%d", cid, errno);
@@ -1111,6 +1142,7 @@ void inno_log_print(int cid, void* log, int len)
     fflush(fd);
     fclose(fd);
 }
+
 
 static int64_t coinflex_scanwork(struct thr_info *thr)
 {
@@ -1145,6 +1177,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
         show_log[cid]++;
         check_disbale_flag[cid]++;
 
+        //printf("volShowLog[%d]=%s",cid,volShowLog[cid]);
+        
         inno_log_print(cid, szShowLog[cid], sizeof(szShowLog[0]));
 
         a1->last_temp_time = get_current_ms();

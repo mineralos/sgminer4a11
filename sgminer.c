@@ -7522,7 +7522,7 @@ bool test_nonce(struct work *work, uint32_t nonce)
             break;
     }
 //  if(le32toh(*hash_32) <= diff1targ)
-    //printf("hash:0x%08x,0x%08x\n",le32toh(*hash_32),*hash_32);
+ //   printf("hash:0x%08x,0x%08x\n",le32toh(*hash_32),*hash_32);
     
     return (le32toh(*hash_32) <= diff1targ);
 #else
