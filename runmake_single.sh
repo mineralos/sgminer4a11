@@ -4,6 +4,7 @@
 ./autogen.sh
 
 SGMINER_DIR=$PWD/sgminer_lib
+#SGMINER_DIR=/home/public/yex/check_from_git/check_from_std/miner/latest_miner_hub/miner_hub/rootfs/
 MAKE_JOBS=16
 
 # step1: 新建依赖的库存放目录
@@ -25,10 +26,10 @@ make install
 #./runinstall.sh ${SGMINER_DIR} ${SGMINER_DIR}
 
 # step4: 编译sgminer库
-cd ../sgminer
-#LDFLAGS="-L${SGMINER_DIR}/lib -linno " \
-LDFLAGS="-L${SGMINER_DIR}/lib " \
-CFLAGS="-I${SGMINER_DIR}/include " \
+cd ../sgminer4a11_hub_asic
+#LDFLAGS="-L${SGMINER_DIR}/lib -linno" \
+LDFLAGS="-L${SGMINER_DIR}/lib -lim_lib -lim_drv" \
+CFLAGS="-I${SGMINER_DIR}/include -g " \
 ./configure --prefix=${SGMINER_DIR} \
 --enable-coinflex --without-curses --host=arm-xilinx-linux-gnueabi --build=x86_64-pc-linux-gnu #--target=arm
 

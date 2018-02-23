@@ -28,10 +28,11 @@
 #include <assert.h>
 #include <signal.h>
 #include <limits.h>
-#include "asic_inno_cmd.h"
 #include "asic_inno.h"
+#include "asic_inno_cmd.h"
 #include "asic_inno_clock.h"
 
+#include "sph/sph_sha2.h"
 
 #ifdef USE_USBUTILS
 #include <semaphore.h>
@@ -58,9 +59,6 @@ char *curly = ":D";
 #include "compat.h"
 #include "miner.h"
 #include "bench_block.h"
-#ifdef USE_USBUTILS
-#include "usbutils.h"
-#endif
 
 #if defined(unix) || defined(__APPLE__)
     #include <errno.h>
@@ -77,6 +75,7 @@ char *curly = ":D";
 #endif
 
 #if defined(USE_COINFLEX)
+#include "sysendian.h"
 #include "driver-coinflex.h"
 #include "asic_inno_cmd.h"
 #endif
@@ -93,63 +92,41 @@ struct strategies strategies[] = {
 char *opt_bitmine_a1_options = NULL;
 
 //for A4
-uint32_t opt_A1Pll1=1100; // -1 Default
-uint32_t opt_A1Pll2=1100; // -1 Default
-uint32_t opt_A1Pll3=1100; // -1 Default
-uint32_t opt_A1Pll4=1100; // -1 Default
-uint32_t opt_A1Pll5=1100; // -1 Default
-uint32_t opt_A1Pll6=1100; // -1 Default
-uint32_t opt_A1Pll7=1100; // -1 Default
-uint32_t opt_A1Pll8=1100; // -1 Default
+uint32_t opt_A1Pll1=1000; // -1 Default
+uint32_t opt_A1Pll2=1000; // -1 Default
+uint32_t opt_A1Pll3=1000; // -1 Default
+uint32_t opt_A1Pll4=1000; // -1 Default
+uint32_t opt_A1Pll5=1000; // -1 Default
+uint32_t opt_A1Pll6=1000; // -1 Default
+uint32_t opt_A1Pll7=1000; // -1 Default
+uint32_t opt_A1Pll8=1000; // -1 Default
 
 #endif
 
 int opt_voltage = 8;
 
-int opt_voltage1 = 8;
-int opt_voltage2 = 8;
-int opt_voltage3 = 8;
-int opt_voltage4 = 8;
-int opt_voltage5 = 8;
-int opt_voltage6 = 8;
-int opt_voltage7 = 8;
-int opt_voltage8 = 8;
-
+int opt_voltage1 = 3;
+int opt_voltage2 = 3;
+int opt_voltage3 = 3;
+int opt_voltage4 = 3;
+int opt_voltage5 = 3;
+int opt_voltage6 = 3;
+int opt_voltage7 = 3;
+int opt_voltage8 = 3;
+int opt_vote = 0;
 
 static char packagename[256];
 
 bool opt_work_update;
 bool opt_protocol;
-static struct benchfile_layout {
-    int length;
-    char *name;
-} benchfile_data[] = {
-    { 1,    "Version" },
-    { 64,   "MerkleRoot" },
-    { 64,   "PrevHash" },
-    { 8,    "DifficultyBits" },
-    { 10,   "NonceTime" } // 10 digits
-};
-enum benchwork {
-    BENCHWORK_VERSION = 0,
-    BENCHWORK_MERKLEROOT,
-    BENCHWORK_PREVHASH,
-    BENCHWORK_DIFFBITS,
-    BENCHWORK_NONCETIME,
-    BENCHWORK_COUNT
-};
+
 
 #ifdef HAVE_LIBCURL
 static char *opt_btc_address;
 static char *opt_btc_sig;
 #endif
-static char *opt_benchfile;
-static bool opt_benchfile_display;
-static FILE *benchfile_in;
-static int benchfile_line;
-static int benchfile_work;
-static bool opt_benchmark;
-bool have_longpoll;
+
+bool have_longpoll=false;
 bool want_per_device_stats;
 bool use_syslog;
 bool opt_quiet;
@@ -167,9 +144,6 @@ unsigned long long global_hashrate;
 unsigned long global_quota_gcd = 1;
 time_t last_getwork;
 
-#if defined(USE_USBUTILS)
-int nDevs;
-#endif
 bool opt_restart = true;
 bool opt_nogpu;
 
@@ -239,15 +213,6 @@ char            *drv_support            = COINFLEX_DRIVER_NAME;
 char            *drv_support            = "None";
 #endif
 
-#ifdef USE_USBUTILS
-char *opt_usb_select = NULL;
-int opt_usbdump = -1;
-bool opt_usb_list_all;
-cgsem_t usb_resource_sem;
-static pthread_t usb_poll_thread;
-static bool usb_polling;
-#endif
-
 char *opt_kernel_path;
 char *sgminer_path;
 bool opt_gen_stratum_work;
@@ -264,10 +229,7 @@ static int input_thr_id;
 #endif
 int gpur_thr_id;
 static int api_thr_id;
-#ifdef USE_USBUTILS
-static int usbres_thr_id;
-static int hotplug_thr_id;
-#endif
+
 static int total_control_threads;
 bool hotplug_mode;
 static int new_devices;
@@ -332,6 +294,13 @@ static
 const
 #endif
 bool curses_active;
+
+#ifdef USE_SCRYPT
+bool opt_scrypt;
+#endif
+bool opt_blake256;
+
+
 
 /* Protected by ch_lock */
 char current_hash[68];
@@ -405,13 +374,6 @@ struct schedtime {
 struct schedtime schedstart;
 struct schedtime schedstop;
 bool sched_paused;
-
-
-extern uint8_t A1Pll1;
-extern struct A1_chain *chain[ASIC_CHAIN_NUM];
-extern const struct PLL_Clock PLL_Clk_12Mhz[119];
-
-
 
 static bool time_before(struct tm *tm1, struct tm *tm2)
 {
@@ -583,8 +545,6 @@ static char *getwork_req = "{\"method\": \"getwork\", \"params\": [], \"id\":0}\
 
 static char *gbt_req = "{\"id\": 0, \"method\": \"getblocktemplate\", \"params\": [{\"capabilities\": [\"coinbasetxn\", \"workid\", \"coinbase/append\"]}]}\n";
 
-static char *gbt_solo_req = "{\"id\": 0, \"method\": \"getblocktemplate\"}\n";
-
 /* Adjust all the pools' quota to the greatest common denominator after a pool
  * has been added or the quotas changed. */
 void adjust_quota_gcd(void)
@@ -642,7 +602,7 @@ struct pool *add_pool(void)
         quit(1, "Failed to pthread_cond_init in add_pool");
     cglock_init(&pool->data_lock);
     mutex_init(&pool->stratum_lock);
-    cglock_init(&pool->gbt_lock);
+//    cglock_init(&pool->gbt_lock);
     INIT_LIST_HEAD(&pool->curlring);
 
     /* Make sure the pool doesn't think we've been idle since time 0 */
@@ -1153,17 +1113,9 @@ static struct opt_table opt_config_table[] = {
              set_int_1_to_65535, opt_show_intval, &opt_api_port,
              "Port number of miner API"),
     OPT_WITHOUT_ARG("--balance",
-             set_balance, &pool_strategy,
-             "Change multipool strategy from failover to even share balance"),
-    OPT_WITH_ARG("--benchfile",
-            opt_set_charp, NULL, &opt_benchfile,
-            "Run sgminer in benchmark mode using a work file - produces no shares"),
-    OPT_WITHOUT_ARG("--benchfile-display",
-            opt_set_bool, &opt_benchfile_display,
-            "Display each benchfile nonce found"),
-    OPT_WITHOUT_ARG("--benchmark",
-            opt_set_bool, &opt_benchmark,
-            "Run sgminer in benchmark mode - produces no shares"),
+            set_balance, &pool_strategy,
+            "Change multipool strategy from failover to even share balance"),
+
 #ifdef HAVE_LIBCURL
     OPT_WITH_ARG("--btc-address",
              opt_set_charp, NULL, &opt_btc_address,
@@ -1600,11 +1552,7 @@ static struct opt_table opt_cmdline_table[] = {
     OPT_WITHOUT_ARG("--help|-h",
             opt_verusage_and_exit, NULL,
             "Print this message"),
-#if defined(USE_USBUTILS)
-    OPT_WITHOUT_ARG("--ndevs|-n",
-            display_devs, &nDevs,
-            "Display all USB devices and exit"),
-#endif
+
     OPT_WITHOUT_ARG("--version|-V",
             opt_version_and_exit, packagename,
             "Display version and exit"),
@@ -1677,8 +1625,13 @@ static struct work *make_work(void)
  * cleaned to remove any dynamically allocated arrays within the struct */
 void clean_work(struct work *work)
 {
-    free(work->job_id);
-    free(work->ntime);
+//applog(LOG_ERR,"free job id");
+   // free(work->job_id);
+    
+  //  applog(LOG_ERR,"free ntime");
+    //free(work->ntime);
+    
+    //applog(LOG_ERR,"free coinbase");
     free(work->coinbase);
     free(work->nonce1);
     memset(work, 0, sizeof(struct work));
@@ -1727,213 +1680,33 @@ static void __gbt_merkleroot(struct pool *pool, unsigned char *merkle_root)
 
 static bool work_decode(struct pool *pool, struct work *work, json_t *val);
 
-static void update_gbt(struct pool *pool)
-{
-    int rolltime;
-    json_t *val;
-    CURL *curl;
-
-    curl = curl_easy_init();
-    if (unlikely(!curl))
-        quit (1, "CURL initialisation failed in update_gbt");
-
-    val = json_rpc_call(curl, pool->rpc_url, pool->rpc_userpass,
-                pool->rpc_req, true, false, &rolltime, pool, false);
-
-    if (val) {
-        struct work *work = make_work();
-        bool rc = work_decode(pool, work, val);
-
-        total_getworks++;
-        pool->getwork_requested++;
-        if (rc) {
-            applog(LOG_DEBUG, "Successfully retrieved and updated GBT from pool %u %s",
-                   pool->pool_no, pool->rpc_url);
-            if (pool == current_pool())
-                opt_work_update = true;
-        } else {
-            applog(LOG_DEBUG, "Successfully retrieved but FAILED to decipher GBT from pool %u %s",
-                   pool->pool_no, pool->rpc_url);
-        }
-        json_decref(val);
-        free_work(work);
-    } else {
-        applog(LOG_DEBUG, "FAILED to update GBT from pool %u %s",
-               pool->pool_no, pool->rpc_url);
-    }
-    curl_easy_cleanup(curl);
-}
-
-static void gen_gbt_work(struct pool *pool, struct work *work)
-{
-    unsigned char merkleroot[32];
-    struct timeval now;
-    uint64_t nonce2le;
-
-    cgtime(&now);
-    if (now.tv_sec - pool->tv_lastwork.tv_sec > 60)
-        update_gbt(pool);
-
-    cg_wlock(&pool->gbt_lock);
-    nonce2le = htole64(pool->nonce2);
-    memcpy(pool->coinbase + pool->nonce2_offset, &nonce2le, pool->n2size);
-    pool->nonce2++;
-    cg_dwlock(&pool->gbt_lock);
-    __gbt_merkleroot(pool, merkleroot);
-
-    memcpy(work->data, &pool->gbt_version, 4);
-    memcpy(work->data + 4, pool->previousblockhash, 32);
-    memcpy(work->data + 4 + 32 + 32, &pool->curtime, 4);
-    memcpy(work->data + 4 + 32 + 32 + 4, &pool->gbt_bits, 4);
-
-    memcpy(work->target, pool->gbt_target, 32);
-
-    work->coinbase = bin2hex(pool->coinbase, pool->coinbase_len);
-
-    /* For encoding the block data on submission */
-    work->gbt_txns = pool->gbt_txns + 1;
-
-    if (pool->gbt_workid)
-        work->job_id = strdup(pool->gbt_workid);
-    cg_runlock(&pool->gbt_lock);
-
-    flip32(work->data + 4 + 32, merkleroot);
-    memset(work->data + 4 + 32 + 32 + 4 + 4, 0, 4); /* nonce */
-
-    hex2bin(work->data + 4 + 32 + 32 + 4 + 4 + 4, workpadding, 48);
-
-    if (opt_debug) {
-        char *header = bin2hex(work->data, 128);
-
-        applog(LOG_DEBUG, "Generated GBT header %s", header);
-        applog(LOG_DEBUG, "Work coinbase %s", work->coinbase);
-        free(header);
-    }
-
-    calc_midstate(work);
-    local_work++;
-    work->pool = pool;
-    work->gbt = true;
-    work->longpoll = false;
-    work->getwork_mode = GETWORK_MODE_GBT;
-    work->work_block = work_block;
-    /* Nominally allow a driver to ntime roll 60 seconds */
-    work->drv_rolllimit = 60;
-    calc_diff(work, 0);
-    cgtime(&work->tv_staged);
-}
-
-static bool gbt_decode(struct pool *pool, json_t *res_val)
-{
-    const char *previousblockhash;
-    const char *target;
-    const char *coinbasetxn;
-    const char *longpollid;
-    unsigned char hash_swap[32];
-    int expires;
-    int version;
-    int curtime;
-    bool submitold;
-    const char *bits;
-    const char *workid;
-    int cbt_len, orig_len;
-    uint8_t *extra_len;
-    size_t cal_len;
-
-    previousblockhash = json_string_value(json_object_get(res_val, "previousblockhash"));
-    target = json_string_value(json_object_get(res_val, "target"));
-    coinbasetxn = json_string_value(json_object_get(json_object_get(res_val, "coinbasetxn"), "data"));
-    longpollid = json_string_value(json_object_get(res_val, "longpollid"));
-    expires = json_integer_value(json_object_get(res_val, "expires"));
-    version = json_integer_value(json_object_get(res_val, "version"));
-    curtime = json_integer_value(json_object_get(res_val, "curtime"));
-    submitold = json_is_true(json_object_get(res_val, "submitold"));
-    bits = json_string_value(json_object_get(res_val, "bits"));
-    workid = json_string_value(json_object_get(res_val, "workid"));
-
-    if (!previousblockhash || !target || !coinbasetxn || !longpollid ||
-        !expires || !version || !curtime || !bits) {
-        applog(LOG_ERR, "JSON failed to decode GBT");
-        return false;
-    }
-
-    applog(LOG_DEBUG, "previousblockhash: %s", previousblockhash);
-    applog(LOG_DEBUG, "target: %s", target);
-    applog(LOG_DEBUG, "coinbasetxn: %s", coinbasetxn);
-    applog(LOG_DEBUG, "longpollid: %s", longpollid);
-    applog(LOG_DEBUG, "expires: %d", expires);
-    applog(LOG_DEBUG, "version: %d", version);
-    applog(LOG_DEBUG, "curtime: %d", curtime);
-    applog(LOG_DEBUG, "submitold: %s", submitold ? "true" : "false");
-    applog(LOG_DEBUG, "bits: %s", bits);
-    if (workid)
-        applog(LOG_DEBUG, "workid: %s", workid);
-
-    cg_wlock(&pool->gbt_lock);
-    free(pool->coinbasetxn);
-    pool->coinbasetxn = strdup(coinbasetxn);
-    cbt_len = strlen(pool->coinbasetxn) / 2;
-    /* We add 8 bytes of extra data corresponding to nonce2 */
-    pool->n2size = 8;
-    pool->coinbase_len = cbt_len + pool->n2size;
-    cal_len = pool->coinbase_len + 1;
-    align_len(&cal_len);
-    free(pool->coinbase);
-    pool->coinbase = calloc(cal_len, 1);
-    if (unlikely(!pool->coinbase))
-        quit(1, "Failed to calloc pool coinbase in gbt_decode");
-    hex2bin(pool->coinbase, pool->coinbasetxn, 42);
-    extra_len = (uint8_t *)(pool->coinbase + 41);
-    orig_len = *extra_len;
-    hex2bin(pool->coinbase + 42, pool->coinbasetxn + 84, orig_len);
-    *extra_len += pool->n2size;
-    hex2bin(pool->coinbase + 42 + *extra_len, pool->coinbasetxn + 84 + (orig_len * 2),
-        cbt_len - orig_len - 42);
-    pool->nonce2_offset = orig_len + 42;
-
-    free(pool->longpollid);
-    pool->longpollid = strdup(longpollid);
-    free(pool->gbt_workid);
-    if (workid)
-        pool->gbt_workid = strdup(workid);
-    else
-        pool->gbt_workid = NULL;
-
-    hex2bin(hash_swap, previousblockhash, 32);
-    swap256(pool->previousblockhash, hash_swap);
-
-    hex2bin(hash_swap, target, 32);
-    swab256(pool->gbt_target, hash_swap);
-
-    pool->gbt_expires = expires;
-    pool->gbt_version = htobe32(version);
-    pool->curtime = htobe32(curtime);
-    pool->submit_old = submitold;
-
-    hex2bin((unsigned char *)&pool->gbt_bits, bits, 4);
-
-    __build_gbt_txns(pool, res_val);
-    cg_wunlock(&pool->gbt_lock);
-
-    return true;
-}
-
 static bool getwork_decode(json_t *res_val, struct work *work)
 {
-    if (unlikely(!jobj_binary(res_val, "data", work->data, sizeof(work->data), true))) {
-        applog(LOG_ERR, "JSON inval data");
+    size_t worklen = 192;
+    //if (work->pool->algorithm.type == ALGO_CRE) worklen = 168;
+    //if (work->pool->algorithm.type == ALGO_DECRED) worklen = 192;
+
+    if (unlikely(!jobj_binary(res_val, "data", work->data, worklen, true))) {
+
         return false;
     }
 
-    if (!jobj_binary(res_val, "midstate", work->midstate, sizeof(work->midstate), false)) {
-        // Calculate it ourselves
-        applog(LOG_DEBUG, "Calculating midstate locally");
-        calc_midstate(work);
-    }
+
 
     if (unlikely(!jobj_binary(res_val, "target", work->target, sizeof(work->target), true))) {
-        applog(LOG_ERR, "JSON inval target");
+
         return false;
+    }
+
+    if (1) {
+        uint16_t votebits;
+        memcpy(&votebits, &work->data[100], 2);
+        // never change the last bit!
+        votebits = (uint16_t) (opt_vote << 1) | (votebits & 1);
+        memcpy(&work->data[100], &votebits, 2);
+        // some random extradata to make it unique
+        ((uint32_t*)work->data)[36] = (rand()*4);
+        ((uint32_t*)work->data)[37] = ((rand()*4) << 8) | work->thr_id;
     }
     return true;
 }
@@ -2042,149 +1815,6 @@ static void gbt_merkle_bins(struct pool *pool, json_t *transaction_arr)
 
 static double diff_from_target(void *target);
 
-static const char scriptsig_header[] = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff";
-static unsigned char scriptsig_header_bin[41];
-
-static bool gbt_solo_decode(struct pool *pool, json_t *res_val)
-{
-    json_t *transaction_arr, *coinbase_aux;
-    const char *previousblockhash;
-    unsigned char hash_swap[32];
-    struct timeval now;
-    const char *target;
-    uint64_t coinbasevalue;
-    const char *flags;
-    const char *bits;
-    char header[228];
-    int ofs = 0, len;
-    uint64_t *u64;
-    uint32_t *u32;
-    int version;
-    int curtime;
-    int height;
-
-    previousblockhash = json_string_value(json_object_get(res_val, "previousblockhash"));
-    target = json_string_value(json_object_get(res_val, "target"));
-    transaction_arr = json_object_get(res_val, "transactions");
-    version = json_integer_value(json_object_get(res_val, "version"));
-    curtime = json_integer_value(json_object_get(res_val, "curtime"));
-    bits = json_string_value(json_object_get(res_val, "bits"));
-    height = json_integer_value(json_object_get(res_val, "height"));
-    coinbasevalue = json_integer_value(json_object_get(res_val, "coinbasevalue"));
-    coinbase_aux = json_object_get(res_val, "coinbaseaux");
-    flags = json_string_value(json_object_get(coinbase_aux, "flags"));
-
-    if (!previousblockhash || !target || !version || !curtime || !bits || !coinbase_aux || !flags) {
-        applog(LOG_ERR, "Pool %d JSON failed to decode GBT", pool->pool_no);
-        return false;
-    }
-
-    applog(LOG_DEBUG, "previousblockhash: %s", previousblockhash);
-    applog(LOG_DEBUG, "target: %s", target);
-    applog(LOG_DEBUG, "version: %d", version);
-    applog(LOG_DEBUG, "curtime: %d", curtime);
-    applog(LOG_DEBUG, "bits: %s", bits);
-    applog(LOG_DEBUG, "height: %d", height);
-    applog(LOG_DEBUG, "flags: %s", flags);
-
-    cg_wlock(&pool->gbt_lock);
-    hex2bin(hash_swap, previousblockhash, 32);
-    swap256(pool->previousblockhash, hash_swap);
-    __bin2hex(pool->prev_hash, pool->previousblockhash, 32);
-
-    hex2bin(hash_swap, target, 32);
-    swab256(pool->gbt_target, hash_swap);
-    pool->sdiff = diff_from_target(pool->gbt_target);
-
-    pool->gbt_version = htobe32(version);
-    pool->curtime = htobe32(curtime);
-    snprintf(pool->ntime, 9, "%08x", curtime);
-    snprintf(pool->bbversion, 9, "%08x", version);
-    snprintf(pool->nbit, 9, "%s", bits);
-    pool->nValue = coinbasevalue;
-    hex2bin((unsigned char *)&pool->gbt_bits, bits, 4);
-    gbt_merkle_bins(pool, transaction_arr);
-    pool->height = height;
-
-    memset(pool->scriptsig_base, 0, 42);
-    ofs++; // Leave room for template length
-
-    /* Put block height at start of template. */
-    ofs += ser_number(pool->scriptsig_base + ofs, height); // max 5
-
-    /* Followed by flags */
-    len = strlen(flags) / 2;
-    pool->scriptsig_base[ofs++] = len;
-    hex2bin(pool->scriptsig_base + ofs, flags, len);
-    ofs += len;
-
-    /* Followed by timestamp */
-    cgtime(&now);
-    pool->scriptsig_base[ofs++] = 0xfe; // Encode seconds as u32
-    u32 = (uint32_t *)&pool->scriptsig_base[ofs];
-    *u32 = htole32(now.tv_sec);
-    ofs += 4; // sizeof uint32_t
-    pool->scriptsig_base[ofs++] = 0xfe; // Encode usecs as u32
-    u32 = (uint32_t *)&pool->scriptsig_base[ofs];
-    *u32 = htole32(now.tv_usec);
-    ofs += 4; // sizeof uint32_t
-
-    memcpy(pool->scriptsig_base + ofs, "\x09\x63\x67\x6d\x69\x6e\x65\x72\x34\x32", 10);
-    ofs += 10;
-
-    /* Followed by extranonce size, fixed at 8 */
-    pool->scriptsig_base[ofs++] = 8;
-    pool->nonce2_offset = 41 + ofs;
-    ofs += 8;
-
-    if (opt_btc_sig) {
-        len = strlen(opt_btc_sig);
-        if (len > 32)
-            len = 32;
-        pool->scriptsig_base[ofs++] = len;
-        memcpy(pool->scriptsig_base + ofs, opt_btc_sig, len);
-        ofs += len;
-    }
-
-    pool->scriptsig_base[0] = ofs++; // Template length
-    pool->n1_len = ofs;
-
-    len =   41 // prefix
-        + ofs // Template length
-        + 4 // txin sequence no
-        + 1 // transactions
-        + 8 // value
-        + 1 + 25 // txout
-        + 4; // lock
-    free(pool->coinbase);
-    pool->coinbase = calloc(len, 1);
-    if (unlikely(!pool->coinbase))
-        quit(1, "Failed to calloc coinbase in gbt_solo_decode");
-
-    memcpy(pool->coinbase + 41, pool->scriptsig_base, ofs);
-    memcpy(pool->coinbase + 41 + ofs, "\xff\xff\xff\xff", 4);
-    pool->coinbase[41 + ofs + 4] = 1;
-    u64 = (uint64_t *)&(pool->coinbase[41 + ofs + 4 + 1]);
-    *u64 = htole64(coinbasevalue);
-
-    pool->nonce2 = 0;
-    pool->n2size = 4;
-    pool->coinbase_len = 41 + ofs + 4 + 1 + 8 + 1 + 25 + 4;
-    cg_wunlock(&pool->gbt_lock);
-
-    snprintf(header, 225, "%s%s%s%s%s%s%s",
-         pool->bbversion,
-         pool->prev_hash,
-         "0000000000000000000000000000000000000000000000000000000000000000",
-         pool->ntime,
-         pool->nbit,
-         "00000000", /* nonce */
-         workpadding);
-    if (unlikely(!hex2bin(pool->header_bin, header, 112)))
-        quit(1, "Failed to hex2bin header in gbt_solo_decode");
-
-    return true;
-}
 
 static bool work_decode(struct pool *pool, struct work *work, json_t *val)
 {
@@ -2196,19 +1826,7 @@ static bool work_decode(struct pool *pool, struct work *work, json_t *val)
         applog(LOG_ERR, "JSON Failed to decode result");
         goto out;
     }
-
-    if (pool->gbt_solo) {
-        if (unlikely(!gbt_solo_decode(pool, res_val)))
-            goto out;
-        ret = true;
-        goto out;
-    } else if (pool->has_gbt) {
-        if (unlikely(!gbt_decode(pool, res_val)))
-            goto out;
-        work->gbt = true;
-        ret = true;
-        goto out;
-    } else if (unlikely(!getwork_decode(res_val, work)))
+if (unlikely(!getwork_decode(res_val, work)))
         goto out;
 
     memset(work->hash, 0, sizeof(work->hash));
@@ -2225,7 +1843,6 @@ out:
 #define pool_localgen(pool) (true)
 #define json_rpc_call(curl, url, userpass, rpc_req, probe, longpoll, rolltime, pool, share) (NULL)
 #define work_decode(pool, work, val) (false)
-#define gen_gbt_work(pool, work) {}
 #endif /* HAVE_LIBCURL */
 
 int dev_from_id(int thr_id)
@@ -3483,6 +3100,47 @@ static double diff_from_target(void *target)
 static void calc_diff(struct work *work, double known)
 {
     struct sgminer_pool_stats *pool_stats = &(work->pool->sgminer_pool_stats);
+      double difficulty;
+    
+      if (known) {
+        work->work_difficulty = known;
+      } else {
+        double d64, dcut64;
+    
+        d64 =  truediffone;
+            
+          dcut64 = le256todouble(work->target);
+        
+        if (unlikely(!dcut64))
+          dcut64 = 1;
+    
+       
+        work->work_difficulty = d64 / dcut64;
+        applog(LOG_DEBUG, "Difficulty: %f", work->work_difficulty);
+      }
+    
+      difficulty = work->work_difficulty;
+    
+      pool_stats->last_diff = difficulty;
+      suffix_string_double(difficulty, work->pool->diff, sizeof(work->pool->diff), 0);
+    
+      if (difficulty == pool_stats->min_diff)
+        pool_stats->min_diff_count++;
+      else if (difficulty < pool_stats->min_diff || pool_stats->min_diff == 0) {
+        pool_stats->min_diff = difficulty;
+        pool_stats->min_diff_count = 1;
+      }
+    
+      if (difficulty == pool_stats->max_diff)
+        pool_stats->max_diff_count++;
+      else if (difficulty > pool_stats->max_diff) {
+        pool_stats->max_diff = difficulty;
+        pool_stats->max_diff_count = 1;
+      }
+    
+
+#if 0
+    struct sgminer_pool_stats *pool_stats = &(work->pool->sgminer_pool_stats);
     double difficulty;
     uint64_t uintdiff;
 
@@ -3532,172 +3190,7 @@ static void calc_diff(struct work *work, double known)
         pool_stats->max_diff = difficulty;
         pool_stats->max_diff_count = 1;
     }
-}
-
-static unsigned char bench_hidiff_bins[16][160];
-static unsigned char bench_lodiff_bins[16][160];
-static unsigned char bench_target[32];
-
-/* Iterate over the lo and hi diff benchmark work items such that we find one
- * diff 32+ share every 32 work items. */
-static void get_benchmark_work(struct work *work)
-{
-    work->work_difficulty = 32;
-    memcpy(work->target, bench_target, 32);
-    work->drv_rolllimit = 0;
-    work->mandatory = true;
-    work->pool = pools[0];
-    cgtime(&work->tv_getwork);
-    copy_time(&work->tv_getwork_reply, &work->tv_getwork);
-    work->getwork_mode = GETWORK_MODE_BENCHMARK;
-}
-
-static void benchfile_dspwork(struct work *work, uint32_t nonce)
-{
-    char buf[1024];
-    uint32_t dn;
-    int i;
-
-    dn = 0;
-    for (i = 0; i < 4; i++) {
-        dn *= 0x100;
-        dn += nonce & 0xff;
-        nonce /= 0x100;
-    }
-
-    if ((sizeof(work->data) * 2 + 1) > sizeof(buf))
-        quithere(1, "BENCHFILE Invalid buf size");
-
-    __bin2hex(buf, work->data, sizeof(work->data));
-
-    applog(LOG_ERR, "BENCHFILE nonce %u=0x%08x for work=%s",
-            (unsigned int)dn, (unsigned int)dn, buf);
-
-}
-
-static bool benchfile_get_work(struct work *work)
-{
-    char buf[1024];
-    char item[1024];
-    bool got = false;
-
-    if (!benchfile_in) {
-        if (opt_benchfile)
-            benchfile_in = fopen(opt_benchfile, "r");
-        else
-            quit(1, "BENCHFILE Invalid benchfile NULL");
-
-        if (!benchfile_in)
-            quit(1, "BENCHFILE Failed to open benchfile '%s'", opt_benchfile);
-
-        benchfile_line = 0;
-
-        if (!fgets(buf, 1024, benchfile_in))
-            quit(1, "BENCHFILE Failed to read benchfile '%s'", opt_benchfile);
-
-        got = true;
-        benchfile_work = 0;
-    }
-
-    if (!got) {
-        if (!fgets(buf, 1024, benchfile_in)) {
-            if (benchfile_work == 0)
-                quit(1, "BENCHFILE No work in benchfile '%s'", opt_benchfile);
-            fclose(benchfile_in);
-            benchfile_in = NULL;
-            return benchfile_get_work(work);
-        }
-    }
-
-    do {
-        benchfile_line++;
-
-        // Empty lines and lines starting with '#' or '/' are ignored
-        if (*buf != '\0' && *buf != '#' && *buf != '/') {
-            char *commas[BENCHWORK_COUNT];
-            int i, j, len;
-            long nonce_time;
-
-            commas[0] = buf;
-            for (i = 1; i < BENCHWORK_COUNT; i++) {
-                commas[i] = strchr(commas[i-1], ',');
-                if (!commas[i]) {
-                    quit(1, "BENCHFILE Invalid input file line %d"
-                        " - field count is %d but should be %d",
-                        benchfile_line, i, BENCHWORK_COUNT);
-                }
-                len = commas[i] - commas[i-1];
-                if (benchfile_data[i-1].length &&
-                    (len != benchfile_data[i-1].length)) {
-                    quit(1, "BENCHFILE Invalid input file line %d "
-                        "field %d (%s) length is %d but should be %d",
-                        benchfile_line, i,
-                        benchfile_data[i-1].name,
-                        len, benchfile_data[i-1].length);
-                }
-
-                *(commas[i]++) = '\0';
-            }
-
-            // NonceTime may have LF's etc
-            len = strlen(commas[BENCHWORK_NONCETIME]);
-            if (len < benchfile_data[BENCHWORK_NONCETIME].length) {
-                quit(1, "BENCHFILE Invalid input file line %d field %d"
-                    " (%s) length is %d but should be least %d",
-                    benchfile_line, BENCHWORK_NONCETIME+1,
-                    benchfile_data[BENCHWORK_NONCETIME].name, len,
-                    benchfile_data[BENCHWORK_NONCETIME].length);
-            }
-
-            sprintf(item, "0000000%c", commas[BENCHWORK_VERSION][0]);
-
-            j = strlen(item);
-            for (i = benchfile_data[BENCHWORK_PREVHASH].length-8; i >= 0; i -= 8) {
-                sprintf(&(item[j]), "%.8s", &commas[BENCHWORK_PREVHASH][i]);
-                j += 8;
-            }
-
-            for (i = benchfile_data[BENCHWORK_MERKLEROOT].length-8; i >= 0; i -= 8) {
-                sprintf(&(item[j]), "%.8s", &commas[BENCHWORK_MERKLEROOT][i]);
-                j += 8;
-            }
-
-            nonce_time = atol(commas[BENCHWORK_NONCETIME]);
-
-            sprintf(&(item[j]), "%08lx", nonce_time);
-            j += 8;
-
-            strcpy(&(item[j]), commas[BENCHWORK_DIFFBITS]);
-            j += benchfile_data[BENCHWORK_DIFFBITS].length;
-
-            memset(work, 0, sizeof(*work));
-
-            hex2bin(work->data, item, j >> 1);
-
-            calc_midstate(work);
-
-            benchfile_work++;
-
-            return true;
-        }
-    } while (fgets(buf, 1024, benchfile_in));
-
-    if (benchfile_work == 0)
-        quit(1, "BENCHFILE No work in benchfile '%s'", opt_benchfile);
-    fclose(benchfile_in);
-    benchfile_in = NULL;
-    return benchfile_get_work(work);
-}
-
-static void get_benchfile_work(struct work *work)
-{
-    benchfile_get_work(work);
-    work->mandatory = true;
-    work->pool = pools[0];
-    cgtime(&work->tv_getwork);
-    copy_time(&work->tv_getwork_reply, &work->tv_getwork);
-    work->getwork_mode = GETWORK_MODE_BENCHMARK;
-    calc_diff(work, 0);
+    #endif
 }
 
 #ifdef HAVE_CURSES
@@ -4268,9 +3761,6 @@ static bool stale_work(struct work *work, bool share)
     struct pool *pool;
     int getwork_delay;
 
-    if (opt_benchmark || opt_benchfile)
-        return false;
-
     if (work->work_block != work_block) {
         applog(LOG_DEBUG, "Work stale due to block mismatch");
         return true;
@@ -4383,7 +3873,7 @@ double share_diff(const struct work *work)
     cg_wunlock(&control_lock);
 
     if (unlikely(new_best))
-        applog(LOG_INFO, "New best share: %s", best_share);
+        applog(LOG_DEBUG, "New best share: %s", best_share);
 
     return ret;
 }
@@ -4399,6 +3889,91 @@ static void regen_hash(struct work *work)
     sha256(swap, 80, hash1);
     sha256(hash1, 32, (unsigned char *)(work->hash));
 }
+
+static inline void flip180(void *dest_p, const void *src_p)
+{
+    uint32_t *dest = dest_p;
+    const uint32_t *src = src_p;
+    int i;
+
+    for (i = 0; i < 45; i++)
+        dest[i] = swab32(src[i]);
+}
+
+/*
+ * Encode a length len/4 vector of (uint32_t) into a length len vector of
+ * (unsigned char) in big-endian form.  Assumes len is a multiple of 4.
+ */
+    static inline void
+be32enc_vect(uint32_t *dst, const uint32_t *src, uint32_t len)
+{
+    uint32_t i;
+
+    for (i = 0; i < len; i++)
+        dst[i] = htobe32(src[i]);
+}
+
+
+
+
+void blake256_regenhash(struct work *work)
+{
+
+    uint32_t i=0;
+    uint8_t change = 0;
+    uint32_t input_len = 180;
+    uint32_t ohash[32] = {0};
+    uint32_t data_len = 1440;
+    int32_t nonce = (work->data[143]<<24)|(work->data[142]<<16)|(work->data[141]<<8)|(work->data[140]);
+    applog(LOG_DEBUG, "nonce: %x %x %x %x ", work->data[143], work->data[142],work->data[141], work->data[140]);
+
+    uint8_t nonce_flag = (uint8_t)(work->data[140]&0x1);
+#if 0
+    printf("out :work data: \r\n");
+    for(i = 0; i < 180; i++)
+    {
+        printf("0x%02x  ", work->data[i]);
+        if((i % 10) == 9)
+        {
+            printf("\r\n");
+        }
+    }
+    printf("\r\n");
+
+
+    printf(" out work target: \r\n");
+    for(i = 0; i < 32; i++)
+    {
+        printf("0x%02x  ", work->target[i]);
+        if((i % 8) == 7)
+        {
+            printf("\r\n");
+        }
+    }
+    printf("\r\n");
+#endif
+
+
+    state S;
+    blake256_init(&S);
+    //applog(LOG_INFO, "s: %x %x %x %x flag %x, change %x,data_len %d", S.h[0], S.h[1],S.h[2], S.h[3],nonce_flag,change,data_len);
+
+    blake256_update(&S, work->data, data_len, nonce_flag,change);
+    // applog(LOG_INFO, "L4488 ");
+
+    blake256_final(&S, ohash,nonce_flag,change);
+    applog(LOG_DEBUG, "Hash produced: %x %x %x %x %x %x %x %x", ohash[0], ohash[1], ohash[2], ohash[3], ohash[4], ohash[5], ohash[6], ohash[7]);
+
+    memcpy(work->hash,ohash,32);
+}
+
+
+static void rebuild_hash(struct work *work)
+{
+
+    blake256_regenhash(work);
+}
+
 
 static bool cnx_needed(struct pool *pool);
 
@@ -4705,7 +4280,7 @@ static int block_sort(struct block *blocka, struct block *blockb)
 /* Decode the current block difficulty which is in packed form */
 static void set_blockdiff(const struct work *work)
 {
-    uint8_t pow = work->data[72];
+    uint8_t pow = work->data[18];
     int powdiff = (8 * (0x1d - 3)) - (8 * (pow - 3));
     uint32_t diff32 = be32toh(*((uint32_t *)(work->data + 72))) & 0x00FFFFFF;
     double numerator;
@@ -4715,9 +4290,9 @@ static void set_blockdiff(const struct work *work)
     switch(kernel)
     {
         case KL_SCRYPT:
-//          numerator = 0xFFFFFFFFULL << powdiff;
-//          ddiff = numerator / (double)diff32;
-//          break;
+            //          numerator = 0xFFFFFFFFULL << powdiff;
+            //          ddiff = numerator / (double)diff32;
+            //          break;
         case KL_X11MOD:
         case KL_X13MOD:
         case KL_X15MOD:
@@ -5648,353 +5223,7 @@ retry:
     opt_loginput = false;
 }
 
-#ifdef USE_USBUTILS
-static void mt_enable(struct thr_info *mythr)
-{
-    cgsem_post(&mythr->sem);
-}
 
-static void set_usb(void)
-{
-    int selected, i, mt, enabled, disabled, zombie, total, blacklisted;
-    struct cgpu_info *cgpu;
-    struct thr_info *thr;
-    double val;
-    char input;
-
-    opt_loginput = true;
-    immedok(logwin, true);
-    clear_logwin();
-
-retry:
-    enabled = 0;
-    disabled = 0;
-    zombie = 0;
-    total = 0;
-    blacklisted = 0;
-
-    rd_lock(&mining_thr_lock);
-    mt = mining_threads;
-    rd_unlock(&mining_thr_lock);
-
-    for (i = 0; i < mt; i++)
-    {
-        cgpu = mining_thr[i]->cgpu;
-        if (unlikely(!cgpu))
-            continue;
-        if (cgpu->usbinfo.nodev)
-            zombie++;
-        else if  (cgpu->deven == DEV_DISABLED)
-            disabled++;
-        else
-            enabled++;
-        if (cgpu->blacklisted)
-            blacklisted++;
-        total++;
-    }
-
-    wlogprint("Hotplug interval:%d\n", hotplug_time);
-    wlogprint("%d USB devices, %d enabled, %d disabled, %d zombie\n", total, enabled, disabled, zombie);
-    wlogprint("[S]ummary of device information\n");
-    wlogprint("[E]nable device\n");
-    wlogprint("[D]isable device\n");
-    wlogprint("[U]nplug to allow hotplug restart\n");
-    wlogprint("[R]eset device USB\n");
-    wlogprint("[L]ist all known devices\n");
-    wlogprint("[B]lacklist current device from current instance of sgminer\n");
-    wlogprint("[W]hitelist previously blacklisted device\n");
-    wlogprint("[H]otplug interval (0 to disable)\n");
-
-#if defined(USE_LTCTECH)
-    wlogprint("[M]iner state\n");
-#endif
-
-    wlogprint("Select an option or any other key to return\n");
-    logwin_update();
-    input = getch();
-
-    if(!strncasecmp(&input, "s", 1))
-    {
-        selected = curses_int("Select device number");
-        if (selected < 0 || selected >= mt)
-        {
-            wlogprint("Invalid selection\n");
-            goto retry;
-        }
-        cgpu = mining_thr[selected]->cgpu;
-        wlogprint("Device %03u:%03u\n", cgpu->usbinfo.bus_number, cgpu->usbinfo.device_address);
-        wlogprint("Name %s\n", cgpu->drv->name);
-        wlogprint("ID %d\n", cgpu->device_id);
-        wlogprint("Enabled: %s\n", cgpu->deven != DEV_DISABLED ? "Yes" : "No");
-        wlogprint("Temperature %.1f\n", cgpu->temp);
-        wlogprint("MHS av %.0f\n", cgpu->total_mhashes / cgpu_runtime(cgpu));
-        wlogprint("Accepted %d\n", cgpu->accepted);
-        wlogprint("Rejected %d\n", cgpu->rejected);
-        wlogprint("Hardware Errors %d\n", cgpu->hw_errors);
-        wlogprint("Last Share Pool %d\n", cgpu->last_share_pool_time > 0 ? cgpu->last_share_pool : -1);
-        wlogprint("Total MH %.1f\n", cgpu->total_mhashes);
-        wlogprint("Diff1 Work %"PRId64"\n", cgpu->diff1);
-        wlogprint("Difficulty Accepted %.1f\n", cgpu->diff_accepted);
-        wlogprint("Difficulty Rejected %.1f\n", cgpu->diff_rejected);
-        wlogprint("Last Share Difficulty %.1f\n", cgpu->last_share_diff);
-        wlogprint("No Device: %s\n", cgpu->usbinfo.nodev ? "True" : "False");
-        wlogprint("Last Valid Work %"PRIu64"\n", (uint64_t)cgpu->last_device_valid_work);
-        val = 0;
-        if (cgpu->hw_errors + cgpu->diff1)
-            val = cgpu->hw_errors / (cgpu->hw_errors + cgpu->diff1);
-        wlogprint("Device Hardware %.1f%%\n", val);
-        val = 0;
-        if (cgpu->diff1)
-            val = cgpu->diff_rejected / cgpu->diff1;
-        wlogprint("Device Rejected %.1f%%\n", val);
-        goto retry;
-    }
-    else if(!strncasecmp(&input, "e", 1))
-    {
-        selected = curses_int("Select device number");
-        if (selected < 0 || selected >= mt)
-        {
-            wlogprint("Invalid selection\n");
-            goto retry;
-        }
-        cgpu = mining_thr[selected]->cgpu;
-        if (cgpu->usbinfo.nodev)
-        {
-            wlogprint("Device removed, unable to re-enable!\n");
-            goto retry;
-        }
-        thr = get_thread(selected);
-        cgpu->deven = DEV_ENABLED;
-        mt_enable(thr);
-        goto retry;
-    }
-    else if(!strncasecmp(&input, "d", 1))
-    {
-        selected = curses_int("Select device number");
-        if (selected < 0 || selected >= mt)
-        {
-            wlogprint("Invalid selection\n");
-            goto retry;
-        }
-        cgpu = mining_thr[selected]->cgpu;
-        cgpu->deven = DEV_DISABLED;
-        goto retry;
-    }
-    else if(!strncasecmp(&input, "u", 1))
-    {
-        selected = curses_int("Select device number");
-        if (selected < 0 || selected >= mt)
-        {
-            wlogprint("Invalid selection\n");
-            goto retry;
-        }
-        cgpu = mining_thr[selected]->cgpu;
-        if (cgpu->usbinfo.nodev)
-        {
-            wlogprint("Device already removed, unable to unplug!\n");
-            goto retry;
-        }
-        usb_nodev(cgpu);
-        goto retry;
-    }
-    else if (!strncasecmp(&input, "r", 1))
-    {
-        selected = curses_int("Select device number");
-        if (selected < 0 || selected >= mt)
-        {
-            wlogprint("Invalid selection\n");
-            goto retry;
-        }
-        cgpu = mining_thr[selected]->cgpu;
-        if (cgpu->usbinfo.nodev)
-        {
-            wlogprint("Device already removed, unable to reset!\n");
-            goto retry;
-        }
-        usb_reset(cgpu);
-        goto retry;
-    }
-    else if (!strncasecmp(&input, "b", 1))
-    {
-        selected = curses_int("Select device number");
-        if (selected < 0 || selected >= mt)
-        {
-            wlogprint("Invalid selection\n");
-            goto retry;
-        }
-        cgpu = mining_thr[selected]->cgpu;
-        if (cgpu->usbinfo.nodev)
-        {
-            wlogprint("Device already removed, unable to blacklist!\n");
-            goto retry;
-        }
-        blacklist_cgpu(cgpu);
-        goto retry;
-    }
-    else if (!strncasecmp(&input, "w", 1))
-    {
-        if (!blacklisted)
-        {
-            wlogprint("No blacklisted devices!\n");
-            goto retry;
-        }
-        wlogprint("Blacklisted devices:\n");
-        for (i = 0; i < mt; i++)
-        {
-            cgpu = mining_thr[i]->cgpu;
-            if (unlikely(!cgpu))
-                continue;
-            if (cgpu->blacklisted)
-            {
-                wlogprint("%d: %s %d %03u:%03u\n", i, cgpu->drv->name, cgpu->device_id, cgpu->usbinfo.bus_number, cgpu->usbinfo.device_address);
-            }
-        }
-        selected = curses_int("Select device number");
-        if (selected < 0 || selected >= mt)
-        {
-            wlogprint("Invalid selection\n");
-            goto retry;
-        }
-        cgpu = mining_thr[selected]->cgpu;
-        if (!cgpu->blacklisted)
-        {
-            wlogprint("Device not blacklisted, unable to whitelist\n");
-            goto retry;
-        }
-        whitelist_cgpu(cgpu);
-        goto retry;
-    }
-    else if (!strncasecmp(&input, "h", 1))
-    {
-        selected = curses_int("Select hotplug interval in seconds (0 to disable)");
-        if (selected < 0 || selected > 9999)
-        {
-            wlogprint("Invalid value\n");
-            goto retry;
-        }
-        hotplug_time = selected;
-        goto retry;
-    }
-    else if (!strncasecmp(&input, "l", 1))
-    {
-        usb_list();
-        goto retry;
-    }
-#if defined(USE_LTCTECH)
-    else if (!strncasecmp(&input, "m", 1))      /* miner stat */
-    {
-        int                     miner_id, core_id, hashcore_index;
-        uint16_t                    scrypt_num, clock_sum, scrypt_num_sum;
-
-        struct ltctech_info         *info;
-        struct miner_info_raptor_i  *miner_raptor_i;
-        struct miner_info_raptor_ii *miner_raptor_ii;
-
-        selected = curses_int("Select device number");
-        if (selected < 0 || selected >= mt)
-        {
-            wlogprint("Invalid selection\n");
-            goto retry;
-        }
-                                        
-        cgpu = mining_thr[selected]->cgpu;
-        info = cgpu->device_data;       
-
-// For display by HKS:
-        wlogprint("-------------------------------------------------------------------------------\n");
-        wlogprint("--------------------------------- Miner Stats ---------------------------------\n");
-        wlogprint("-------------------------------------------------------------------------------\n");
-
-        if(info->product_type == LTCTECH_PRODUCT_TYPE_RAPTOR_I)
-        {
-            wlogprint(" [ %s%2d ]\n", cgpu->drv->name, cgpu->device_id);
-            wlogprint(" [BASE   ]: HW Ver = %d.%d, FW Ver = %d.%d\n",
-                (info->hw_ver >> 8)&0xFF, (info->hw_ver)&0xFF, (info->fw_ver >> 8)&0xFF, (info->fw_ver)&0xFF);
-
-            clock_sum       = 0;
-            scrypt_num_sum  = 0;
-
-            for (miner_id = 0; miner_id < LTCTECH_MINER_NUM_RAPTOR_I; miner_id++)
-            {
-                miner_raptor_i = &info->miner_raptor_i[miner_id];
-                if (miner_raptor_i->status == 1)
-                {
-                    wlogprint(" [MINER%2d]: FW Ver=%03x, Chip=%d, ", miner_id, miner_raptor_i->version, miner_raptor_i->core_cnt);
-
-                    for (core_id = 0; core_id < LTCTECH_MINER_CORE_NUM_RAPTOR_I; core_id++)
-                    {
-                        struct core_info *core = &miner_raptor_i->cores[core_id];
-
-                        scrypt_num = 0;
-                        for (hashcore_index = 0; hashcore_index < LTCTECH_CORE_HASHCORE_NUM; hashcore_index++)
-                        {
-                            scrypt_num += core->hash_core[hashcore_index];
-                        }
-
-                        wlogprint("[%d:%3dMHz,%03d]", core_id, ltctech_core_clock[core->clk], scrypt_num);
-                        clock_sum       += ltctech_core_clock[core->clk];
-                        scrypt_num_sum  += scrypt_num;
-                    }
-                    wlogprint("\n");
-                }
-            }
-
-            wlogprint(" [Average]: Clock: %3dMHz, Scrypt Core: %3d\n", clock_sum / info->core_total_cnt, scrypt_num_sum / info->core_total_cnt);
-        }
-        else     if(info->product_type == LTCTECH_PRODUCT_TYPE_RAPTOR_II)
-        {
-            wlogprint(" [ %s%2d ]\n", cgpu->drv->name, cgpu->device_id);
-
-            clock_sum       = 0;
-            scrypt_num_sum  = 0;
-    
-            for (miner_id = 0; miner_id < LTCTECH_MINER_NUM_RAPTOR_II; miner_id++)
-            {
-                wlogprint(" [MINER%2d]: HW Ver = %d.%d, FW Ver = %d.%d, CO Ver = %d.%d, CO Cnt = %d\n", 
-                    miner_id, (info->hw_ver >> 8)&0xFF, (info->hw_ver)&0xFF, (info->fw_ver >> 8)&0xFF, (info->fw_ver)&0xFF,  (info->core_ver >> 8)&0xFF,  (info->core_ver)&0xFF, info->core_total_cnt);
-
-                miner_raptor_ii = &info->miner_raptor_ii[miner_id];
-
-                if (miner_raptor_ii->status == 1)
-                {
-                    for (core_id = 0; core_id < LTCTECH_MINER_CORE_NUM_RAPTOR_II; core_id++)
-                    {
-                        struct core_info_raptor_ii *core = &miner_raptor_ii->cores[core_id];
-
-                        scrypt_num = 0;
-                        for (hashcore_index = 0; hashcore_index < LTCTECH_CORE_HASHCORE_NUM; hashcore_index++)
-                        {
-                            scrypt_num += core->hash_core[hashcore_index];
-                        }
-
-                        wlogprint(" [Core %2d]: Clock: %3dMHz, Scrypt Core: %3d\n", core_id, ltctech_core_clock[core->clk], scrypt_num);
-                        clock_sum       += ltctech_core_clock[core->clk];
-                        scrypt_num_sum  += scrypt_num;
-                    }
-                }
-            }
-
-            wlogprint(" [Average]: Clock: %3dMHz, Scrypt Core: %3d\n", clock_sum / info->core_total_cnt, scrypt_num_sum / info->core_total_cnt);
-        }
-        else
-        {
-        }
-
-        wlogprint("-------------------------------------------------------------------------------\n");
-        wlogprint("\n");
-
-        goto retry;
-    }   
-#endif 
-    else
-    {
-        clear_logwin();
-    }
-
-    immedok(logwin, false);
-    opt_loginput = false;
-}
-#endif
 
 static void *input_thread(void __maybe_unused *userdata)
 {
@@ -6195,8 +5424,8 @@ static void stratum_share_result(json_t *val, json_t *res_val, json_t *err_val,
 
     srdiff = now_t - sshare->sshare_sent;
     if (opt_debug || srdiff > 0) {
-        applog(LOG_INFO, "Pool %d stratum share result lag time %d seconds",
-               work->pool->pool_no, srdiff);
+        applog(LOG_DEBUG, "Pool %d stratum share result lag time %d seconds",
+                work->pool->pool_no, srdiff);
     }
     show_hash(work, hashshow);
     share_result(val, res_val, err_val, work, hashshow, false, "");
@@ -6420,18 +5649,16 @@ static bool supports_resume(struct pool *pool)
  * reset the connection based on the integrity of the receive side only as the
  * send side will eventually expire data it fails to send. */
 
- #define CG_EXIT_MS     (5 * 60 * 1000)
+#define CG_EXIT_MS     (5 * 60 * 1000)
 static void *stratum_rthread(void *userdata)
 {
     struct pool *pool = (struct pool *)userdata;
     char threadname[16];
-    static int cnt = 0;
 
     pthread_detach(pthread_self());
 
-    snprintf(threadname, sizeof(threadname), "%d/RStratum", pool->pool_no);
+    snprintf(threadname, 16, "StratumR/%d", pool->pool_no);
     RenameThread(threadname);
-    
 
     while (42) {
         struct timeval timeout;
@@ -6451,10 +5678,13 @@ static void *stratum_rthread(void *userdata)
             clear_pool_work(pool);
 
             wait_lpcurrent(pool);
-            while (!restart_stratum(pool)) {
-                if (pool->removed)
-                    goto out;
-                cgsleep_ms(30000);
+            if (!restart_stratum(pool)) {
+                pool_died(pool);
+                while (!restart_stratum(pool)) {
+                    if (pool->removed)
+                        goto out;
+                    cgsleep_ms(30000);
+                }
             }
         }
 
@@ -6486,21 +5716,16 @@ static void *stratum_rthread(void *userdata)
             if (pool == current_pool())
                 restart_threads();
 
+            if (restart_stratum(pool))
+                continue;
+
+            pool_died(pool);
             while (!restart_stratum(pool)) {
-            
-            cnt++;
-            if(cnt > total_pools)
-            {
-                power_down_all_chain();
-                zynq_spi_exit();
-                
-               cnt = 0;
-                exit(1);        
-             }
                 if (pool->removed)
                     goto out;
                 cgsleep_ms(30000);
             }
+            stratum_resumed(pool);
             continue;
         }
 
@@ -6509,8 +5734,7 @@ static void *stratum_rthread(void *userdata)
 
         if (!parse_method(pool, s) && !parse_stratum_response(pool, s))
             applog(LOG_INFO, "Unknown stratum msg: %s", s);
-        else if (pool->swork.clean)
-        {
+        else if (pool->swork.clean) {
             struct work *work = make_work();
 
             /* Generate a single work item to update the current block database */
@@ -6538,7 +5762,7 @@ static void *stratum_sthread(void *userdata)
 
     pthread_detach(pthread_self());
 
-    snprintf(threadname, sizeof(threadname), "%d/SStratum", pool->pool_no);
+    snprintf(threadname, 16, "StratumS/%d", pool->pool_no);
     RenameThread(threadname);
 
     pool->stratum_q = tq_new();
@@ -6546,11 +5770,11 @@ static void *stratum_sthread(void *userdata)
         quit(1, "Failed to create stratum_q in stratum_sthread");
 
     while (42) {
-        char noncehex[12], nonce2hex[20], s[1024];
+        //char noncehex[12], nonce2hex[20];
         struct stratum_share *sshare;
-        uint32_t *hash32, nonce;
-        unsigned char nonce2[8];
-        uint64_t *nonce2_64;
+        uint32_t *hash32, nonce, ntime;
+        char s[1024], nonce2[8];
+        char *ntimestr, *noncestr, *xnonce2str, *nvotestr, *nonce2hex;
         struct work *work;
         bool submitted;
 
@@ -6561,23 +5785,26 @@ static void *stratum_sthread(void *userdata)
         if (unlikely(!work))
             quit(1, "Stratum q returned empty work");
 
-        if (unlikely(work->nonce2_len > 8)) {
+        if (unlikely(work->xnonce2_len > 8)) {
             applog(LOG_ERR, "Pool %d asking for inappropriately long nonce2 length %d",
-                   pool->pool_no, (int)work->nonce2_len);
+                    pool->pool_no, (int)work->xnonce2_len);
             applog(LOG_ERR, "Not attempting to submit shares");
             free_work(work);
             continue;
         }
 
+        be32enc(&ntime, work->data[34]);
+        be32enc(&nonce, work->data[35]);
+        ntimestr = bin2hex((const unsigned char*)(&ntime), 4);
+        noncestr = bin2hex((const unsigned char*)(&nonce), 4);
+
         sshare = calloc(sizeof(struct stratum_share), 1);
         hash32 = (uint32_t *)work->hash;
         submitted = false;
-
+        
         sshare->sshare_time = time(NULL);
         /* This work item is freed in parse_stratum_response */
         sshare->work = work;
-        nonce = *((uint32_t *)(work->data + 76));
-        __bin2hex(noncehex, (const unsigned char *)&nonce, 4);
         memset(s, 0, 1024);
 
         mutex_lock(&sshare_lock);
@@ -6585,16 +5812,25 @@ static void *stratum_sthread(void *userdata)
         sshare->id = swork_id++;
         mutex_unlock(&sshare_lock);
 
-        nonce2_64 = (uint64_t *)nonce2;
-        *nonce2_64 = htole64(work->nonce2);
-        __bin2hex(nonce2hex, nonce2, work->nonce2_len);
+       // memcpy(nonce2hex+(pool->xnonce1_size - 4),pool->xnonce1,4);
+       // memcpy(nonce2hex+4,(const unsigned char*)&work->data[37],4);
+       // xnonce2str = bin2hex(nonce2hex, pool->xnonce1_size);
+     
+       nonce2hex = malloc(pool->xnonce1_size);
+       memset(nonce2hex,0,pool->xnonce1_size);
+       memcpy(nonce2hex+pool->xnonce1_size-4,pool->xnonce1+pool->xnonce1_size-4,4);
+       memcpy(nonce2hex+pool->xnonce1_size-8,(const unsigned char*)&work->data[37],4);
 
+       xnonce2str = bin2hex(nonce2hex, pool->xnonce1_size);
+      // xnonce2str = bin2hex((const unsigned char*)&work->data[36], pool->xnonce1_size);
+        
+        //applog(LOG_DEBUG,"nonce2 0x%x %x %x %x %d",nonce2[3],nonce2[2],nonce2[1],nonce2[0],work->xnonce2_len);
         snprintf(s, sizeof(s),
-            "{\"params\": [\"%s\", \"%s\", \"%s\", \"%s\", \"%s\"], \"id\": %d, \"method\": \"mining.submit\"}",
-            pool->rpc_user, work->job_id, nonce2hex, work->ntime, noncehex, sshare->id);
+                "{\"params\": [\"%s\", \"%s\", \"%s\", \"%s\", \"%s\"], \"id\": %d, \"method\": \"mining.submit\"}",
+                pool->rpc_user, work->job_id, xnonce2str, ntimestr, noncestr, sshare->id);
 
-        applog(LOG_INFO, "Submitting share %08lx to pool %d",
-                    (long unsigned int)htole32(hash32[6]), pool->pool_no);
+        applog(LOG_DEBUG, "Submitting share %08lx to pool %d",
+                (long unsigned int)htole32(hash32[6]), pool->pool_no);
 
         /* Try resubmitting for up to 2 minutes if we fail to submit
          * once and the stratum pool nonce1 still matches suggesting
@@ -6604,7 +5840,7 @@ static void *stratum_sthread(void *userdata)
 
             if (likely(stratum_send(pool, s, strlen(s)))) {
                 if (pool_tclear(pool, &pool->submit_fail))
-                        applog(LOG_WARNING, "Pool %d communication resumed, submitting work", pool->pool_no);
+                    applog(LOG_WARNING, "Pool %d communication resumed, submitting work", pool->pool_no);
 
                 mutex_lock(&sshare_lock);
                 HASH_ADD_INT(stratum_shares, id, sshare);
@@ -6627,7 +5863,8 @@ static void *stratum_sthread(void *userdata)
             }
 
             cg_rlock(&pool->data_lock);
-            sessionid_match = (pool->nonce1 && !strcmp(work->nonce1, pool->nonce1));
+            //applog(LOG_ERR, "xnonce1 0x%x, nonce1 0x%x",pool->xnonce1,work->nonce1);
+            sessionid_match = (pool->xnonce1 && !strcmp(work->nonce1, pool->xnonce1));
             cg_runlock(&pool->data_lock);
 
             if (!sessionid_match) {
@@ -6641,18 +5878,10 @@ static void *stratum_sthread(void *userdata)
         if (unlikely(!submitted)) {
             applog(LOG_DEBUG, "Failed to submit stratum share, discarding");
             free_work(work);
+            free(nonce2hex);
             free(sshare);
             pool->stale_shares++;
             total_stale++;
-        } else {
-            int ssdiff;
-
-            sshare->sshare_sent = time(NULL);
-            ssdiff = sshare->sshare_sent - sshare->sshare_time;
-            if (opt_debug || ssdiff > 0) {
-                applog(LOG_INFO, "Pool %d stratum share submission lag time %d seconds",
-                       pool->pool_no, ssdiff);
-            }
         }
     }
 
@@ -6662,6 +5891,7 @@ static void *stratum_sthread(void *userdata)
 
     return NULL;
 }
+
 
 static void init_stratum_threads(struct pool *pool)
 {
@@ -6687,70 +5917,7 @@ static bool stratum_works(struct pool *pool)
     return true;
 }
 
-#ifdef HAVE_LIBCURL
-static void __setup_gbt_solo(struct pool *pool)
-{
-    cg_wlock(&pool->gbt_lock);
-    memcpy(pool->coinbase, scriptsig_header_bin, 41);
-    pool->coinbase[41 + pool->n1_len + 4 + 1 + 8] = 25;
-    memcpy(pool->coinbase + 41 + pool->n1_len + 4 + 1 + 8 + 1, pool->script_pubkey, 25);
-    cg_wunlock(&pool->gbt_lock);
-}
 
-static bool setup_gbt_solo(CURL *curl, struct pool *pool)
-{
-    char s[256];
-    int uninitialised_var(rolltime);
-    bool ret = false;
-    json_t *val = NULL, *res_val, *valid_val;
-
-    if (!opt_btc_address) {
-        applog(LOG_ERR, "No BTC address specified, unable to mine solo on %s",
-               pool->rpc_url);
-        goto out;
-    }
-    snprintf(s, 256, "{\"method\": \"validateaddress\", \"params\": [\"%s\"]}\n", opt_btc_address);
-    val = json_rpc_call(curl, pool->rpc_url, pool->rpc_userpass, s, true,
-                false, &rolltime, pool, false);
-    if (!val)
-        goto out;
-    res_val = json_object_get(val, "result");
-    if (!res_val)
-        goto out;
-    valid_val = json_object_get(res_val, "isvalid");
-    if (!valid_val)
-        goto out;
-    if (!json_is_true(valid_val)) {
-        applog(LOG_ERR, "Bitcoin address %s is NOT valid", opt_btc_address);
-        goto out;
-    }
-    applog(LOG_NOTICE, "Solo mining to valid address: %s", opt_btc_address);
-    ret = true;
-    address_to_pubkeyhash(pool->script_pubkey, opt_btc_address);
-    hex2bin(scriptsig_header_bin, scriptsig_header, 41);
-    __setup_gbt_solo(pool);
-
-    if (opt_debug) {
-        char *cb = bin2hex(pool->coinbase, pool->coinbase_len);
-
-        applog(LOG_DEBUG, "Pool %d coinbase %s", pool->pool_no, cb);
-        free(cb);
-    }
-    pool->gbt_curl = curl_easy_init();
-    if (unlikely(!pool->gbt_curl))
-        quit(1, "GBT CURL initialisation failed");
-
-out:
-    if (val)
-        json_decref(val);
-    return ret;
-}
-#else
-static bool setup_gbt_solo(CURL __maybe_unused *curl, struct pool __maybe_unused *pool)
-{
-    return false;
-}
-#endif
 
 static void pool_start_lp(struct pool *pool)
 {
@@ -6805,7 +5972,7 @@ retry_stratum:
     if (!pool->probed) {
         applog(LOG_DEBUG, "Probing for GBT support");
         val = json_rpc_call(curl, pool->rpc_url, pool->rpc_userpass,
-                    gbt_req, true, false, &rolltime, pool, false);
+                gbt_req, true, false, &rolltime, pool, false);
         if (val) {
             bool append = false, submit = false, transactions = false;
             json_t *res_val, *mutables;
@@ -6835,13 +6002,13 @@ retry_stratum:
 
             /* Only use GBT if it supports coinbase append and
              * submit coinbase */
-            if (append && submit) {
-                pool->has_gbt = true;
-                pool->rpc_req = gbt_req;
-            } else if (transactions) {
-                pool->gbt_solo = true;
-                pool->rpc_req = gbt_solo_req;
-            }
+            //if (append && submit) {
+            //    pool->has_gbt = true;
+             //   pool->rpc_req = gbt_req;
+            //} else if (transactions) {
+            //    pool->gbt_solo = true;
+            //    pool->rpc_req = gbt_solo_req;
+            //}
         }
         /* Reset this so we can probe fully just after this. It will be
          * set to true that time.*/
@@ -6857,7 +6024,7 @@ retry_stratum:
 
     cgtime(&tv_getwork);
     val = json_rpc_call(curl, pool->rpc_url, pool->rpc_userpass,
-                pool->rpc_req, true, false, &rolltime, pool, false);
+            pool->rpc_req, true, false, &rolltime, pool, false);
     cgtime(&tv_getwork_reply);
 
     /* Detect if a http getwork pool has an X-Stratum header at startup,
@@ -6878,15 +6045,9 @@ retry_stratum:
 
         rc = work_decode(pool, work, val);
         if (rc) {
-            if (pool->gbt_solo) {
-                ret = setup_gbt_solo(curl, pool);
-                if (ret)
-                    pool_start_lp(pool);
-                free_work(work);
-                goto out;
-            }
+            
             applog(LOG_DEBUG, "Successfully retrieved and deciphered work from pool %u %s",
-                   pool->pool_no, pool->rpc_url);
+                    pool->pool_no, pool->rpc_url);
             work->pool = pool;
             work->rolltime = rolltime;
             copy_time(&work->tv_getwork, &tv_getwork);
@@ -6901,7 +6062,7 @@ retry_stratum:
             ret = true;
         } else {
             applog(LOG_DEBUG, "Successfully retrieved but FAILED to decipher work from pool %u %s",
-                   pool->pool_no, pool->rpc_url);
+                    pool->pool_no, pool->rpc_url);
             free_work(work);
         }
 
@@ -6945,7 +6106,7 @@ retry_stratum:
             goto retry_stratum;
         }
         applog(LOG_DEBUG, "FAILED to retrieve work from pool %u %s",
-               pool->pool_no, pool->rpc_url);
+                pool->pool_no, pool->rpc_url);
         if (!pinging && !pool->idle)
             applog(LOG_WARNING, "Pool %u slow/down or URL or credentials invalid", pool->pool_no);
     }
@@ -7041,11 +6202,23 @@ out_unlock:
 static void gen_hash(unsigned char *data, unsigned char *hash, int len)
 {
     unsigned char hash1[32];
+    sph_sha256_context ctx_sha2;
 
-    sha256(data, len, hash1);
-    sha256(hash1, 32, hash);
+    sph_sha256_init(&ctx_sha2);
+    sph_sha256(&ctx_sha2, data, len);
+    sph_sha256_close(&ctx_sha2, hash1);
+    sph_sha256(&ctx_sha2, hash1, 32);
+    sph_sha256_close(&ctx_sha2, hash);
+
+    /*
+       unsigned char hash1[32];
+
+       sha256(data, len, hash1);
+       sha256(hash1, 32, hash);
+       */
 }
 
+#if 0
 void set_target(unsigned char *dest_target, double diff)
 {
     unsigned char target[32];
@@ -7112,8 +6285,135 @@ void set_target(unsigned char *dest_target, double diff)
     }
     memcpy(dest_target, target, 32);
 }
+#endif
 
+#if 1
+void set_target(unsigned char *dest_target, double diff)
+{
+#if 0
+uint64_t m;
+	int k;
 
+	for (k = 6; k > 0 && diff > 1.0; k--)
+		diff /= 4294967296.0;
+	m = (uint64_t)(4294901760.0 / diff);
+	if (m == 0 && k == 6)
+		memset(dest_target, 0xff, 32);
+	else {
+		memset(dest_target, 0, 32);
+		dest_target[k] = (uint32_t)m;
+		dest_target[k + 1] = (uint32_t)(m >> 32);
+	}
+
+#else
+
+   unsigned char target[32];
+uint64_t *data64, h64;
+double d64, dcut64;
+
+if (unlikely(diff == 0.0)) {
+/* This shouldn't happen but best we check to prevent a crash */
+applog(LOG_ERR, "Diff zero passed to set_target");
+diff = 1.0;
+}
+
+d64 = truediffone;
+
+d64 /= diff;
+
+dcut64 = d64 / bits192;
+h64 = dcut64;
+data64 = (uint64_t *)(target + 24);
+*data64 = htole64(h64);
+dcut64 = h64;
+dcut64 *= bits192;
+d64 -= dcut64;
+
+dcut64 = d64 / bits128;
+h64 = dcut64;
+data64 = (uint64_t *)(target + 16);
+*data64 = htole64(h64);
+dcut64 = h64;
+dcut64 *= bits128;
+d64 -= dcut64;
+
+dcut64 = d64 / bits64;
+h64 = dcut64;
+data64 = (uint64_t *)(target + 8);
+*data64 = htole64(h64);
+dcut64 = h64;
+dcut64 *= bits64;
+d64 -= dcut64;
+
+h64 = d64;
+data64 = (uint64_t *)(target);
+*data64 = htole64(h64);
+
+if (opt_debug) {
+char *htarget = bin2hex(target, 32);
+
+//applog(LOG_ERR, "Generated target %s", htarget);
+free(htarget);
+}
+memcpy(dest_target, target, 32);
+#endif
+}
+#else
+
+void set_target(unsigned char *dest_target, double diff, double diff_multiplier2, const int thr_id)
+{
+    unsigned char target[32];
+    uint64_t *data64, h64;
+    double d64, dcut64;
+
+    if (unlikely(diff == 0.0)) {
+        /* This shouldn't happen but best we check to prevent a crash */
+        applog(LOG_ERR, "[THR%d] Diff zero passed to set_target", thr_id);
+        diff = 1.0;
+    }
+
+    d64 = diff_multiplier2 * truediffone;
+    d64 /= diff;
+
+    dcut64 = d64 / bits192;
+    h64 = dcut64;
+    data64 = (uint64_t *)(target + 24);
+    *data64 = htole64(h64);
+    dcut64 = h64;
+    dcut64 *= bits192;
+    d64 -= dcut64;
+
+    dcut64 = d64 / bits128;
+    h64 = dcut64;
+    data64 = (uint64_t *)(target + 16);
+    *data64 = htole64(h64);
+    dcut64 = h64;
+    dcut64 *= bits128;
+    d64 -= dcut64;
+
+    dcut64 = d64 / bits64;
+    h64 = dcut64;
+    data64 = (uint64_t *)(target + 8);
+    *data64 = htole64(h64);
+    dcut64 = h64;
+    dcut64 *= bits64;
+    d64 -= dcut64;
+
+    h64 = d64;
+    data64 = (uint64_t *)(target);
+    *data64 = htole64(h64);
+
+    if (opt_debug) {
+        char *htarget = bin2hex(target, 32);
+
+        applog(LOG_DEBUG, "[THR%d] Generated target %s", thr_id, htarget);
+        free(htarget);
+    }
+    memcpy(dest_target, target, 32);
+}
+#endif
+
+#if 0
 /* Generates stratum based work based on the most recent notify information
  * from the pool. This will keep generating work while a pool is down so we use
  * other means to detect when the pool has died in stratum_thread */
@@ -7121,15 +6421,12 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
 {
     unsigned char merkle_root[32], merkle_sha[64];
     uint32_t *data32, *swap32;
-    uint64_t nonce2le;
     int i;
 
     cg_wlock(&pool->data_lock);
 
-    /* Update coinbase. Always use an LE encoded nonce2 to fill in values
-     * from left to right and prevent overflow errors with small n2sizes */
-    nonce2le = htole64(pool->nonce2);
-    memcpy(pool->coinbase + pool->nonce2_offset, &nonce2le, pool->n2size);
+    /* Update coinbase */
+    memcpy(pool->coinbase + pool->nonce2_offset, &pool->nonce2, sizeof(uint32_t));
     work->nonce2 = pool->nonce2++;
     work->nonce2_len = pool->n2size;
 
@@ -7137,9 +6434,9 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
     cg_dwlock(&pool->data_lock);
 
     /* Generate merkle root */
-    gen_hash(pool->coinbase, merkle_root, pool->coinbase_len);
+    gen_hashd(pool->coinbase, merkle_root, pool->swork.cb_len);
     memcpy(merkle_sha, merkle_root, 32);
-    for (i = 0; i < pool->merkles; i++) {
+    for (i = 0; i < pool->swork.merkles; i++) {
         memcpy(merkle_sha + 32, pool->swork.merkle_bin[i], 32);
         gen_hash(merkle_sha, merkle_root, 64);
         memcpy(merkle_sha, merkle_root, 32);
@@ -7149,28 +6446,27 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
     flip32(swap32, data32);
 
     /* Copy the data template from header_bin */
-    memcpy(work->data, pool->header_bin, 112);
-    memcpy(work->data + 36, merkle_root, 32);
+    memcpy(work->data, pool->header_bin, 128);
+    memcpy(work->data + pool->merkles, merkle_root, 32);
 
     /* Store the stratum work diff to check it still matches the pool's
      * stratum diff when submitting shares */
-    work->sdiff = pool->sdiff;
+    work->sdiff = pool->swork.diff;
 
     /* Copy parameters required for share submission */
     work->job_id = strdup(pool->swork.job_id);
     work->nonce1 = strdup(pool->nonce1);
-    work->ntime = strdup(pool->ntime);
+    work->ntime = strdup(pool->swork.ntime);
     cg_runlock(&pool->data_lock);
 
     if (opt_debug) {
         char *header, *merkle_hash;
 
-        header = bin2hex(work->data, 112);
+        header = bin2hex(work->data, 128);
         merkle_hash = bin2hex((const unsigned char *)merkle_root, 32);
         applog(LOG_DEBUG, "Generated stratum merkle %s", merkle_hash);
         applog(LOG_DEBUG, "Generated stratum header %s", header);
-        applog(LOG_DEBUG, "Work job_id %s nonce2 %"PRIu64" ntime %s", work->job_id,
-               work->nonce2, work->ntime);
+        applog(LOG_DEBUG, "Work job_id %s nonce2 %d ntime %s", work->job_id, work->nonce2, work->ntime);
         free(header);
         free(merkle_hash);
     }
@@ -7181,7 +6477,8 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
     local_work++;
     work->pool = pool;
     work->stratum = true;
-    work->nonce = 0;
+    //work->blk.nonce = 0;
+    work->id = total_work++;
     work->longpoll = false;
     work->getwork_mode = GETWORK_MODE_STRATUM;
     work->work_block = work_block;
@@ -7192,139 +6489,94 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
     cgtime(&work->tv_staged);
 }
 
-#ifdef HAVE_LIBCURL
-static void gen_solo_work(struct pool *pool, struct work *work);
-
-/* Use the one instance of gbt_curl, protecting the bool with the gbt_lock but
- * avoiding holding the lock once we've set the bool. */
-static void get_gbt_curl(struct pool *pool, int poll)
+#else
+/* Generates stratum based work based on the most recent notify information
+ * from the pool. This will keep generating work while a pool is down so we use
+ * other means to detect when the pool has died in stratum_thread */
+static void gen_stratum_work(struct pool *pool, struct work *work)
 {
-    cg_ilock(&pool->gbt_lock);
-    while (pool->gbt_curl_inuse) {
-        cg_uilock(&pool->gbt_lock);
-        cgsleep_ms(poll);
-        cg_ilock(&pool->gbt_lock);
-    }
-    cg_ulock(&pool->gbt_lock);
-    pool->gbt_curl_inuse = true;
-    cg_wunlock(&pool->gbt_lock);
-}
-
-/* No need for locking here */
-static inline void release_gbt_curl(struct pool *pool)
-{
-    pool->gbt_curl_inuse = false;
-}
-
-static void update_gbt_solo(struct pool *pool)
-{
-    struct work *work = make_work();
-    int rolltime;
-    json_t *val;
-
-    get_gbt_curl(pool, 10);
-retry:
-    /* Bitcoind doesn't like many open RPC connections. */
-    curl_easy_setopt(pool->gbt_curl, CURLOPT_FORBID_REUSE, 1);
-    val = json_rpc_call(pool->gbt_curl, pool->rpc_url, pool->rpc_userpass, pool->rpc_req,
-                true, false, &rolltime, pool, false);
-
-    if (likely(val)) {
-        bool rc = work_decode(pool, work, val);
-
-        if (rc) {
-            __setup_gbt_solo(pool);
-            gen_solo_work(pool, work);
-            stage_work(work);
-        } else
-            free_work(work);
-        json_decref(val);
-    } else {
-        applog(LOG_DEBUG, "Pool %d json_rpc_call failed on get gbt, retrying in 5s",
-               pool->pool_no);
-        if (++pool->seq_getfails > 5) {
-            pool_died(pool);
-            goto out;
+    unsigned char merkle_root[64] = { 0 };
+        int i;
+        if (!pool->swork.job_id) {
+             applog(LOG_WARNING, "stratum_gen_work: job not yet retrieved");
+            return false;
         }
-        cgsleep_ms(5000);
-        goto retry;
-    }
-out:
-    release_gbt_curl(pool);
-}
+        
+    cg_wlock(&pool->data_lock);
+    
 
-static void gen_solo_work(struct pool *pool, struct work *work)
-{
-    unsigned char merkle_root[32], merkle_sha[64];
-    uint32_t *data32, *swap32;
-    struct timeval now;
-    uint64_t nonce2le;
-    int i;
-
-    cgtime(&now);
-    if (now.tv_sec - pool->tv_lastwork.tv_sec > 60)
-        update_gbt_solo(pool);
-
-    cg_wlock(&pool->gbt_lock);
-
-    /* Update coinbase. Always use an LE encoded nonce2 to fill in values
-     * from left to right and prevent overflow errors with small n2sizes */
-    nonce2le = htole64(pool->nonce2);
-    memcpy(pool->coinbase + pool->nonce2_offset, &nonce2le, pool->n2size);
-    work->nonce2 = pool->nonce2++;
-    work->nonce2_len = pool->n2size;
-    work->gbt_txns = pool->transactions + 1;
-
-    /* Downgrade to a read lock to read off the pool variables */
-    cg_dwlock(&pool->gbt_lock);
-    work->coinbase = bin2hex(pool->coinbase, pool->coinbase_len);
-    /* Generate merkle root */
-    gen_hash(pool->coinbase, merkle_root, pool->coinbase_len);
-    memcpy(merkle_sha, merkle_root, 32);
-    for (i = 0; i < pool->merkles; i++) {
-        unsigned char *merkle_bin;
-
-        merkle_bin = pool->merklebin + (i * 32);
-        memcpy(merkle_sha + 32, merkle_bin, 32);
-        gen_hash(merkle_sha, merkle_root, 64);
-        memcpy(merkle_sha, merkle_root, 32);
-    }
-    data32 = (uint32_t *)merkle_sha;
-    swap32 = (uint32_t *)merkle_root;
-    flip32(swap32, data32);
-
-    /* Copy the data template from header_bin */
-    memcpy(work->data, pool->header_bin, 112);
-    memcpy(work->data + 36, merkle_root, 32);
-
+        // also store the block number
+        work->height = pool->swork.height;
+        // and the pool of the current stratum
+    
+        cg_dwlock(&pool->data_lock);
+    
+        /* Assemble block header */
+        memset(work->data, 0, sizeof(work->data));
+        work->data[0] = le32dec(pool->swork.version);
+        
+        for (i = 0; i < 8; i++){
+            work->data[1 + i] = le32dec((uint32_t *)pool->swork.prevhash + i);
+        }
+        
+            uint16_t vote;
+            for (i = 0; i < 8; i++) // reversed prevhash
+                work->data[1 + i] = swab32(work->data[1 + i]);
+            // decred header (coinb1) [merkle...nonce]
+            memcpy(&work->data[9], pool->swork.coinbase, 108);
+            // last vote bit should never be changed
+            memcpy(&vote, &work->data[25], 2);
+            vote = (opt_vote << 1) | (vote & 1);
+            memcpy(&work->data[25], &vote, 2);
+            // extradata
+            if (pool->xnonce1_size > sizeof(work->data)-(32*4)) {
+                // should never happen...
+                applog(LOG_ERR, "extranonce size overflow!");
+                pool->xnonce1_size = sizeof(work->data)-(32*4);
+            }
+            memcpy(&work->data[36], pool->xnonce1, pool->xnonce1_size);
+            work->data[37] = (rand()*4) << 8; // random work data
+            // block header suffix from coinb2 (stake version)
+            memcpy(&work->data[44], &pool->swork.coinbase[pool->swork.coinbase_size-4], 4);
+            pool->swork.height = work->data[32];
+            //applog_hex(work->data, 180);
+         
+    /* Store the stratum work diff to check it still matches the pool's
+     * stratum diff when submitting shares */
     work->sdiff = pool->sdiff;
-
+            
     /* Copy parameters required for share submission */
-    work->ntime = strdup(pool->ntime);
-    memcpy(work->target, pool->gbt_target, 32);
-    cg_runlock(&pool->gbt_lock);
+    //work->job_id = strdup(job_id);
+    work->job_id = (pool->swork.job_id);
+    work->nonce1 = strdup(pool->xnonce1);
+    //work->ntime = strdup(pool->ntime);
+    cg_runlock(&pool->data_lock);
 
     if (opt_debug) {
         char *header, *merkle_hash;
-
-        header = bin2hex(work->data, 112);
+        
+     
+        header = bin2hex(work->data, 180);
         merkle_hash = bin2hex((const unsigned char *)merkle_root, 32);
-        applog(LOG_DEBUG, "Generated GBT solo merkle %s", merkle_hash);
-        applog(LOG_DEBUG, "Generated GBT solo header %s", header);
-        applog(LOG_DEBUG, "Work nonce2 %"PRIu64" ntime %s", work->nonce2,
-               work->ntime);
+        //applog(LOG_DEBUG, "[THR%d] Generated stratum merkle %s", work->thr_id, merkle_hash);
+        applog(LOG_DEBUG, "[THR%d] Generated stratum header %s", work->thr_id, header);
+        applog(LOG_DEBUG, "[THR%d] Work job_id %s nonce2 0x%x ntime %s", work->thr_id, work->job_id,
+                work->nonce2, work->ntime);
         free(header);
         free(merkle_hash);
     }
 
     calc_midstate(work);
+    
+    //applog(LOG_DEBUG, "yex Generated sdiff %f", work->sdiff);
+    set_target(work->target, work->sdiff);
 
     local_work++;
-    work->gbt = true;
     work->pool = pool;
+    work->stratum = true;
     work->nonce = 0;
     work->longpoll = false;
-    work->getwork_mode = GETWORK_MODE_SOLO;
+    work->getwork_mode = GETWORK_MODE_STRATUM;
     work->work_block = work_block;
     /* Nominally allow a driver to ntime roll 60 seconds */
     work->drv_rolllimit = 60;
@@ -7341,19 +6593,7 @@ int share_work_tdiff(struct cgpu_info *cgpu)
     return last_getwork - cgpu->last_device_valid_work;
 }
 
-static void set_benchmark_work(struct cgpu_info *cgpu, struct work *work)
-{
-    cgpu->lodiff += cgpu->direction;
-    if (cgpu->lodiff < 1)
-        cgpu->direction = 1;
-    if (cgpu->lodiff > 15) {
-        cgpu->direction = -1;
-        if (++cgpu->hidiff > 15)
-            cgpu->hidiff = 0;
-        memcpy(work, &bench_hidiff_bins[cgpu->hidiff][0], 160);
-    } else
-        memcpy(work, &bench_lodiff_bins[cgpu->lodiff][0], 160);
-}
+
 
 struct work *get_work(struct thr_info *thr, const int thr_id)
 {
@@ -7382,8 +6622,6 @@ struct work *get_work(struct thr_info *thr, const int thr_id)
     applog(LOG_DEBUG, "Got work from get queue to get work for thread %d", thr_id);
 
     work->thr_id = thr_id;
-    if (opt_benchmark)
-        set_benchmark_work(cgpu, work);
 
     thread_reportin(thr);
     work->mined = true;
@@ -7396,33 +6634,20 @@ static void submit_work_async(struct work *work)
 {
     struct pool *pool = work->pool;
     pthread_t submit_thread;
-//    uint8_t i;
-    #if 0
+    uint8_t i;
+#if 0
     for(i=0;i<32;i=i+4)
     {
-      printf("hash:0x%02x,0x%02x,0x%02x,0x%02x\n",work->hash[i+0],work->hash[i+1],work->hash[i+2],work->hash[i+3]);
+        printf("hash:0x%02x,0x%02x,0x%02x,0x%02x\n",work->hash[i+0],work->hash[i+1],work->hash[i+2],work->hash[i+3]);
     }
-    
+
     for(i=0;i<80;i=i+4)
     {
-      printf("data:0x%02x,0x%02x,0x%02x,0x%02x\n",work->data[i+0],work->data[i+1],work->data[i+2],work->data[i+3]);
+        printf("data:0x%02x,0x%02x,0x%02x,0x%02x\n",work->data[i+0],work->data[i+1],work->data[i+2],work->data[i+3]);
     }
-    #endif
+#endif
     cgtime(&work->tv_work_found);
-    if (opt_benchmark) {
-        struct cgpu_info *cgpu = get_thr_cgpu(work->thr_id);
 
-        mutex_lock(&stats_lock);
-        cgpu->accepted++;
-        total_accepted++;
-        pool->accepted++;
-        cgpu->diff_accepted += work->work_difficulty;
-        total_diff_accepted += work->work_difficulty;
-        pool->diff_accepted += work->work_difficulty;
-        mutex_unlock(&stats_lock);
-        applog(LOG_NOTICE, "Accepted %s %d benchmark share nonce %08x", cgpu->drv->name, cgpu->device_id, *(uint32_t *)(work->data + 64 + 12));
-        return;
-    }
 
     if (stale_work(work, true)) {
         if (opt_submit_stale)
@@ -7440,6 +6665,30 @@ static void submit_work_async(struct work *work)
             pool->diff_stale += work->work_difficulty;
             mutex_unlock(&stats_lock);
 
+#if 0
+            printf("111out :work data: \r\n");
+            for(i = 0; i < 180; i++)
+            {
+                printf("0x%02x  ", work->data[i]);
+                if((i % 10) == 9)
+                {
+                    printf("\r\n");
+                }
+            }
+            printf("\r\n");
+
+
+            printf(" out work target: \r\n");
+            for(i = 0; i < 32; i++)
+            {
+                printf("0x%02x  ", work->target[i]);
+                if((i % 8) == 7)
+                {
+                    printf("\r\n");
+                }
+            }
+            printf("\r\n");
+#endif
             free_work(work);
             return;
         }
@@ -7474,61 +6723,25 @@ void inc_hw_errors(struct thr_info *thr)
 /* Fills in the work nonce and builds the output data in work->hash */
 static void rebuild_nonce(struct work *work, uint32_t nonce)
 {
-    uint32_t *work_nonce = (uint32_t *)(work->data + 64 + 12);
+    uint32_t nonce_pos = 35;
+    uint32_t *work_nonce = (uint32_t *)(work->data + nonce_pos);
 
     *work_nonce = htole32(nonce);
 
-#if defined(USE_LTCTECH) || defined(USE_COINFLEX)
-    switch (kernel)
-    {
-        case KL_SCRYPT:
-            scrypt_regenhash(work);
-            break;
-        case KL_X11MOD:
-            darkcoin_regenhash(work);
-            break;
-        case KL_X13MOD:
-            marucoin_regenhash(work);
-            break;
-        case KL_X15MOD:
-            break;
-        default:
-            regen_hash(work);
-            break;
-    }
-#else
-    regen_hash(work);
-#endif
+    rebuild_hash(work);
 }
 
 /* For testing a nonce against diff 1 */
 bool test_nonce(struct work *work, uint32_t nonce)
 {
     uint32_t *hash_32 = (uint32_t *)(work->hash + 28);
-
-#if defined(USE_LTCTECH) || defined(USE_COINFLEX)
     uint32_t diff1targ;
 
     rebuild_nonce(work, nonce);
-    switch(kernel)
-    {
-        case KL_SCRYPT:
-        case KL_X11MOD:
-        case KL_X13MOD:
-        case KL_X15MOD:
-        default:
-            diff1targ = 0x000000ffUL;
-            //diff1targ = 0x0000003fUL;
-            break;
-    }
-//  if(le32toh(*hash_32) <= diff1targ)
- //   printf("hash:0x%08x,0x%08x\n",le32toh(*hash_32),*hash_32);
-    
+    diff1targ = 0x000000ffUL;
+
+    applog(LOG_DEBUG,"diff1targ 0x%08x,nonce:0x%08x,hash 0x%08x",diff1targ, nonce,le32toh(*hash_32));
     return (le32toh(*hash_32) <= diff1targ);
-#else
-    rebuild_nonce(work, nonce);
-    return (*hash_32 == 0);
-#endif
 }
 
 /* For testing a nonce against an arbitrary diff */
@@ -7617,30 +6830,16 @@ bool submit_tested_work(struct thr_info *thr, struct work *work)
 /* Returns true if nonce for work was a valid share */
 bool submit_nonce(struct thr_info *thr, struct work *work, uint32_t nonce)
 {
-#if (defined(USE_LTCTECH) && (LTCTECH_NONE_NONCE_TEST == 1)) || (defined(USE_COINFLEX) && (COINFLEX_NONE_NONCE_TEST == 1))
-    uint32_t *work_nonce = (uint32_t *)(work->data + 64 + 12);
-    struct work *work_out;
+    uint32_t t_nonce;
+    t_nonce = swab32(nonce);
+    //applog(LOG_INFO, "inno: nonce = %0x,hash 0x%x,%x,%x,%x", t_nonce, work->hash[28],work->hash[29],work->hash[30],work->hash[31]);
 
-    *work_nonce = htole32(nonce);
-
-//  update_work_stats(thr, work);
-
-    work_out = copy_work(work);
-    submit_work_async(work_out);
-#else
-    if (test_nonce(work, nonce))
-    {
+    if (test_nonce(work, t_nonce))
         submit_tested_work(thr, work);
-    }
-    else
-    {
+    else {
         inc_hw_errors(thr);
         return false;
     }
-#endif
-
-    if(opt_benchfile && opt_benchfile_display)
-        benchfile_dspwork(work, nonce);
 
     return true;
 }
@@ -7651,7 +6850,7 @@ bool submit_nonce(struct thr_info *thr, struct work *work, uint32_t nonce)
  * roll itself intrinsically to generate work (eg stratum). We do not touch
  * the original work struct, but the copy of it only. */
 bool submit_noffset_nonce(struct thr_info *thr, struct work *work_in, uint32_t nonce,
-              int noffset)
+        int noffset)
 {
     struct work *work = make_work();
     bool ret = false;
@@ -7664,8 +6863,6 @@ bool submit_noffset_nonce(struct thr_info *thr, struct work *work_in, uint32_t n
     }
     update_work_stats(thr, work);
 
-    if (opt_benchfile && opt_benchfile_display)
-        benchfile_dspwork(work, nonce);
 
     ret = true;
     if (!fulltest(work->hash, work->target)) {
@@ -8157,54 +7354,6 @@ void hash_queued_work(struct thr_info *mythr)
     cgpu->deven = DEV_DISABLED;
 }
 
-/* This version of hash_work is for devices drivers that want to do their own
- * work management entirely, usually by using get_work(). Note that get_work
- * is a blocking function and will wait indefinitely if no work is available
- * so this must be taken into consideration in the driver. */
-void hash_driver_work(struct thr_info *mythr)
-{
-    struct timeval tv_start = {0, 0}, tv_end;
-    struct cgpu_info *cgpu = mythr->cgpu;
-    struct device_drv *drv = cgpu->drv;
-    const int thr_id = mythr->id;
-    int64_t hashes_done = 0;
-
-    while (likely(!cgpu->shutdown))
-    {
-        struct timeval diff;
-        int64_t hashes;
-
-        hashes = drv->scanwork(mythr);
-
-        if (unlikely(hashes == -1 ))
-        {
-            applog(LOG_ERR, "%s %d failure, disabling!", drv->name, cgpu->device_id);
-            cgpu->deven = DEV_DISABLED;
-            dev_error(cgpu, REASON_THREAD_ZERO_HASH);
-            break;
-        }
-
-        hashes_done += hashes;
-        cgtime(&tv_end);
-        timersub(&tv_end, &tv_start, &diff);
-        /* Update the hashmeter at most 5 times per second */
-        if ((hashes_done && (diff.tv_sec > 0 || diff.tv_usec > 200000)) || diff.tv_sec >= opt_log_interval)
-        {
-            hashmeter(thr_id, hashes_done);
-            hashes_done = 0;
-            copy_time(&tv_start, &tv_end);
-        }
-
-        if (unlikely(mythr->pause || cgpu->deven != DEV_ENABLED))
-            mt_disable(mythr, thr_id, drv);
-
-        if (mythr->work_update)
-            drv->update_work(cgpu);
-    }
-
-    cgpu->deven = DEV_DISABLED;
-}
-
 void *miner_thread(void *userdata)
 {
     struct thr_info *mythr = userdata;
@@ -8264,8 +7413,6 @@ static void convert_to_work(json_t *val, int rolltime, struct pool *pool, struct
     if (pool->enabled == POOL_REJECTING)
         work->mandatory = true;
 
-    if (pool->has_gbt)
-        gen_gbt_work(pool, work);
     work->longpoll = true;
     work->getwork_mode = GETWORK_MODE_LP;
 
@@ -8374,11 +7521,10 @@ retry_pool:
 
             /* We will be making another call immediately after this
              * one to get the height so allow this curl to be reused.*/
-            get_gbt_curl(pool, 500);
+        
             curl_easy_setopt(pool->gbt_curl, CURLOPT_FORBID_REUSE, 0);
             val = json_rpc_call(pool->gbt_curl, pool->rpc_url, pool->rpc_userpass, lpreq, true,
-                        false, &rolltime, pool, false);
-            release_gbt_curl(pool);
+                    false, &rolltime, pool, false);
 
             if (likely(val))
                 res_val = json_object_get(val, "result");
@@ -8390,17 +7536,15 @@ retry_pool:
                 json_decref(val);
                 if (height >= cp->height) {
                     applog(LOG_WARNING, "Block height change to %d detected on pool %d",
-                           height, cp->pool_no);
-                    update_gbt_solo(pool);
+                            height, cp->pool_no);
+                 
                     continue;
                 }
 
                 sprintf(lpreq, "{\"id\": 0, \"method\": \"getblockhash\", \"params\": [%d]}\n", height);
-                get_gbt_curl(pool, 500);
                 curl_easy_setopt(pool->gbt_curl, CURLOPT_FORBID_REUSE, 1);
                 val = json_rpc_call(pool->gbt_curl, pool->rpc_url, pool->rpc_userpass,
-                            lpreq, true, false, &rolltime, pool, false);
-                release_gbt_curl(pool);
+                        lpreq, true, false, &rolltime, pool, false);
 
                 if (val) {
                     /* Do a comparison on a short stretch of
@@ -8409,7 +7553,7 @@ retry_pool:
                     prev_hash = json_string_value(json_object_get(val, "result"));
                     if (unlikely(prev_hash && strncasecmp(prev_hash + 56, pool->prev_hash, 8))) {
                         applog(LOG_WARNING, "Mining on orphan branch detected, switching!");
-                        update_gbt_solo(pool);
+                       
                     }
                     json_decref(val);
                 }
@@ -8623,11 +7767,6 @@ static void *watchpool_thread(void __maybe_unused *userdata)
 
         for (i = 0; i < total_pools; i++) {
             struct pool *pool = pools[i];
-
-            if (!opt_benchmark && !opt_benchfile) {
-                reap_curl(pool);
-                prune_stratum_shares(pool);
-            }
 
             /* Get a rolling utility per pool over 10 mins */
             if (intervals > 19) {
@@ -9448,128 +8587,6 @@ bool add_cgpu(struct cgpu_info *cgpu)
     return true;
 }
 
-struct device_drv *copy_drv(struct device_drv *drv)
-{
-    struct device_drv *copy;
-
-    if (unlikely(!(copy = malloc(sizeof(*copy))))) {
-        quit(1, "Failed to allocate device_drv copy of %s (%s)",
-                drv->name, drv->copy ? "copy" : "original");
-    }
-    memcpy(copy, drv, sizeof(*copy));
-    copy->copy = true;
-    return copy;
-}
-
-#ifdef USE_USBUTILS
-static void hotplug_process(void)
-{
-    struct thr_info *thr;
-    int i, j;
-
-    for (i = 0; i < new_devices; i++) {
-        struct cgpu_info *cgpu;
-        int dev_no = total_devices + i;
-
-        cgpu = devices[dev_no];
-        enable_device(cgpu);
-        cgpu->sgminer_stats.getwork_wait_min.tv_sec = MIN_SEC_UNSET;
-        cgpu->rolling = cgpu->total_mhashes = 0;
-    }
-
-    wr_lock(&mining_thr_lock);
-    mining_thr = realloc(mining_thr, sizeof(thr) * (mining_threads + new_threads + 1));
-
-    if (!mining_thr)
-        quit(1, "Failed to hotplug realloc mining_thr");
-    for (i = 0; i < new_threads; i++) {
-        mining_thr[mining_threads + i] = calloc(1, sizeof(*thr));
-        if (!mining_thr[mining_threads + i])
-            quit(1, "Failed to hotplug calloc mining_thr[%d]", i);
-    }
-
-    // Start threads
-    for (i = 0; i < new_devices; ++i) {
-        struct cgpu_info *cgpu = devices[total_devices];
-        cgpu->thr = malloc(sizeof(*cgpu->thr) * (cgpu->threads+1));
-        cgpu->thr[cgpu->threads] = NULL;
-        cgpu->status = LIFE_INIT;
-        cgtime(&(cgpu->dev_start_tv));
-
-        for (j = 0; j < cgpu->threads; ++j) {
-            thr = __get_thread(mining_threads);
-            thr->id = mining_threads;
-            thr->cgpu = cgpu;
-            thr->device_thread = j;
-
-            if (!cgpu->drv->thread_prepare(thr)) {
-                null_device_drv(cgpu->drv);
-                cgpu->deven = DEV_DISABLED;
-                continue;
-            }
-
-            if (unlikely(thr_info_create(thr, NULL, miner_thread, thr)))
-                quit(1, "hotplug thread %d create failed", thr->id);
-
-            cgpu->thr[j] = thr;
-
-            /* Enable threads for devices set not to mine but disable
-             * their queue in case we wish to enable them later */
-            if (cgpu->deven != DEV_DISABLED) {
-                applog(LOG_DEBUG, "Pushing sem post to thread %d", thr->id);
-                cgsem_post(&thr->sem);
-            }
-
-            mining_threads++;
-        }
-        total_devices++;
-        applog(LOG_WARNING, "Hotplug: %s added %s %i", cgpu->drv->dname, cgpu->drv->name, cgpu->device_id);
-    }
-    wr_unlock(&mining_thr_lock);
-
-    adjust_mostdevs();
-
-#ifdef HAVE_CURSES
-    switch_logsize(true);
-#endif
-}
-
-#define DRIVER_DRV_DETECT_HOTPLUG(X) X##_drv.drv_detect(true);
-
-static void *hotplug_thread(void __maybe_unused *userdata)
-{
-    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-
-    RenameThread("Hotplug");
-
-    hotplug_mode = true;
-
-    cgsleep_ms(5000);
-
-    while (0x2a) {
-// Version 0.1 just add the devices on - worry about using nodev later
-
-        if (hotplug_time == 0)
-            cgsleep_ms(5000);
-        else {
-            new_devices = 0;
-            new_threads = 0;
-
-            /* Use the DRIVER_PARSE_COMMANDS macro to detect all
-             * devices */
-            DRIVER_PARSE_COMMANDS(DRIVER_DRV_DETECT_HOTPLUG)
-
-            if (new_devices)
-                hotplug_process();
-
-            // hotplug_time >0 && <=9999
-            cgsleep_ms(hotplug_time * 1000);
-        }
-    }
-
-    return NULL;
-}
-#endif
 
 static void probe_pools(void)
 {
@@ -9583,46 +8600,25 @@ static void probe_pools(void)
     }
 }
 
+struct device_drv *copy_drv(struct device_drv *drv)
+{
+    struct device_drv *copy;
+
+    if (unlikely(!(copy = malloc(sizeof(*copy))))) {
+        quit(1, "Failed to allocate device_drv copy of %s (%s)",
+                drv->name, drv->copy ? "copy" : "original");
+    }
+    memcpy(copy, drv, sizeof(*copy));
+    copy->copy = true;
+    return copy;
+}
+
+
+
+
 #define DRIVER_FILL_DEVICE_DRV(X) fill_device_drv(&X##_drv);
 #define DRIVER_DRV_DETECT_ALL(X) X##_drv.drv_detect(false);
 
-#ifdef USE_USBUTILS
-static void *libusb_poll_thread(void __maybe_unused *arg)
-{
-    struct timeval tv_end = {1, 0};
-
-    RenameThread("USBPoll");
-
-    while (usb_polling)
-        libusb_handle_events_timeout_completed(NULL, &tv_end, NULL);
-
-    /* Cancel any cancellable usb transfers */
-    cancel_usb_transfers();
-
-    /* Keep event handling going until there are no async transfers in
-     * flight. */
-    do {
-        libusb_handle_events_timeout_completed(NULL, &tv_end, NULL);
-    } while (async_usb_transfers());
-
-    return NULL;
-}
-
-static void initialise_usb(void) {
-    int err = libusb_init(NULL);
-
-    if (err) {
-        fprintf(stderr, "libusb_init() failed err %d", err);
-        fflush(stderr);
-        quit(1, "libusb_init() failed");
-    }
-    initialise_usblocks();
-    usb_polling = true;
-    pthread_create(&usb_poll_thread, NULL, libusb_poll_thread, NULL);
-}
-#else
-#define initialise_usb() {}
-#endif
 
 int main(int argc, char *argv[])
 {
@@ -9687,8 +8683,6 @@ int main(int argc, char *argv[])
     /* We use the getq mutex as the staged lock */
     stgd_lock = &getq->mutex;
 
-    initialise_usb();
-
     snprintf(packagename, sizeof(packagename), "%s %s", PACKAGE, VERSION);
 
     handler.sa_handler = &sighandler;
@@ -9739,28 +8733,7 @@ int main(int argc, char *argv[])
         load_default_config();
     }
 
-    if (opt_benchmark || opt_benchfile) {
-        struct pool *pool;
 
-        pool = add_pool();
-        pool->rpc_url = malloc(255);
-        if (opt_benchfile){
-            strcpy(pool->rpc_url, "Benchfile");
-        }else{
-            strcpy(pool->rpc_url, "Benchmark");
-        }
-        pool->rpc_user = pool->rpc_url;
-        pool->rpc_pass = pool->rpc_url;
-        enable_pool(pool);
-        pool->idle = false;
-        successful_connect = true;
-
-        for (i = 0; i < 16; i++) {
-            hex2bin(&bench_hidiff_bins[i][0], &bench_hidiffs[i][0], 160);
-            hex2bin(&bench_lodiff_bins[i][0], &bench_lodiffs[i][0], 160);
-        }
-        set_target(bench_target, 32);
-    }
 
 #ifdef HAVE_CURSES
     if (opt_realquiet || opt_display_devs)
@@ -9817,18 +8790,6 @@ int main(int argc, char *argv[])
 
     gwsched_thr_id = 0;
 
-#ifdef USE_USBUTILS
-    usb_initialise();
-
-    // before device detection
-    cgsem_init(&usb_resource_sem);
-    usbres_thr_id = 1;
-    thr = &control_thr[usbres_thr_id];
-    if (thr_info_create(thr, NULL, usb_resource_thread, thr)){
-        early_quit(1, "usb resource thread create failed");
-    }
-    pthread_detach(thr->pth);
-#endif
 
     /* Use the DRIVER_PARSE_COMMANDS macro to fill all the device_drvs */
     DRIVER_PARSE_COMMANDS(DRIVER_FILL_DEVICE_DRV)
@@ -9853,16 +8814,11 @@ int main(int argc, char *argv[])
         enable_device(devices[i]);
     }
 
-#ifdef USE_USBUTILS
-    if (!total_devices) {
-        applog(LOG_WARNING, "No devices detected!");
-        applog(LOG_WARNING, "Waiting for USB hotplug devices or press q to quit");
-    }
-#else
+
     if (!total_devices){
         early_quit(1, "All devices disabled, cannot mine!");
     }
-#endif
+
 
     most_devices = total_devices;
     load_temp_cutoffs();
@@ -9957,9 +8913,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (opt_benchmark || opt_benchfile)
-        goto begin_bench;
-
     for (i = 0; i < total_pools; i++) {
         struct pool *pool  = pools[i];
 
@@ -9992,8 +8945,7 @@ int main(int argc, char *argv[])
         }
         if (!use_curses)
         {
-            power_down_all_chain();
-            zynq_spi_exit();
+            im_power_down_all_chain();
             early_quit(0, "No servers could be used! Exiting.");
         }   
 #ifdef HAVE_CURSES
@@ -10039,14 +8991,6 @@ begin_bench:
     if (thr_info_create(thr, NULL, api_thread, thr))
         early_quit(1, "API thread create failed");
 
-#ifdef USE_USBUTILS
-    hotplug_thr_id = 6;
-    thr = &control_thr[hotplug_thr_id];
-    if (thr_info_create(thr, NULL, hotplug_thread, thr))
-        early_quit(1, "hotplug thread create failed");
-    pthread_detach(thr->pth);
-#endif
-
 #ifdef HAVE_CURSES
     /* Create curses input thread for keyboard input. Create this last so
      * that we know all threads are created since this can call kill_work
@@ -10081,7 +9025,7 @@ begin_bench:
         if(g_reset_delay != 0xffff)
         {
             applog(LOG_INFO, "powerdown for api commond");
-            power_down_all_chain();
+            im_power_down_all_chain();
             sleep(10);
             sleep(g_reset_delay);
             exit(1);
@@ -10158,52 +9102,8 @@ retry:
             continue;
         }
 
-        if (opt_benchfile) {
-            get_benchfile_work(work);
-            applog(LOG_DEBUG, "Generated benchfile work");
-            stage_work(work);
-            continue;
-        } else if (opt_benchmark) {
-            get_benchmark_work(work);
-            applog(LOG_DEBUG, "Generated benchmark work");
-            stage_work(work);
-            continue;
-        }
-
 #ifdef HAVE_LIBCURL
         struct curl_ent *ce;
-
-        if (pool->gbt_solo) {
-            while (pool->idle) {
-                struct pool *altpool = select_pool(true);
-
-                cgsleep_ms(5000);
-                if (altpool != pool) {
-                    pool = altpool;
-                    goto retry;
-                }
-            }
-            gen_solo_work(pool, work);
-            applog(LOG_DEBUG, "Generated GBT SOLO work");
-            stage_work(work);
-            continue;
-        }
-
-        if (pool->has_gbt) {
-            while (pool->idle) {
-                struct pool *altpool = select_pool(true);
-
-                cgsleep_ms(5000);
-                if (altpool != pool) {
-                    pool = altpool;
-                    goto retry;
-                }
-            }
-            gen_gbt_work(pool, work);
-            applog(LOG_DEBUG, "Generated GBT work");
-            stage_work(work);
-            continue;
-        }
 
         if (clone_available()) {
             applog(LOG_DEBUG, "Cloned getwork work");

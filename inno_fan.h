@@ -25,15 +25,12 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "config.h"
+#include "asic_inno.h"
 #include "inno_log.h"
 
 /************************************ 宏定义 ***********************************/
-#define A7
-//#define A6 0
-#ifdef A7
-#define ASIC_CHAIN_NUM 6
-#define ASIC_CHIP_NUM 33
-#endif
 
 #define ASIC_INNO_FAN_PWM0_DEVICE_NAME  ("/dev/pwmgen0.0")
 
@@ -41,7 +38,7 @@
 #define ASIC_INNO_FAN_PWM_DUTY_MAX        (100)
 #define ASIC_INNO_FAN_PWM_FREQ_TARGET     (20000)
 #define ASIC_INNO_FAN_PWM_FREQ            (20000)
-#define FAN_CNT                           ( 2 )
+#define FAN_CNT                           (2)
 #define ASIC_INNO_FAN_TEMP_MAX_THRESHOLD  (100)
 #define ASIC_INNO_FAN_TEMP_UP_THRESHOLD   (55)
 #define ASIC_INNO_FAN_TEMP_DOWN_THRESHOLD (35)
@@ -62,7 +59,8 @@
 #define ACTIVE_STAT                       (6)
 #define START_FAN_TH                      (550)//30
 #define PREHEAT_SPEED                     (0)
-#define DANGEROUS_TMP                     (460)//90
+//#define DANGEROUS_TMP                     (460)//90
+#define DANGEROUS_TMP                     (445)//100
 #define PRE_DGR_TEMP                      (456)//92.x
 #define DEFAULT_HI_TEMP                   (652) //-40
 #define MAGIC_NUM                         (100)
@@ -93,16 +91,6 @@ typedef struct {
     pthread_mutex_t lock;                       /* lock */
 
 }inno_fan_temp_s;
-
-typedef enum{
-    INNO_TYPE_NONE = 0x00,
-    INNO_TYPE_A4,
-    INNO_TYPE_A5,
-    INNO_TYPE_A6,
-    INNO_TYPE_A7,
-    INNO_TYPE_A8,
-    INNO_TYPE_A9,
-}inno_type_e;
 
 /*********************************** 接口函数 **********************************/
 void inno_fan_temp_init(inno_fan_temp_s *fan_temp,int *fan_level);   /*主要用于Ax系列初始化风扇控制与温度显示*/

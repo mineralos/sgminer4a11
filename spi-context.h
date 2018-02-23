@@ -7,13 +7,13 @@
 #include <stdint.h>
 #include <pthread.h>
 
-#define SPI_DEVICE_TEMPLATE     "/dev/spidev%d.%d"
-#define DEFAULT_SPI_BUS         1
-#define DEFAULT_SPI_CS_LINE     0
-#define DEFAULT_SPI_MODE        SPI_MODE_1
+#define SPI_DEVICE_TEMPLATE         "/dev/spidev%d.%d"
+#define DEFAULT_SPI_BUS             1
+#define DEFAULT_SPI_CS_LINE         0
+#define DEFAULT_SPI_MODE            SPI_MODE_1
 #define DEFAULT_SPI_BITS_PER_WORD   8
-#define DEFAULT_SPI_SPEED       1500000
 #define DEFAULT_SPI_DELAY_USECS     0
+#define DEFAULT_SPI_SPEED           400000 // 400K for A12
 
 struct spi_config {
     int bus;

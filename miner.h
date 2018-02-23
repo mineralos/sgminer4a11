@@ -117,7 +117,12 @@ static inline int fsync (int fd)
  #endif
 #endif
 
+
 #if defined(USE_COINFLEX)
+
+#include "sph/sph_blake.h"
+
+
 extern char *opt_bitmine_a1_options;
 extern uint32_t opt_A1Pll1;
 extern uint32_t opt_A1Pll2;
@@ -709,6 +714,15 @@ static inline void endian_flip128(void *dest_p, const void *src_p)
 {
     flip128(dest_p, src_p);
 }
+
+
+
+
+static inline void endian_flip180(void *dest_p, const void *src_p)
+{
+  flip180(dest_p, src_p);
+}
+
 #else
 static inline void
 endian_flip32(void __maybe_unused *dest_p, const void __maybe_unused *src_p)
@@ -719,6 +733,12 @@ static inline void
 endian_flip128(void __maybe_unused *dest_p, const void __maybe_unused *src_p)
 {
 }
+
+static inline void endian_flip180(void *dest_p, const void *src_p)
+{
+ // flip180(dest_p, src_p);
+}
+
 #endif
 
 extern double cgpu_runtime(struct cgpu_info *cgpu);
@@ -1108,7 +1128,6 @@ extern bool add_pool_details(struct pool *pool, bool live, char *url, char *user
 extern bool hotplug_mode;
 extern int hotplug_time;
 extern struct list_head scan_devices;
-extern int nDevs;
 extern int num_processors;
 extern int hw_errors;
 extern bool use_syslog;
@@ -1161,10 +1180,21 @@ enum pool_enable {
 
 struct stratum_work {
     char *job_id;
-    unsigned char **merkle_bin;
-    bool clean;
-
-    double diff;
+	unsigned char prevhash[32];
+	size_t coinbase_size;
+	unsigned char *coinbase;
+	unsigned char *xnonce2;
+	int merkle_count;
+	unsigned char **merkle;
+	unsigned char version[4];
+	unsigned char nbits[4];
+	unsigned char ntime[4];
+	unsigned char claim[32]; // lbry
+	bool clean;
+	unsigned char nreward[2];
+	uint32_t height;
+	uint32_t shares_count;
+	double diff;
 };
 
 #define RBUFSIZE 8192
@@ -1252,11 +1282,14 @@ struct pool {
     char *sockaddr_proxy_url;
     char *sockaddr_proxy_port;
 
-    char *nonce1;
-    unsigned char *nonce1bin;
-    uint64_t nonce2;
-    int n2size;
     char *sessionid;
+	size_t xnonce1_size;
+	unsigned char *xnonce1;
+	unsigned char *xnonce2;
+	size_t xnonce2_size;
+    unsigned char *nonce1bin;
+
+   
     bool has_stratum;
     bool stratum_active;
     bool stratum_init;
@@ -1319,14 +1352,13 @@ struct pool {
 #define GETWORK_MODE_SOLO 'C'
 
 struct work {
-    unsigned char   data[128];
+    uint32_t   data[48];
     unsigned char   midstate[32];
     unsigned char   target[32];
     unsigned char   hash[32];
-#if defined(USE_LTCTECH) || defined(USE_COINFLEX)
     unsigned char   device_target[32];
     unsigned char work_id;
-#endif
+
 
     /* This is the diff the device is currently aiming for and must be
      * the minimum of work_difficulty & drv->max_diff */
@@ -1352,12 +1384,13 @@ struct work {
     bool        block;
 
     bool        stratum;
-    char    *job_id;
-    uint64_t    nonce2;
-    size_t  nonce2_len;
+    char *job_id;
+    uint32_t    nonce2;
+    size_t  xnonce2_len;
     char        *ntime;
     double  sdiff;
-    char        *nonce1;
+    unsigned char        *nonce1;
+	uint32_t height;
 
     bool        gbt;
     char        *coinbase;
@@ -1422,7 +1455,7 @@ extern int age_queued_work(struct cgpu_info *cgpu, double secs);
 extern void work_completed(struct cgpu_info *cgpu, struct work *work);
 extern struct work *take_queued_work_bymidstate(struct cgpu_info *cgpu, char *midstate, size_t midstatelen, char *data, int offset, size_t datalen);
 extern void flush_queue(struct cgpu_info *cgpu);
-extern void hash_driver_work(struct thr_info *mythr);
+//extern void hash_driver_work(struct thr_info *mythr);
 extern void hash_queued_work(struct thr_info *mythr);
 extern void _wlog(const char *str);
 extern void _wlogprint(const char *str);

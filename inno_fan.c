@@ -30,47 +30,7 @@ int fan_speed[8]={30,40,50,60,70,80,90,100}; //风扇分档
 /********************************** 函数声明区 *********************************/
 static int asic_temp_compare(const void *a, const void *b);   /*对统计到的两个温度做一次比较，a>b输出正数，a<b输出负数，a=b,输出0 */
 static void asic_temp_clear(inno_fan_temp_s *fan_temp, int chain_id);     /*清空统计到的所有温度数据*/
-//static void asic_fan_speed_up(inno_fan_temp_s *fan_temp);   /*提升风扇转速*/
-//static void asic_fan_speed_down(inno_fan_temp_s *fan_temp);   /*降低风扇转速*/
 
-/********************************** 变量实现区 *********************************/
-static const int inno_tsadc_table[] = {
-    /* val temp_f */
-    652, //-40,
-    645, //-35,
-    638, //-30,
-    631, //-25,
-    623, //-20,
-    616, //-15,
-    609, //-10,
-    601, // -5,
-    594, //  0,
-    587, //  5,
-    579, // 10,
-    572, // 15,
-    564, // 20,
-    557, // 25,
-    550, // 30,
-    542, // 35,
-    535, // 40,
-    527, // 45,
-    520, // 50,
-    512, // 55,
-    505, // 60,
-    498, // 65,
-    490, // 70,
-    483, // 75,
-    475, // 80,
-    468, // 85,
-    460, // 90,
-    453, // 95,
-    445, //100,
-    438, //105,
-    430, //110,
-    423, //115,
-    415, //120,
-    408, //125,
-};
 
 /********************************** 函数实现区 *********************************/
 static int asic_temp_compare(const void *a, const void *b)
@@ -80,11 +40,7 @@ static int asic_temp_compare(const void *a, const void *b)
 
 static void asic_temp_to_float(inno_fan_temp_s *fan_ctrl, int chain_id)
 {
-    /* int i = 0; */
-    //printf("pre_warn: %d\n",fan_ctrl->pre_warn[3]);
-
-   // for(i=0; i<ASIC_CHAIN_NUM; i++)
-  // {
+  
         if(fan_ctrl->valid_chain[chain_id])
             return;
         
@@ -101,7 +57,7 @@ static void asic_temp_to_float(inno_fan_temp_s *fan_ctrl, int chain_id)
         fan_ctrl->temp2float[chain_id][0] = (TEMP_LABEL - fan_ctrl->temp_highest[chain_id]) * 5 / 7.5;
         fan_ctrl->temp2float[chain_id][1] = (TEMP_LABEL - fan_ctrl->temp_arvarge[chain_id]) * 5 / 7.5;
         fan_ctrl->temp2float[chain_id][2] = (TEMP_LABEL - fan_ctrl->temp_lowest[chain_id]) * 5 / 7.5;
-    //}
+  
 
 }
 
@@ -142,6 +98,9 @@ void asic_temp_clear(inno_fan_temp_s *fan_temp, int chain_id)
 
 void inno_fan_speed_set(inno_fan_temp_s *fan_temp, int speed)
 {
+#define NO_FAN_CTRL
+
+#ifndef NO_FAN_CTRL
     int fd = 0;
     int fan_id;
     int duty_driver = 0;
@@ -177,7 +136,9 @@ void inno_fan_speed_set(inno_fan_temp_s *fan_temp, int speed)
     }
     close(fd);
     pthread_mutex_unlock(&fan_temp->lock);
-
+#else
+    inno_log(IM_LOG_ERR, "no fan control\n");
+#endif
     return;
 }
 
@@ -192,15 +153,15 @@ void inno_fan_temp_init(inno_fan_temp_s *fan_temp,int *fan_level)
 
     if(fan_level != NULL){
        // printf("size %d, %d\n",sizeof(fan_speed),sizeof(fan_speed[0]));
-       memcpy(fan_speed, fan_level,sizeof(fan_speed));
+       memcpy(fan_speed, fan_level, sizeof(fan_speed));
     }
 
     if(g_auto_fan)
     {
-        inno_fan_speed_set(fan_temp,speed);
+        inno_fan_speed_set(fan_temp, speed);
     }else
     {
-        inno_fan_speed_set(fan_temp,fan_speed[g_fan_speed]);
+        inno_fan_speed_set(fan_temp, fan_speed[g_fan_speed]);
     }
 
     for(chain_id = 0; chain_id < ASIC_CHAIN_NUM; chain_id++)
@@ -266,23 +227,12 @@ int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e i
         case INNO_TYPE_A6:
         case INNO_TYPE_A7:
         case INNO_TYPE_A8:
+		case INNO_TYPE_A11:
+        case INNO_TYPE_A12:
             for(i=0; i<ASIC_CHIP_NUM; i++)
             {
                 if(fan_temp->temp[chain_id][i] != 0)
                 {
-#if 0
-                    if(fan_temp->temp[chain_id][i] < PRE_DGR_TEMP)
-                    {
-                        fan_temp->pre_warn[0] = chain_id;
-                        fan_temp->pre_warn[1] = i;
-                        fan_temp->pre_warn[2] = 0;
-                        fan_temp->pre_warn[3] = (TEMP_LABEL -   fan_temp->temp[chain_id][i]) * 5 / 7.5;
-                        //fan_temp->pre_warn[3] = fan_temp->temp[chain_id][i];
-                        printf("There maybe some problem in chain %d, chip %d,The highest temp %d\n",chain_id,i,fan_temp->temp[chain_id][i]);
-                        //fan_temp->temp_highest[chain_id] = fan_temp->temp[chain_id][i];
-                        // break;
-                    }
-#endif
 
                     if(stat_hi < 2)
                     {
@@ -343,6 +293,8 @@ int inno_fan_temp_lowest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e in
         case INNO_TYPE_A6:
         case INNO_TYPE_A7:
         case INNO_TYPE_A8:
+		case INNO_TYPE_A11:
+        case INNO_TYPE_A12:
             for(i=0; i<ASIC_CHIP_NUM; i++)
             {
                 if(fan_temp->temp[chain_id][ASIC_CHIP_NUM-i-1] != 0)
@@ -393,6 +345,8 @@ int inno_fan_temp_avg(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e inno_
         case INNO_TYPE_A6:
         case INNO_TYPE_A7:
         case INNO_TYPE_A8:
+		case INNO_TYPE_A11:
+        case INNO_TYPE_A12:
             for(i=0; i<ASIC_CHIP_NUM; i++)
             {
                 if(fan_temp->temp[chain_id][i] != 0)
@@ -492,50 +446,3 @@ void inno_fan_speed_update(inno_fan_temp_s *fan_temp)
   // inno_log(IM_LOG_DEBUG,"hi %d,spd %d,lid: %d,md %d,list: %d, %d, %d, %d\n",temp_hi,fan_speed[fan_temp->last_fan_temp],fan_temp->last_fan_temp,fan_temp->auto_ctrl,fan_level[0],fan_level[1],fan_level[2],fan_level[3]);
 }
 
-
-#if 0
-int main(int argc, char *argv[])
-{
-    int i = 0;
-    int j = 0;
-    inno_fan_temp_s fan_temp;
-    int temp[33] = {0};
-    int fan_dep_temp = 0;
-
-    for(i=0; i<argc-1; i++)
-    {
-        printf("argv:%s\n",argv[i]);
-        temp[i] = atoi(argv[i+1]);
-    }
-    // const char * log_path = "./";
-    //int size = 10000;
-    int chain_id = 0;
-    inno_type_e inno_type = INNO_TYPE_A7;
-
-    printf("Hello, World!\n");
-    // inno_log_init(log_path, size);
-    inno_fan_temp_init(&fan_temp);
-
-    for(j=0; j<3; j++)
-    {
-        for(i=0; i<33; i++)
-        {
-            if(!inno_fan_temp_add(&fan_temp,j,i,temp[i]))
-                printf("chain %d, chip %d temperature maybe has some problem\n",j,i);
-        }
-    }
-
-    for(chain_id=0; chain_id<3; chain_id++)
-    {
-        inno_fan_temp_highest(&fan_temp, chain_id,inno_type);
-        inno_fan_temp_lowest(&fan_temp, chain_id,inno_type);
-        inno_fan_temp_avg(&fan_temp, chain_id,inno_type);
-        inno_fan_temp_update(&fan_temp,chain_id);
-        //fan_dep_temp += fan_temp->temp_highest[chain_id]
-        printf("now we get h %d/avg %d /l %d for chain %d\n",fan_temp.temp_highest[chain_id],fan_temp.temp_arvarge[chain_id],fan_temp.temp_lowest[chain_id],chain_id);
-    }
-
-    return 0;
-
-}
-#endif

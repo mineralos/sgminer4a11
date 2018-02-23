@@ -84,6 +84,20 @@ typedef struct {
 #endif
 } sph_blake_small_context;
 
+typedef struct {
+  sph_u32 h[8], s[4], t[2];
+  sph_s32 buflen, nullt;
+  unsigned char buf[64];
+} state;
+
+#define U8TO32(p) \
+    (((sph_u32)((p)[0]) << 24) | ((sph_u32)((p)[1]) << 16) |    \
+     ((sph_u32)((p)[2]) <<  8) | ((sph_u32)((p)[3])      ))
+#define U32TO8(p, v) \
+    (p)[0] = (unsigned char)((v) >> 24); (p)[1] = (unsigned char)((v) >> 16); \
+    (p)[2] = (unsigned char)((v) >>  8); (p)[3] = (unsigned char)((v)      );
+
+
 /**
  * This structure is a context for BLAKE-224 computations. It is
  * identical to the common <code>sph_blake_small_context</code>.

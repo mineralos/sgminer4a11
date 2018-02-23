@@ -66,7 +66,7 @@ static void keep_sockalive(SOCKETTYPE fd)
 #ifndef __linux
         setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const void *)&tcp_one, sizeof(tcp_one));
 #else /* __linux */
-        setsockopt(fd, SOL_TCP, TCP_NODELAY, (const void *)&tcp_one, sizeof(tcp_one));
+    setsockopt(fd, SOL_TCP, TCP_NODELAY, (const void *)&tcp_one, sizeof(tcp_one));
     setsockopt(fd, SOL_TCP, TCP_KEEPCNT, &tcp_one, sizeof(tcp_one));
     setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, &tcp_keepidle, sizeof(tcp_keepidle));
     setsockopt(fd, SOL_TCP, TCP_KEEPINTVL, &tcp_keepintvl, sizeof(tcp_keepintvl));
@@ -117,7 +117,7 @@ static void databuf_free(struct data_buffer *db)
 }
 
 static size_t all_data_cb(const void *ptr, size_t size, size_t nmemb,
-              void *user_data)
+        void *user_data)
 {
     struct data_buffer *db = user_data;
     size_t len = size * nmemb;
@@ -141,7 +141,7 @@ static size_t all_data_cb(const void *ptr, size_t size, size_t nmemb,
 }
 
 static size_t upload_data_cb(void *ptr, size_t size, size_t nmemb,
-                 void *user_data)
+        void *user_data)
 {
     struct upload_buffer *ub = user_data;
     unsigned int len = size * nmemb;
@@ -273,7 +273,7 @@ static void keep_curlalive(CURL *curl)
 #endif
 
 static int curl_debug_cb(__maybe_unused CURL *handle, curl_infotype type,
-             __maybe_unused char *data, size_t size, void *userdata)
+        __maybe_unused char *data, size_t size, void *userdata)
 {
     struct pool *pool = (struct pool *)userdata;
 
@@ -340,7 +340,7 @@ json_t *json_web_config(const char *url)
     val = JSON_LOADS(all_data.buf, &err);
     if (!val) {
         applog(LOG_ERR, "JSON config decode of '%s' failed(%d): %s", url,
-               err.line, err.text);
+                err.line, err.text);
     }
     databuf_free(&all_data);
 
@@ -349,9 +349,9 @@ c_out:
 }
 
 json_t *json_rpc_call(CURL *curl, const char *url,
-              const char *userpass, const char *rpc_req,
-              bool probe, bool longpoll, int *rolltime,
-              struct pool *pool, bool share)
+        const char *userpass, const char *rpc_req,
+        bool probe, bool longpoll, int *rolltime,
+        struct pool *pool, bool share)
 {
     long timeout = longpoll ? (60 * 60) : 60;
     struct data_buffer all_data = {NULL, 0};
@@ -418,13 +418,13 @@ json_t *json_rpc_call(CURL *curl, const char *url,
     upload_data.buf = rpc_req;
     upload_data.len = strlen(rpc_req);
     sprintf(len_hdr, "Content-Length: %lu",
-        (unsigned long) upload_data.len);
+            (unsigned long) upload_data.len);
     sprintf(user_agent_hdr, "User-Agent: %s", PACKAGE_STRING);
 
     headers = curl_slist_append(headers,
-        "Content-type: application/json");
+            "Content-type: application/json");
     headers = curl_slist_append(headers,
-        "X-Mining-Extensions: longpoll midstate rollntime submitold");
+            "X-Mining-Extensions: longpoll midstate rollntime submitold");
 
     if (likely(global_hashrate)) {
         char ghashrate[255];
@@ -673,7 +673,7 @@ static const int hex2bin_tbl[256] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, -1, -1, -1, -1, -1, -1,
+    0,  1,  2,  3,  4,  5,  6,  7,  8,  9, -1, -1, -1, -1, -1, -1,
     -1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -905,10 +905,10 @@ bool fulltest(const unsigned char *hash, const unsigned char *target)
         target_str = bin2hex(target_swap, 32);
 
         applog(LOG_DEBUG, " Proof: %s\nTarget: %s\nTrgVal? %s",
-            hash_str,
-            target_str,
-            rc ? "YES (hash <= target)" :
-                 "no (false positive; hash > target)");
+                hash_str,
+                target_str,
+                rc ? "YES (hash <= target)" :
+                "no (false positive; hash > target)");
 
         free(hash_str);
         free(target_str);
@@ -1503,6 +1503,9 @@ bool stratum_send(struct pool *pool, char *s, ssize_t len)
     if (opt_protocol)
         applog(LOG_DEBUG, "SEND: %s", s);
 
+    
+    applog(LOG_DEBUG, "SEND: %s", s);
+
     mutex_lock(&pool->stratum_lock);
     if (pool->stratum_active)
         ret = __stratum_send(pool, s, len);
@@ -1677,6 +1680,8 @@ out:
         clear_sock(pool);
     else if (opt_protocol)
         applog(LOG_DEBUG, "RECVD: %s", sret);
+
+    applog(LOG_DEBUG, "RECVD: %s", sret);
     return sret;
 }
 
@@ -1712,8 +1717,153 @@ static char *json_array_string(json_t *val, unsigned int entry)
 
 static char *blank_merkle = "0000000000000000000000000000000000000000000000000000000000000000";
 
-static bool parse_notify(struct pool *pool, json_t *val)
+#if !HAVE_DECL_LE16DEC
+static  inline uint16_t le16dec(const void *pp)
 {
+	const uint8_t *p = (uint8_t const *)pp;
+	return ((uint16_t)(p[0]) + ((uint16_t)(p[1]) << 8));
+}
+#endif
+
+#if !HAVE_DECL_LE16ENC
+static inline void le16enc(void *pp, uint16_t x)
+{
+	uint8_t *p = (uint8_t *)pp;
+	p[0] = x & 0xff;
+	p[1] = (x >> 8) & 0xff;
+}
+#endif
+
+
+/**
+ * Extract bloc height     L H... here len=3, height=0x1333e8
+ * "...0000000000ffffffff2703e83313062f503253482f043d61105408"
+ */
+static uint32_t getblocheight(struct pool *pool)
+{
+	uint32_t height = 0;
+	uint8_t hlen = 0, *p, *m;
+
+	// find 0xffff tag
+	p = (uint8_t*) pool->swork.coinbase + 32;
+	m = p + 128;
+	while (*p != 0xff && p < m) p++;
+	while (*p == 0xff && p < m) p++;
+	if (*(p-1) == 0xff && *(p-2) == 0xff) {
+		p++; hlen = *p;
+		p++; height = le16dec(p);
+		p += 2;
+		switch (hlen) {
+			case 4:
+				height += 0x10000UL * le16dec(p);
+				break;
+			case 3:
+				height += 0x10000UL * (*p);
+				break;
+		}
+	}
+	return height;
+}
+
+
+static bool parse_notify(struct pool *pool, json_t *params)
+{
+#if 1
+    const char *job_id, *prevhash, *coinb1, *coinb2, *version, *nbits, *stime;
+    const char *claim = NULL, *nreward = NULL;
+    size_t coinb1_size, coinb2_size;
+    bool clean, ret = false;
+    int merkle_count, i, p=0;
+    json_t *merkle_arr;
+    unsigned char **merkle = NULL;
+    // uchar(*merkle_tree)[32] = { 0 };
+    int ntime;
+    char algo[64] = { 0 };
+
+     merkle_arr = json_array_get(params, 4);
+       if (!merkle_arr || !json_is_array(merkle_arr))
+           goto out;
+       merkle_count = (int) json_array_size(merkle_arr);
+
+
+    job_id = json_string_value(json_array_get(params, 0));
+    prevhash = json_string_value(json_array_get(params, 1));
+   
+    coinb1 = json_string_value(json_array_get(params, 2));
+    coinb2 = json_string_value(json_array_get(params, 3));
+   
+    version = json_string_value(json_array_get(params, 5));
+    nbits = json_string_value(json_array_get(params, 6));
+    stime = json_string_value(json_array_get(params, 7));
+    clean = json_is_true(json_array_get(params, p)); 8;
+    nreward = json_string_value(json_array_get(params, 9));
+
+    if (!job_id || !prevhash || !coinb1 || !coinb2 || !version || !nbits || !stime ||
+            strlen(prevhash) != 64 || strlen(version) != 8 ||
+            strlen(nbits) != 8 || strlen(stime) != 8) {
+        applog(LOG_ERR, "Stratum notify: invalid parameters");
+      
+        goto out;
+    }
+
+    /* store stratum server time diff */
+    hex2bin((unsigned char *)&ntime, stime, 4);
+    ntime = swab32(ntime) - (uint32_t) time(0);
+
+    if (merkle_count)
+        merkle = (unsigned char**) malloc(merkle_count * sizeof(char *));
+    for (i = 0; i < merkle_count; i++) {
+        const char *s = json_string_value(json_array_get(merkle_arr, i));
+        if (!s || strlen(s) != 64) {
+            while (i--)
+                free(merkle[i]);
+            free(merkle);
+            applog(LOG_ERR, "Stratum notify: invalid Merkle branch");
+            goto out;
+        }
+        merkle[i] = (unsigned char*) malloc(32);
+        hex2bin(merkle[i], s, 32);
+    }
+
+    cg_wlock(&pool->data_lock);
+
+    coinb1_size = strlen(coinb1) / 2;
+    coinb2_size = strlen(coinb2) / 2;
+    pool->swork.coinbase_size = coinb1_size + pool->xnonce1_size +
+        pool->xnonce2_size + coinb2_size;
+
+    pool->swork.coinbase = (unsigned char*) realloc(pool->swork.coinbase, pool->swork.coinbase_size);
+    pool->swork.xnonce2 = pool->swork.coinbase + coinb1_size + pool->xnonce1_size;
+    hex2bin(pool->swork.coinbase, coinb1, coinb1_size);
+    memcpy(pool->swork.coinbase + coinb1_size, pool->xnonce1, pool->xnonce1_size);
+
+    if (!pool->swork.job_id || strcmp(pool->swork.job_id, job_id))
+        memset(pool->swork.xnonce2, 0, pool->xnonce2_size);
+    hex2bin(pool->swork.xnonce2 + pool->xnonce2_size, coinb2, coinb2_size);
+
+    free(pool->swork.job_id);
+    pool->swork.job_id = strdup(job_id);
+    hex2bin(pool->swork.prevhash, prevhash, 32);
+    pool->swork.height = getblocheight(pool);
+
+    for (i = 0; i < pool->swork.merkle_count; i++)
+        free(pool->swork.merkle[i]);
+    free(pool->swork.merkle);
+    pool->swork.merkle = merkle;
+    pool->swork.merkle_count = merkle_count;
+
+    hex2bin(pool->swork.version, version, 4);
+    hex2bin(pool->swork.nbits, nbits, 4);
+    hex2bin(pool->swork.ntime, stime, 4);
+   
+    pool->swork.clean = clean;
+
+    cg_wunlock(&pool->data_lock);
+    ret = true;
+out:
+    return ret;
+
+#else
     char *job_id, *prev_hash, *coinbase1, *coinbase2, *bbversion, *nbit,
          *ntime, header[228];
     unsigned char *cb1 = NULL, *cb2 = NULL;
@@ -1738,8 +1888,8 @@ static bool parse_notify(struct pool *pool, json_t *val)
     clean = json_is_true(json_array_get(val, 8));
 
     if (!valid_ascii(job_id) || !valid_hex(prev_hash) || !valid_hex(coinbase1) ||
-        !valid_hex(coinbase2) || !valid_hex(bbversion) || !valid_hex(nbit) ||
-        !valid_hex(ntime)) {
+            !valid_hex(coinbase2) || !valid_hex(bbversion) || !valid_hex(nbit) ||
+            !valid_hex(ntime)) {
         /* Annoying but we must not leak memory */
         free(job_id);
         free(coinbase1);
@@ -1751,6 +1901,8 @@ static bool parse_notify(struct pool *pool, json_t *val)
     free(pool->swork.job_id);
     pool->swork.job_id = job_id;
     snprintf(pool->prev_hash, 65, "%s", prev_hash);
+    //snprintf(pool->coinbase1, 217, "%s", coinbase1);
+    //snprintf(pool->coinbase2, 9, "%s", coinbase2);
     cb1_len = strlen(coinbase1) / 2;
     cb2_len = strlen(coinbase2) / 2;
     snprintf(pool->bbversion, 9, "%s", bbversion);
@@ -1764,7 +1916,7 @@ static bool parse_notify(struct pool *pool, json_t *val)
         free(pool->swork.merkle_bin[i]);
     if (merkles) {
         pool->swork.merkle_bin = realloc(pool->swork.merkle_bin,
-                         sizeof(char *) * merkles + 1);
+                sizeof(char *) * merkles + 1);
         for (i = 0; i < merkles; i++) {
             char *merkle = json_array_string(arr, i);
 
@@ -1786,22 +1938,22 @@ static bool parse_notify(struct pool *pool, json_t *val)
         pool->nonce2 = 0;
 #if 0
     header_len =         strlen(pool->bbversion) +
-                 strlen(pool->prev_hash);
+        strlen(pool->prev_hash);
     /* merkle_hash */    32 +
-                 strlen(pool->ntime) +
-                 strlen(pool->nbit) +
-    /* nonce */      8 +
-    /* workpadding */    96;
+        strlen(pool->ntime) +
+        strlen(pool->nbit) +
+        /* nonce */      8 +
+        /* workpadding */    96;
 #endif
     snprintf(header, 225,
-        "%s%s%s%s%s%s%s",
-        pool->bbversion,
-        pool->prev_hash,
-        blank_merkle,
-        pool->ntime,
-        pool->nbit,
-        "00000000", /* nonce */
-        workpadding);
+            "%s%s%s%s%s%s%s",
+            pool->bbversion,
+            pool->prev_hash,
+            blank_merkle,
+            pool->ntime,
+            pool->nbit,
+            "00000000", /* nonce */
+            workpadding);
     ret = hex2bin(pool->header_bin, header, 112);
     if (unlikely(!ret)) {
         applog(LOG_ERR, "Failed to convert header to header_bin in parse_notify");
@@ -1837,6 +1989,8 @@ static bool parse_notify(struct pool *pool, json_t *val)
 out_unlock:
     cg_wunlock(&pool->data_lock);
 
+    opt_protocol = true;
+
     if (opt_protocol) {
         applog(LOG_DEBUG, "job_id: %s", job_id);
         applog(LOG_DEBUG, "prev_hash: %s", prev_hash);
@@ -1857,6 +2011,7 @@ out_unlock:
         opt_work_update = true;
 out:
     return ret;
+#endif
 }
 
 static bool parse_diff(struct pool *pool, json_t *val)
@@ -1877,13 +2032,13 @@ static bool parse_diff(struct pool *pool, json_t *val)
 
         if ((double)idiff == diff)
             applog(LOG_NOTICE, "Pool %d difficulty changed to %d",
-                   pool->pool_no, idiff);
+                    pool->pool_no, idiff);
         else
             applog(LOG_NOTICE, "Pool %d difficulty changed to %.3f",
-                   pool->pool_no, diff);
+                    pool->pool_no, diff);
     } else
         applog(LOG_DEBUG, "Pool %d difficulty set to %.3f", pool->pool_no,
-               diff);
+                diff);
 
     return true;
 }
@@ -1911,18 +2066,18 @@ static bool parse_reconnect(struct pool *pool, json_t *val)
         dot_pool = strchr(pool->sockaddr_url, '.');
         if (!dot_pool) {
             applog(LOG_ERR, "Denied stratum reconnect request for pool without domain '%s'",
-                   pool->sockaddr_url);
+                    pool->sockaddr_url);
             return false;
         }
         dot_reconnect = strchr(url, '.');
         if (!dot_reconnect) {
             applog(LOG_ERR, "Denied stratum reconnect request to url without domain '%s'",
-                   url);
+                    url);
             return false;
         }
         if (strcmp(dot_pool, dot_reconnect)) {
             applog(LOG_ERR, "Denied stratum reconnect request to non-matching domain url '%s'",
-                pool->sockaddr_url);
+                    pool->sockaddr_url);
             return false;
         }
     }
@@ -1958,7 +2113,7 @@ static bool send_version(struct pool *pool, json_t *val)
 {
     char s[RBUFSIZE];
     int id = json_integer_value(json_object_get(val, "id"));
-    
+
     if (!id)
         return false;
 
@@ -2054,6 +2209,123 @@ out:
     return ret;
 }
 
+static bool parse_extranonce(struct pool *pool, json_t *params, int pndx)
+{
+    const char* xnonce1;
+    int xn2_size;
+     unsigned char xn1_size;
+
+    xnonce1 = json_string_value(json_array_get(params, pndx));
+    xn1_size = json_integer_value(json_array_get(params, pndx+1));
+    pool->xnonce1_size = xn1_size;
+    applog(LOG_ERR, "xnonce1 size %d", pool->xnonce1_size);
+    if (!xnonce1) {
+        applog(LOG_ERR, "Failed to get extranonce1");
+        goto out;
+    }
+
+    xn2_size = (int) json_integer_value(json_array_get(params, pndx+1));
+    
+    cg_wlock(&pool->data_lock);
+    if (pool->xnonce1)
+        free(pool->xnonce1);
+    //pool->xnonce1_size = strlen(xnonce1) / 2;
+    pool->xnonce1 = (unsigned char*) calloc(1, pool->xnonce1_size);
+    if (unlikely(!pool->xnonce1)) {
+        applog(LOG_ERR, "Failed to alloc xnonce1");
+        cg_wunlock(&pool->data_lock);
+        goto out;
+    }
+   // applog(LOG_ERR,"xnonce:len %d ,%s",pool->xnonce1_size,xnonce1);
+    hex2bin(pool->xnonce1, xnonce1, pool->xnonce1_size);
+    pool->xnonce2_size = xn2_size;
+
+    cg_wunlock(&pool->data_lock);
+
+    return true;
+out:
+    return false;
+}
+
+
+bool subscribe_extranonce(struct pool *pool)
+{
+    json_t *val = NULL, *res_val, *err_val;
+    char s[RBUFSIZE], *sret = NULL;
+    json_error_t err;
+    bool ret = false;
+
+    sprintf(s, "{\"id\": %d, \"method\": \"mining.extranonce.subscribe\", \"params\": []}", swork_id++);
+
+    if (!stratum_send(pool, s, strlen(s))) {
+        return ret;
+    }
+
+    /* Parse all data in the queue and anything left should be the response */
+    while (42) {
+        if (!socket_full(pool, DEFAULT_SOCKWAIT / 30)) {
+            applog(LOG_DEBUG, "Timed out waiting for response extranonce.subscribe");
+            /* some pool doesnt send anything, so this is normal */
+            ret = true;
+            goto out;
+        }
+
+        sret = recv_line(pool);  
+
+        if (!sret) {
+            return ret;
+        }
+        else if (parse_method(pool, sret)) {
+            free(sret);
+        }
+        else {
+            break;
+        }
+    }
+
+    val = JSON_LOADS(sret, &err);
+    free(sret);
+    res_val = json_object_get(val, "result");
+    err_val = json_object_get(val, "error");
+
+    if (!res_val || json_is_false(res_val) || (err_val && !json_is_null(err_val)))  {
+        char *ss;
+
+        if (err_val) {
+            ss = __json_array_string(err_val, 1);
+            if (!ss)
+                ss = (char *)json_string_value(err_val);
+            if (ss && (strcmp(ss, "Method 'subscribe' not found for service 'mining.extranonce'") == 0)) {
+                //  applog(LOG_INFO, "Cannot subscribe to mining.extranonce on %s", get_pool_name(pool));
+                ret = true;
+                goto out;
+            }
+            if (ss && (strcmp(ss, "Unrecognized request provided") == 0)) {
+                // applog(LOG_INFO, "Cannot subscribe to mining.extranonce on %s", get_pool_name(pool));
+                ret = true;
+                goto out;
+            }
+            ss = json_dumps(err_val, JSON_INDENT(3));
+        }
+        else
+            ss = strdup("(unknown reason)");
+        //applog(LOG_INFO, "%s JSON stratum auth failed: %s", get_pool_name(pool), ss);
+        free(ss);
+
+        goto out;
+    }
+
+
+
+    ret = true;
+    //applog(LOG_INFO, "Stratum extranonce subscribe for %s", get_pool_name(pool));
+
+out:
+    json_decref(val);
+    return ret;
+}
+
+
 bool auth_stratum(struct pool *pool)
 {
     json_t *val = NULL, *res_val, *err_val;
@@ -2062,7 +2334,7 @@ bool auth_stratum(struct pool *pool)
     bool ret = false;
 
     sprintf(s, "{\"id\": %d, \"method\": \"mining.authorize\", \"params\": [\"%s\", \"%s\"]}",
-        swork_id++, pool->rpc_user, pool->rpc_pass);
+            swork_id++, pool->rpc_user, pool->rpc_pass);
 
     if (!stratum_send(pool, s, strlen(s)))
         return ret;
@@ -2125,27 +2397,27 @@ static bool http_negotiate(struct pool *pool, int sockd, bool http0)
 
     if (http0) {
         snprintf(buf, 1024, "CONNECT %s:%s HTTP/1.0\r\n\r\n",
-            pool->sockaddr_url, pool->stratum_port);
+                pool->sockaddr_url, pool->stratum_port);
     } else {
         snprintf(buf, 1024, "CONNECT %s:%s HTTP/1.1\r\nHost: %s:%s\r\n\r\n",
-            pool->sockaddr_url, pool->stratum_port, pool->sockaddr_url,
-            pool->stratum_port);
+                pool->sockaddr_url, pool->stratum_port, pool->sockaddr_url,
+                pool->stratum_port);
     }
     applog(LOG_DEBUG, "Sending proxy %s:%s - %s",
-        pool->sockaddr_proxy_url, pool->sockaddr_proxy_port, buf);
+            pool->sockaddr_proxy_url, pool->sockaddr_proxy_port, buf);
     send(sockd, buf, strlen(buf), 0);
     len = recv(sockd, buf, 12, 0);
     if (len <= 0) {
         applog(LOG_WARNING, "Couldn't read from proxy %s:%s after sending CONNECT",
-               pool->sockaddr_proxy_url, pool->sockaddr_proxy_port);
+                pool->sockaddr_proxy_url, pool->sockaddr_proxy_port);
         return false;
     }
     buf[len] = '\0';
     applog(LOG_DEBUG, "Received from proxy %s:%s - %s",
-           pool->sockaddr_proxy_url, pool->sockaddr_proxy_port, buf);
+            pool->sockaddr_proxy_url, pool->sockaddr_proxy_port, buf);
     if (strcmp(buf, "HTTP/1.1 200") && strcmp(buf, "HTTP/1.0 200")) {
         applog(LOG_WARNING, "HTTP Error from proxy %s:%s - %s",
-               pool->sockaddr_proxy_url, pool->sockaddr_proxy_port, buf);
+                pool->sockaddr_proxy_url, pool->sockaddr_proxy_port, buf);
         return false;
     }
 
@@ -2154,7 +2426,7 @@ static bool http_negotiate(struct pool *pool, int sockd, bool http0)
         buf[i] = recv_byte(sockd);
         if (buf[i] == (char)-1) {
             applog(LOG_WARNING, "Couldn't read HTTP byte from proxy %s:%s",
-            pool->sockaddr_proxy_url, pool->sockaddr_proxy_port);
+                    pool->sockaddr_proxy_url, pool->sockaddr_proxy_port);
             return false;
         }
     }
@@ -2164,13 +2436,13 @@ static bool http_negotiate(struct pool *pool, int sockd, bool http0)
         buf[3] = recv_byte(sockd);
         if (buf[3] == (char)-1) {
             applog(LOG_WARNING, "Couldn't read HTTP byte from proxy %s:%s",
-            pool->sockaddr_proxy_url, pool->sockaddr_proxy_port);
+                    pool->sockaddr_proxy_url, pool->sockaddr_proxy_port);
             return false;
         }
     }
 
     applog(LOG_DEBUG, "Success negotiating with %s:%s HTTP proxy",
-           pool->sockaddr_proxy_url, pool->sockaddr_proxy_port);
+            pool->sockaddr_proxy_url, pool->sockaddr_proxy_port);
     return true;
 }
 
@@ -2185,11 +2457,11 @@ static bool socks5_negotiate(struct pool *pool, int sockd)
     buf[1] = 0x01;
     buf[2] = 0x00;
     applog(LOG_DEBUG, "Attempting to negotiate with %s:%s SOCKS5 proxy",
-           pool->sockaddr_proxy_url, pool->sockaddr_proxy_port );
+            pool->sockaddr_proxy_url, pool->sockaddr_proxy_port );
     send(sockd, buf, 3, 0);
     if (recv_byte(sockd) != 0x05 || recv_byte(sockd) != buf[2]) {
         applog(LOG_WARNING, "Bad response from %s:%s SOCKS5 server",
-               pool->sockaddr_proxy_url, pool->sockaddr_proxy_port );
+                pool->sockaddr_proxy_url, pool->sockaddr_proxy_port );
         return false;
     }
 
@@ -2209,7 +2481,7 @@ static bool socks5_negotiate(struct pool *pool, int sockd)
     send(sockd, buf, (7 + len), 0);
     if (recv_byte(sockd) != 0x05 || recv_byte(sockd) != 0x00) {
         applog(LOG_WARNING, "Bad response from %s:%s SOCKS5 server",
-            pool->sockaddr_proxy_url, pool->sockaddr_proxy_port );
+                pool->sockaddr_proxy_url, pool->sockaddr_proxy_port );
         return false;
     }
 
@@ -2224,14 +2496,14 @@ static bool socks5_negotiate(struct pool *pool, int sockd)
             recv_byte(sockd);
     } else {
         applog(LOG_WARNING, "Bad response from %s:%s SOCKS5 server",
-            pool->sockaddr_proxy_url, pool->sockaddr_proxy_port );
+                pool->sockaddr_proxy_url, pool->sockaddr_proxy_port );
         return false;
     }
     for (i = 0; i < 2; i++)
         recv_byte(sockd);
 
     applog(LOG_DEBUG, "Success negotiating with %s:%s SOCKS5 proxy",
-           pool->sockaddr_proxy_url, pool->sockaddr_proxy_port);
+            pool->sockaddr_proxy_url, pool->sockaddr_proxy_port);
     return true;
 }
 
@@ -2274,7 +2546,7 @@ static bool socks4_negotiate(struct pool *pool, int sockd, bool socks4a)
     if (!socks4a) {
         if ((int)inp == -1) {
             applog(LOG_WARNING, "Invalid IP address specified for socks4 proxy: %s",
-                   pool->sockaddr_url);
+                    pool->sockaddr_url);
             return false;
         }
         buf[4] = (inp >> 24) & 0xFF;
@@ -2300,7 +2572,7 @@ static bool socks4_negotiate(struct pool *pool, int sockd, bool socks4a)
 
     if (recv_byte(sockd) != 0x00 || recv_byte(sockd) != 0x5a) {
         applog(LOG_WARNING, "Bad response from %s:%s SOCKS4 server",
-               pool->sockaddr_proxy_url, pool->sockaddr_proxy_port);
+                pool->sockaddr_proxy_url, pool->sockaddr_proxy_port);
         return false;
     }
 
@@ -2379,11 +2651,11 @@ static bool setup_stratum_socket(struct pool *pool)
     if (getaddrinfo(sockaddr_url, sockaddr_port, hints, &servinfo) != 0) {
         if (!pool->probed) {
             applog(LOG_WARNING, "Failed to resolve (?wrong URL) %s:%s",
-                   sockaddr_url, sockaddr_port);
+                    sockaddr_url, sockaddr_port);
             pool->probed = true;
         } else {
             applog(LOG_INFO, "Failed to getaddrinfo for %s:%s",
-                   sockaddr_url, sockaddr_port);
+                    sockaddr_url, sockaddr_port);
         }
         return false;
     }
@@ -2438,7 +2710,7 @@ retry:
     }
     if (p == NULL) {
         applog(LOG_INFO, "Failed to connect to stratum on %s:%s",
-               sockaddr_url, sockaddr_port);
+                sockaddr_url, sockaddr_port);
         freeaddrinfo(servinfo);
         return false;
     }
@@ -2469,7 +2741,7 @@ retry:
                 break;
             default:
                 applog(LOG_WARNING, "Unsupported proxy type for %s:%s",
-                       pool->sockaddr_proxy_url, pool->sockaddr_proxy_port);
+                        pool->sockaddr_proxy_url, pool->sockaddr_proxy_port);
                 return false;
                 break;
         }
@@ -2562,6 +2834,7 @@ resend:
     }
 
     sret = recv_line(pool);
+    applog(LOG_ERR, "subscribe response: %s", sret);
     if (!sret)
         goto out;
 
@@ -2578,7 +2851,7 @@ resend:
     err_val = json_object_get(val, "error");
 
     if (!res_val || json_is_null(res_val) ||
-        (err_val && !json_is_null(err_val))) {
+            (err_val && !json_is_null(err_val))) {
         char *ss;
 
         if (err_val)
@@ -2593,58 +2866,43 @@ resend:
         goto out;
     }
 
+    // sid is param 1, extranonce params are 2 and 3
+    if (!parse_extranonce(pool, res_val, 1)) {
+        goto out;
+    }
+
+    ret = true;
+
+
     sessionid = get_sessionid(res_val);
     if (!sessionid)
         applog(LOG_DEBUG, "Failed to get sessionid in initiate_stratum");
-    nonce1 = json_array_string(res_val, 1);
-    if (!valid_hex(nonce1)) {
-        applog(LOG_INFO, "Failed to get valid nonce1 in initiate_stratum");
-        free(sessionid);
-        goto out;
-    }
-    n2size = json_integer_value(json_array_get(res_val, 2));
-    if (n2size < 2 || n2size > 16) {
-        applog(LOG_INFO, "Failed to get valid n2size in initiate_stratum");
-        free(sessionid);
-        free(nonce1);
-        goto out;
-    }
 
+   
     cg_wlock(&pool->data_lock);
-    pool->sessionid = sessionid;
-    pool->nonce1 = nonce1;
-    pool->n1_len = strlen(nonce1) / 2;
-    free(pool->nonce1bin);
-    pool->nonce1bin = calloc(pool->n1_len, 1);
-    if (unlikely(!pool->nonce1bin))
-        quithere(1, "Failed to calloc pool->nonce1bin");
-    hex2bin(pool->nonce1bin, pool->nonce1, pool->n1_len);
-    pool->n2size = n2size;
+    if (pool->sessionid)
+      free(pool->sessionid);
+    
+      pool->sessionid = sessionid ? strdup(sessionid) : NULL;
     cg_wunlock(&pool->data_lock);
 
-    if (sessionid)
-        applog(LOG_DEBUG, "Pool %d stratum session id: %s", pool->pool_no, pool->sessionid);
-
-    ret = true;
+   
 out:
     if (ret) {
         if (!pool->stratum_url)
             pool->stratum_url = pool->sockaddr_url;
         pool->stratum_active = true;
         pool->sdiff = 1;
-        if (opt_protocol) {
-            applog(LOG_DEBUG, "Pool %d confirmed mining.subscribe with extranonce1 %s extran2size %d",
-                   pool->pool_no, pool->nonce1, pool->n2size);
-        }
+    
     } else {
         if (recvd && !noresume) {
             /* Reset the sessionid used for stratum resuming in case the pool
-            * does not support it, or does not know how to respond to the
-            * presence of the sessionid parameter. */
+             * does not support it, or does not know how to respond to the
+             * presence of the sessionid parameter. */
             cg_wlock(&pool->data_lock);
             free(pool->sessionid);
-            free(pool->nonce1);
-            pool->sessionid = pool->nonce1 = NULL;
+            free(pool->xnonce1);
+            pool->sessionid = pool->xnonce1 = NULL;
             cg_wunlock(&pool->data_lock);
 
             applog(LOG_DEBUG, "Failed to resume stratum, trying afresh");
@@ -2663,21 +2921,16 @@ out:
 
 bool restart_stratum(struct pool *pool)
 {
-    bool ret = false;
+    //applog(LOG_DEBUG, "Restarting stratum on pool %s", get_pool_name(pool));
 
     if (pool->stratum_active)
         suspend_stratum(pool);
     if (!initiate_stratum(pool))
-        goto out;
+        return false;
     if (!auth_stratum(pool))
-        goto out;
-    ret = true;
-out:
-    if (!ret)
-        pool_died(pool);
-    else
-        stratum_resumed(pool);
-    return ret;
+        return false;
+
+    return true;
 }
 
 void dev_error(struct cgpu_info *dev, enum dev_reason reason)
@@ -3010,7 +3263,7 @@ void _cg_memcpy(void *dest, const void *src, unsigned int n, const char *file, c
 {
     if (unlikely(n < 1 || n > (1ul << 31))) {
         applog(LOG_ERR, "ERR: Asked to memcpy %u bytes from %s %s():%d",
-                  n, file, func, line);
+                n, file, func, line);
         return;
     }
     memcpy(dest, src, n);

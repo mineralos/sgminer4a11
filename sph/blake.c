@@ -119,6 +119,19 @@ static const unsigned sigma[16][16] = {
 */
 #endif
 
+static const unsigned char padding[] = {
+    0x80,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+};
+
+const sph_u32 cst[16] = {
+    0x243F6A88, 0x85A308D3, 0x13198A2E, 0x03707344,
+    0xA4093822, 0x299F31D0, 0x082EFA98, 0xEC4E6C89,
+    0x452821E6, 0x38D01377, 0xBE5466CF, 0x34E90C6C,
+    0xC0AC29B7, 0xC97C50DD, 0x3F84D5B5, 0xB5470917
+};
+
+
 #define Z00   0
 #define Z01   1
 #define Z02   2
@@ -1025,6 +1038,149 @@ void
 sph_blake256_init(void *cc)
 {
     blake32_init(cc, IV256, salt_zero_small);
+}
+
+void blake256_compress(state *S, const unsigned char *block,unsigned char nonce_flag,unsigned char change) {
+    sph_u32 v[16], m[16], i,j;
+    sph_u32 fengy = 0;
+    if ((change>>1)&(0x1)){
+      if(nonce_flag){
+          fengy = 0;//0x55555555;
+       }else{
+          fengy = 0;//xaaaaaaaa;
+        }
+    }
+//printf("FENGYU = %08x\n",fengy);
+#define ROT(x,n) (((x)<<(32-n))|((x)>>(n)))
+#define G(a,b,c,d,e)                                      \
+    v[a] += (m[sigma[i][e]] ^ cst[sigma[i][e+1]]) + v[b]; \
+    v[d] = ROT(v[d] ^ v[a],16);                           \
+    v[c] += v[d];                                         \
+    v[b] = ROT(v[b] ^ v[c] ^fengy,12);                     \
+    v[a] += (m[sigma[i][e+1]] ^ cst[sigma[i][e]])+v[b];   \
+    v[d] = ROT(v[d] ^ v[a], 8);                           \
+    v[c] += v[d];                                         \
+    v[b] = ROT(v[b] ^ v[c], 7);                           
+
+    for (i = 0; i < 16; ++i) m[i] = U8TO32(block + i * 4);
+    for (i = 0; i < 8;  ++i) v[i] = S->h[i];
+    v[ 8] = S->s[0] ^ 0x243F6A88;
+    v[ 9] = S->s[1] ^ 0x85A308D3;
+    v[10] = S->s[2] ^ 0x13198A2E;
+    v[11] = S->s[3] ^ 0x03707344;
+    v[12] = 0xA4093822;
+    v[13] = 0x299F31D0;
+    v[14] = 0x082EFA98;
+    v[15] = 0xEC4E6C89;
+
+    if (S->nullt == 0) {
+        v[12] ^= S->t[0];
+        v[13] ^= S->t[0];
+        v[14] ^= S->t[1];
+        v[15] ^= S->t[1];
+    }
+    int a,b,c,d,e;
+    for (i = 0; i < 14; ++i) {
+        G(0, 4,  8, 12,  0);
+        G(1, 5,  9, 13,  2);
+        G(2, 6, 10, 14,  4);
+        G(3, 7, 11, 15,  6);
+        G(3, 4,  9, 14, 14);
+        G(2, 7,  8, 13, 12);
+        G(0, 5, 10, 15,  8);
+        G(1, 6, 11, 12, 10);
+    }
+    //printf("before xor outputH\n");
+    for (i = 0; i < 16; ++i) S->h[i % 8] ^= v[i];
+    for (i = 0; i < 8;  ++i) S->h[i] ^= S->s[i % 4];
+}
+
+void blake256_final_h(state *S, unsigned char *digest, unsigned char pa, unsigned char pb,unsigned char nonce_flag,unsigned char change) {
+    unsigned char msglen[8];
+    sph_u32 lo = S->t[0] + S->buflen, hi = S->t[1];
+    if (lo < (unsigned) S->buflen) hi++;
+    U32TO8(msglen + 0, hi);
+    U32TO8(msglen + 4, lo);
+
+    if (S->buflen == 440) { /* one padding byte */
+        S->t[0] -= 8;
+        blake256_update(S, &pa, 8,nonce_flag,change);
+    } else {
+        if (S->buflen < 440) { /* enough space to fill the block  */
+            if (S->buflen == 0) S->nullt = 1;
+            S->t[0] -= 440 - S->buflen;
+            blake256_update(S, padding, 440 - S->buflen,nonce_flag,change);
+        } else { /* need 2 compressions */
+            S->t[0] -= 512 - S->buflen;
+            blake256_update(S, padding, 512 - S->buflen,nonce_flag,change);
+            S->t[0] -= 440;
+            blake256_update(S, padding + 1, 440,nonce_flag,change);
+            S->nullt = 1;
+        }
+        blake256_update(S, &pb, 8,nonce_flag,change);
+        S->t[0] -= 8;
+    }
+    S->t[0] -= 64;
+    blake256_update(S, msglen, 64,nonce_flag,change);
+
+    U32TO8(digest +  0, S->h[0]);
+    U32TO8(digest +  4, S->h[1]);
+    U32TO8(digest +  8, S->h[2]);
+    U32TO8(digest + 12, S->h[3]);
+    U32TO8(digest + 16, S->h[4]);
+    U32TO8(digest + 20, S->h[5]);
+    U32TO8(digest + 24, S->h[6]);
+    U32TO8(digest + 28, S->h[7]);
+}
+
+
+
+void blake256_init(state *S) {
+    S->h[0] = 0x6A09E667;
+    S->h[1] = 0xBB67AE85;
+    S->h[2] = 0x3C6EF372;
+    S->h[3] = 0xA54FF53A;
+    S->h[4] = 0x510E527F;
+    S->h[5] = 0x9B05688C;
+    S->h[6] = 0x1F83D9AB;
+    S->h[7] = 0x5BE0CD19;
+    S->t[0] = S->t[1] = S->buflen = S->nullt = 0;
+    S->s[0] = S->s[1] = S->s[2] = S->s[3] = 0;
+}
+
+// datalen = number of bits
+void blake256_update(state *S, const unsigned char *data, sph_u32 datalen,unsigned char nonce_flag,unsigned char change) {
+    int left = S->buflen >> 3;
+    int fill = 64 - left;
+
+    if (left && (((datalen >> 3) & 0x3F) >= (unsigned) fill)) {
+        memcpy((void *) (S->buf + left), (void *) data, fill);
+        S->t[0] += 512;
+        if (S->t[0] == 0) S->t[1]++;
+        blake256_compress(S, S->buf,nonce_flag,change);
+        data += fill;
+        datalen -= (fill << 3);
+        left = 0;
+    }
+    
+    while (datalen >= 512) {
+        S->t[0] += 512;
+        if (S->t[0] == 0) S->t[1]++;
+        blake256_compress(S, data,nonce_flag,change);
+        data += 64;
+        datalen -= 512;
+    }
+
+    if (datalen > 0) {
+        memcpy((void *) (S->buf + left), (void *) data, datalen >> 3);
+        S->buflen = (left << 3) + datalen;
+    } else {
+        S->buflen = 0;
+    }
+}
+
+void blake256_final(state *S, unsigned char *digest,unsigned char nonce_flag,unsigned char change) {
+    blake256_final_h(S, digest, 0x81, 0x01,nonce_flag,change);
 }
 
 /* see sph_blake.h */

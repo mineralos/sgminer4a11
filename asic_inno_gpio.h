@@ -28,6 +28,10 @@
 #define SYSFS_GPIO_VAL_LOW  "0"
 #define SYSFS_GPIO_VAL_HIGH "1"
 
+#define GPIO_DIR_INPUT      (1)
+#define GPIO_DIR_OUTPUT     (0)
+
+
 extern int SPI_PIN_POWER_EN[];
 extern int SPI_PIN_START_EN[];
 extern int SPI_PIN_RESET[];
@@ -36,24 +40,6 @@ extern int SPI_PIN_PLUG[];
 
 
 void loop_blink_led(int pos, int cnt);
-
-void asic_gpio_init(int gpio, int direction);
-
-void asic_gpio_write(int gpio, int value);
-
-int asic_gpio_read(int gpio);
-
-void asic_spi_init(void);
-
-int32_t set_spi_speed(uint32_t speed);
-
-int32_t get_spi_speed(void);
-
-void set_vid_value(int level);
-
-void set_vid_value_G9(int level);
-
-void set_vid_value_G19(int chainNum, int level);
 
 
 #endif
