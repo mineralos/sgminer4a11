@@ -223,7 +223,7 @@ int  cfg_tsadc_divider(struct A1_chain *a1,uint32_t pll_clk)
 
     buffer[5] = 0x00 | tsadc_divider;
 
-    if(!inno_cmd_read_write_reg0d(a1->chain_id, ADDR_BROADCAST, buffer, REG_LENGTH, readbuf)){
+    if(!im_cmd_read_write_reg0d(a1->chain_id, ADDR_BROADCAST, buffer, REG_LENGTH, readbuf)){
         applog(LOG_WARNING, "#####Write t/v sensor Value Failed!\n");
     }else{
         applog(LOG_WARNING, "#####Write t/v sensor Value Success!\n");
@@ -235,7 +235,7 @@ void chain_detect_reload(struct A1_chain *a1)
 {
     int cid = a1->chain_id;
 
-    int n_chips = inno_cmd_bist_start(cid, ADDR_BROADCAST);
+    int n_chips = im_cmd_bist_start(cid, ADDR_BROADCAST);
     if(likely(n_chips > 0) && likely(n_chips != 0xff)){
         a1->num_chips = n_chips;
     }
@@ -244,7 +244,7 @@ void chain_detect_reload(struct A1_chain *a1)
 
     usleep(10000);
 
-    if(!inno_cmd_bist_collect(cid, ADDR_BROADCAST)){
+    if(!im_cmd_bist_collect(cid, ADDR_BROADCAST)){
         applog(LOG_NOTICE, "[reload]bist collect fail");
         return -1;
     }
@@ -269,20 +269,20 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
     applog(LOG_INFO, "%d: A1 init chain reload", chain_id);
 
 #ifndef FPGA_DEBUG_MODE
-//    result = inno_cmd_resetbist(a1->chain_id, ADDR_BROADCAST, buffer);
-//applog(LOG_INFO, "inno_cmd_resetbist(): %d - %02X", result, buffer[0]);
+//    result = im_cmd_resetbist(a1->chain_id, ADDR_BROADCAST, buffer);
+//applog(LOG_INFO, "im_cmd_resetbist(): %d - %02X", result, buffer[0]);
 //    sleep(1);
 
     //bist mask
-//    inno_cmd_read_register(a1->chain_id, 0x01, reg, REG_LENGTH);
+//    im_cmd_read_register(a1->chain_id, 0x01, reg, REG_LENGTH);
 //    memcpy(src_reg, reg, REG_LENGTH);
 //    src_reg[7] = src_reg[7] | 0x10;
-//    inno_cmd_write_register(a1->chain_id, ADDR_BROADCAST, src_reg, REG_LENGTH);
+//    im_cmd_write_register(a1->chain_id, ADDR_BROADCAST, src_reg, REG_LENGTH);
 //    usleep(200);
 #endif
 
 #ifndef FPGA_DEBUG_MODE
-    inno_set_spi_speed(a1->chain_id, 4);    // 4: 6250000
+    im_set_spi_speed(a1->chain_id, 4);    // 4: 6250000
     usleep(100000);
 #endif
 
@@ -303,7 +303,7 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
     a1->chips = calloc(a1->num_active_chips, sizeof(struct A1_chip));
     assert (a1->chips != NULL);
 
-    if (!inno_cmd_bist_fix(a1->chain_id, ADDR_BROADCAST)){
+    if (!im_cmd_bist_fix(a1->chain_id, ADDR_BROADCAST)){
         goto failure;
     }
 
@@ -415,7 +415,7 @@ static  int prepll_chip_temp(struct A1_chain *a1)
     //while(s_fan_ctrl.temp_highest[cid] > 505)//FAN_FIRST_STAGE)
     for (i = a1->num_active_chips; i > 0; i --)
     { 
-        if (!inno_cmd_read_register(a1->chain_id, i, reg, REG_LENGTH))
+        if (!im_cmd_read_register(a1->chain_id, i, reg, REG_LENGTH))
         {
             applog(LOG_ERR, "%d: Failed to read temperature sensor register for chip %d ", a1->chain_id, i);
 
@@ -534,8 +534,8 @@ static void recfg_vid()
         {
             for(j = CHIP_VID_DEF + 1; j <= opt_voltage1; j++)
             {
-                applog(LOG_ERR,"inno_set_vid(chain=%d, vid=%d)\n", i, j);
-                inno_set_vid(i, j);
+                applog(LOG_ERR,"im_set_vid(chain=%d, vid=%d)\n", i, j);
+                im_set_vid(i, j);
                 usleep(500000);
             }
         }
@@ -543,8 +543,8 @@ static void recfg_vid()
         {
             for(j = CHIP_VID_DEF - 1; j >= opt_voltage1; j--)
             {
-                applog(LOG_ERR,"inno_set_vid(chain=%d, vid=%d)\n", i, j);
-                inno_set_vid(i, j);
+                applog(LOG_ERR,"im_set_vid(chain=%d, vid=%d)\n", i, j);
+                im_set_vid(i, j);
                 usleep(500000);
             }
         }
@@ -557,7 +557,7 @@ static bool detect_A1_chain(void)
     uint8_t buffer[4] = {0};
 
     for(i = 0; i < ASIC_CHAIN_NUM; i++){    
-        if(inno_get_plug(i) != 0)
+        if(im_get_plug(i) != 0)
         {
             applog(LOG_ERR, "chain %d power on fail", i);
             chain[i] = NULL;
@@ -565,8 +565,8 @@ static bool detect_A1_chain(void)
             continue;
         }
 
-        inno_set_vid(i, CHIP_VID_DEF);   // init vid
-        inno_set_spi_speed(i, 0);        // init spi speped 0: 400K
+        im_set_vid(i, CHIP_VID_DEF);   // init vid
+        im_set_spi_speed(i, 0);        // init spi speped 0: 400K
         usleep(10000);
 
         chain[i] = init_A1_chain(i);
@@ -579,7 +579,7 @@ static bool detect_A1_chain(void)
             chain_flag[i] = 1;
         }
 #ifndef FPGA_DEBUG_MODE
-        if(!inno_cmd_resetall(i, ADDR_BROADCAST, buffer))
+        if(!im_cmd_resetall(i, ADDR_BROADCAST, buffer))
         {
             applog(LOG_ERR, "failed to reset chain %d!", i);
         }
@@ -619,7 +619,7 @@ static bool detect_A1_chain(void)
         add_cgpu(cgpu);
 
         // led on
-        inno_set_led(chain[i]->chain_id, 0);
+        im_set_led(chain[i]->chain_id, 0);
 
         applog(LOG_WARNING, "Detected the %d A1 chain with %d chips / %d cores",i, chain[i]->num_active_chips, chain[i]->num_cores);
     }
@@ -760,16 +760,16 @@ static void coinflex_flush_work(struct cgpu_info *coinflex)
 
 
 #ifdef USE_AUTONONCE
-            inno_cmd_auto_nonce(a1->chain_id, 0, REG_LENGTH);   // disable autononce
+            im_cmd_auto_nonce(a1->chain_id, 0, REG_LENGTH);   // disable autononce
 #endif
 
-        if(!inno_cmd_resetjob(a1->chain_id, i+1, buffer))
+        if(!im_cmd_resetjob(a1->chain_id, i+1, buffer))
         {
             applog(LOG_WARNING, "chip %d clear work failed", i);\
             continue;
         }
 #ifdef USE_AUTONONCE
-            inno_cmd_auto_nonce(a1->chain_id, 1, REG_LENGTH);   // disable autononce
+            im_cmd_auto_nonce(a1->chain_id, 1, REG_LENGTH);   // disable autononce
 #endif
 
         //applog(LOG_INFO, "chip :%d flushing queued work success", i);
@@ -956,7 +956,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     }
 
 #ifdef USE_AUTONONCE
-    inno_cmd_auto_nonce(a1->chain_id, 0, REG_LENGTH);   // disable autononce
+    im_cmd_auto_nonce(a1->chain_id, 0, REG_LENGTH);   // disable autononce
 #endif
 
     /* check for completed works */
@@ -972,7 +972,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
             for (i = a1->num_active_chips; i > 0; i--) 
             {
                
-                if(!inno_cmd_read_register(a1->chain_id, i, reg, REG_LENGTH))
+                if(!im_cmd_read_register(a1->chain_id, i, reg, REG_LENGTH))
                 {
                     applog(LOG_ERR, "chip %d reg read failed.", i);
                     continue;
@@ -1004,7 +1004,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
         }
 
         // 超过一半chip计算完毕
-        if(inno_cmd_read_register(a1->chain_id, 4, reg, REG_LENGTH))
+        if(im_cmd_read_register(a1->chain_id, 4, reg, REG_LENGTH))
        {
             struct work *work;
             uint8_t qstate = reg[9] & 0x03;
@@ -1086,7 +1086,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     mutex_unlock(&a1->lock);
     
 #ifdef USE_AUTONONCE
-    inno_cmd_auto_nonce(a1->chain_id, 1, REG_LENGTH);   // enable autononce
+    im_cmd_auto_nonce(a1->chain_id, 1, REG_LENGTH);   // enable autononce
 #endif
 
     cgtime(&a1->tvScryptCurr);

@@ -425,9 +425,9 @@ void A1_SetA1PLLClock(struct A1_chain *a1,int pllClkIdx)
     memcpy(chip->reg + 3, (uint8_t*)&regPll + 0 ,1);
     memcpy(chip->reg + 4, fix_val , 8);
 
-    inno_cmd_write_register(a1->chain_id, ADDR_BROADCAST, chip->reg, REG_LENGTH);
+    im_cmd_write_register(a1->chain_id, ADDR_BROADCAST, chip->reg, REG_LENGTH);
     usleep(100000);
-    inno_cmd_read_register(a1->chain_id, ADDR_BROADCAST, rxbuf, REG_LENGTH);
+    im_cmd_read_register(a1->chain_id, ADDR_BROADCAST, rxbuf, REG_LENGTH);
     hexdump("read value", rxbuf, 12);   
     
 }

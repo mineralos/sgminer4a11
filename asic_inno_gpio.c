@@ -26,9 +26,9 @@ void loop_blink_led(int chain_id, int cnt)
     while(u_cnt--)
     {
         usleep(500000);
-        inno_set_led(chain_id, 1);
+        im_set_led(chain_id, 1);
         usleep(500000);
-        inno_set_led(chain_id, 0);
+        im_set_led(chain_id, 0);
     }
 }
 

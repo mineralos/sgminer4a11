@@ -499,7 +499,7 @@ void check_disabled_chips(struct A1_chain *a1)
         if (chip->cooldown_begin + COOLDOWN_MS > get_current_ms())
             continue;
         
-        if (!inno_cmd_read_register(a1->chain_id, chip_id, reg, REG_LENGTH)) 
+        if (!im_cmd_read_register(a1->chain_id, chip_id, reg, REG_LENGTH)) 
         {
             chip->fail_count++;
             applog(LOG_NOTICE, "%d: chip %d not yet working - %d", cid, chip_id, chip->fail_count);
@@ -528,7 +528,7 @@ void check_disabled_chips(struct A1_chain *a1)
     
 #if 1       // TODO: differ BIN1 / BIN2
     //if the core in chain least than 100, reinit this chain
-    if(inno_get_plug(a1->chain_id) == 0)
+    if(im_get_plug(a1->chain_id) == 0)
     {
         if(a1->num_cores <= LEAST_CORE_ONE_CHAIN)
         {
@@ -570,7 +570,7 @@ bool set_work(struct A1_chain *a1, uint8_t chip_id, struct work *work, uint8_t q
     
     uint8_t jobdata[JOB_LENGTH] = { 0 };
     create_job(jobdata, chip_id, job_id, work);
-    if (!inno_cmd_write_job(a1->chain_id, chip_id, jobdata, JOB_LENGTH)) 
+    if (!im_cmd_write_job(a1->chain_id, chip_id, jobdata, JOB_LENGTH)) 
     {
         /* give back work */
         work_completed(a1->cgpu, work);
@@ -591,7 +591,7 @@ bool get_nonce(struct A1_chain *a1, uint8_t *nonce, uint8_t *chip_id, uint8_t *j
     uint8_t buffer[NONCE_LEN + 2];
     memset(buffer, 0, sizeof(buffer));
 
-    if(inno_cmd_read_nonce(a1->chain_id, buffer, NONCE_LEN))
+    if(im_cmd_read_nonce(a1->chain_id, buffer, NONCE_LEN))
     {
         *job_id = buffer[0] >> 4;
         *chip_id = buffer[1];
@@ -621,7 +621,7 @@ bool check_chip(struct A1_chain *a1, int cid)
     int chip_id = cid + 1;
 
     memset(buffer, 0, sizeof(buffer));
-    if (!inno_cmd_read_register(a1->chain_id, chip_id, buffer, REG_LENGTH)) {
+    if (!im_cmd_read_register(a1->chain_id, chip_id, buffer, REG_LENGTH)) {
         applog(LOG_NOTICE, "%d: Failed to read register for chip %d -> disabling", a1->chain_id, chip_id);
         a1->chips[cid].num_cores = 0;
         a1->chips[cid].disabled = 1;
@@ -666,7 +666,7 @@ int prechain_detect(struct A1_chain *a1, int idxpll, int lastidx)
         nCount = 0;
         memcpy(temp_reg, default_reg[i], REG_LENGTH);
         
-         while(!inno_cmd_write_register(a1->chain_id, ADDR_BROADCAST, temp_reg, REG_LENGTH))
+         while(!im_cmd_write_register(a1->chain_id, ADDR_BROADCAST, temp_reg, REG_LENGTH))
          {
                usleep(200000);
                nCount++;
@@ -692,7 +692,7 @@ int prechain_detect(struct A1_chain *a1, int idxpll, int lastidx)
  */
 int chain_detect(struct A1_chain *a1)
 {
-    uint8_t n_chips = inno_cmd_bist_start(a1->chain_id, ADDR_BROADCAST);
+    uint8_t n_chips = im_cmd_bist_start(a1->chain_id, ADDR_BROADCAST);
 
     if(unlikely(n_chips == 0) || unlikely(n_chips == 0xff)){
         return -1;
@@ -711,9 +711,9 @@ void inno_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor)
     unsigned char src_reg[REG_LENGTH] = {0};
     unsigned char reg[REG_LENGTH] = {0};
 
-    inno_cmd_read_register(a1->chain_id, 0x01, reg, REG_LENGTH);
+    im_cmd_read_register(a1->chain_id, 0x01, reg, REG_LENGTH);
     memcpy(src_reg, reg, REG_LENGTH);
-    inno_cmd_write_register(a1->chain_id, chip_id, src_reg, REG_LENGTH);
+    im_cmd_write_register(a1->chain_id, chip_id, src_reg, REG_LENGTH);
     usleep(200);
 
     if(is_tsensor)
@@ -724,11 +724,11 @@ void inno_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor)
         reg[7] = (src_reg[7]&0x7f);
         memcpy(tmp_reg, reg, REG_LENGTH);
         //hexdump("write reg", tmp_reg, REG_LENGTH);
-        inno_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        im_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
         usleep(200);
         reg[7] = (src_reg[7]|0x80);
         memcpy(tmp_reg, reg, REG_LENGTH);
-        inno_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        im_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
         usleep(200);
 
         //Step3: Config tsadc_clk(default match)
@@ -736,25 +736,25 @@ void inno_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor)
         //Step5: high tsadc_ana_reg_2
         reg[6] = (src_reg[6]|0x04);
         memcpy(tmp_reg, reg, REG_LENGTH);
-        inno_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        im_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
         usleep(200);
 
         //Step6: high tsadc_en
         reg[7] = (src_reg[7]|0x20);
         memcpy(tmp_reg, reg, REG_LENGTH);
-        inno_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        im_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
         usleep(200);
 
         //Step7: tsadc_ana_reg_9 = 0;tsadc_ana_reg_8  = 0
         reg[5] = (src_reg[5]&0xfc);
         memcpy(tmp_reg, reg, REG_LENGTH);
-        inno_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        im_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
         usleep(200);
 
         //Step8: tsadc_ana_reg_7 = 1;tsadc_ana_reg_1 = 0
         reg[6] = (src_reg[6]&0x7d);
         memcpy(tmp_reg, reg, REG_LENGTH);
-        inno_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        im_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
         usleep(200);
     }
     else
@@ -765,11 +765,11 @@ void inno_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor)
         reg[7] = (src_reg[7]&0x7f);
         memcpy(tmp_reg, reg, REG_LENGTH);
         // hexdump("write reg", tmp_reg, REG_LENGTH);
-        inno_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        im_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
         usleep(200);
         reg[7] = (src_reg[7]|0x80);
         memcpy(tmp_reg, reg, REG_LENGTH);
-        inno_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        im_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
         usleep(200);
 
         //Step3: Config tsadc_clk(default match)
@@ -777,25 +777,25 @@ void inno_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor)
         //Step5: high tsadc_ana_reg_2
         reg[6] = (src_reg[6]|0x04);
         memcpy(tmp_reg, reg, REG_LENGTH);
-        inno_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        im_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
         usleep(200);
 
         //Step6: high tsadc_en
         reg[7] = (src_reg[7]|0x20);
         memcpy(tmp_reg, reg, REG_LENGTH);
-        inno_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        im_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
         usleep(200);
 
         //Step7: tsadc_ana_reg_9 = 0;tsadc_ana_reg_8  = 0
         reg[5] = ((src_reg[5]|0x01)&0xfd);
         memcpy(tmp_reg, reg, REG_LENGTH);
-        inno_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        im_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
         usleep(200);
 
         //Step8: tsadc_ana_reg_7 = 1;tsadc_ana_reg_1 = 0
         reg[6] = ((src_reg[6]|0x02)&0x7f);
         memcpy(tmp_reg, reg, REG_LENGTH);
-        inno_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        im_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
         usleep(200);
     }
 }
@@ -833,7 +833,7 @@ bool inno_check_voltage(struct A1_chain *a1, int chip_id, inno_reg_ctrl_t *s_reg
     uint8_t reg[REG_LENGTH];
     memset(reg, 0, REG_LENGTH);
   
-    if (!inno_cmd_read_register(a1->chain_id, chip_id, reg, REG_LENGTH)) {
+    if (!im_cmd_read_register(a1->chain_id, chip_id, reg, REG_LENGTH)) {
         applog(LOG_NOTICE, "%d: Failed to read register for ""chip %d -> disabling", a1->chain_id, chip_id);
         a1->chips[chip_id].num_cores = 0;
         a1->chips[chip_id].disabled = 1;
@@ -942,17 +942,17 @@ inno_type_e inno_get_miner_type(void)
 
 int im_chain_power_on(int chain_id)
 {
-    if(inno_get_plug(chain_id) != 0)
+    if(im_get_plug(chain_id) != 0)
     {
         applog(LOG_WARNING, "chain %d >>> the board not inserted !!!", chain_id);
         return -1;
     }
 
-    inno_set_power_en(chain_id, 1);
+    im_set_power_en(chain_id, 1);
     sleep(5);
-    inno_set_reset(chain_id, 1);
+    im_set_reset(chain_id, 1);
     sleep(1);
-    inno_set_start_en(chain_id, 1);
+    im_set_start_en(chain_id, 1);
 
     applog(LOG_INFO, "power on chain %d ", chain_id);
 
@@ -962,11 +962,11 @@ int im_chain_power_on(int chain_id)
 
 int im_chain_power_down(int chain_id)
 {
-    inno_set_power_en(chain_id, 0);
+    im_set_power_en(chain_id, 0);
     sleep(1);
-    inno_set_reset(chain_id, 0);
-    inno_set_start_en(chain_id, 0);
-    inno_set_led(chain_id, 1);
+    im_set_reset(chain_id, 0);
+    im_set_start_en(chain_id, 0);
+    im_set_led(chain_id, 1);
 
     return 0;
 }

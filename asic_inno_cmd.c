@@ -75,25 +75,25 @@ void hexdump_error(char *prefix, uint8_t *buff, int len)
     applog_hexdump(prefix, buff, len, LOG_ERR);
 }
 
-bool inno_cmd_resetall(uint8_t chain_id, uint8_t chip_id, uint8_t *result)
+bool im_cmd_resetall(uint8_t chain_id, uint8_t chip_id, uint8_t *result)
 {
     uint8_t cmd[2] = {0x0, 0x0};
 
-    return inno_cmd_reset(chain_id, chip_id, cmd, result);
+    return im_cmd_reset(chain_id, chip_id, cmd, result);
 }
 
-bool inno_cmd_resetjob(uint8_t chain_id, uint8_t chip_id, uint8_t *result)
+bool im_cmd_resetjob(uint8_t chain_id, uint8_t chip_id, uint8_t *result)
 {
     uint8_t cmd[2] = {0xed, 0xed};
     
-    return inno_cmd_reset(chain_id, chip_id, cmd, result);
+    return im_cmd_reset(chain_id, chip_id, cmd, result);
 }
 
-bool inno_cmd_resetbist(uint8_t chain_id, uint8_t chip_id, uint8_t *result)
+bool im_cmd_resetbist(uint8_t chain_id, uint8_t chip_id, uint8_t *result)
 {
     uint8_t cmd[2] = {0x20, 0x20};
     
-    return inno_cmd_reset(chain_id, chip_id, cmd, result);
+    return im_cmd_reset(chain_id, chip_id, cmd, result);
 }
 
 

@@ -58,9 +58,9 @@ struct Test_bench {
 
 uint16_t CRC16_2(unsigned char* pchMsg, unsigned short wDataLen);
 
-bool inno_cmd_resetall(uint8_t chain_id, uint8_t chip_id, uint8_t *result);
-bool inno_cmd_resetjob(uint8_t chain_id, uint8_t chip_id, uint8_t *result);
-bool inno_cmd_resetbist(uint8_t chain_id, uint8_t chip_id, uint8_t *result);
+bool im_cmd_resetall(uint8_t chain_id, uint8_t chip_id, uint8_t *result);
+bool im_cmd_resetjob(uint8_t chain_id, uint8_t chip_id, uint8_t *result);
+bool im_cmd_resetbist(uint8_t chain_id, uint8_t chip_id, uint8_t *result);
 
 //void flush_spi(struct A1_chain *pChain);
 void hexdump_error(char *prefix, uint8_t *buff, int len);
