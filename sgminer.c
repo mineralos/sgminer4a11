@@ -1641,8 +1641,14 @@ void clean_work(struct work *work)
  * ram from arrays allocated within the work struct */
 void _free_work(struct work *work)
 {
+    if (unlikely(!work)) {
+            applog(LOG_ERR, "Free work called with null work ");
+            return;
+        }
+
     clean_work(work);
     free(work);
+    work = NULL;
 }
 
 static void gen_hash(unsigned char *data, unsigned char *hash, int len);
