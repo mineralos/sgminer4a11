@@ -55,7 +55,6 @@
 #include "asic_inno_cmd.h"
 #include "asic_inno_gpio.h"
 
-#include "inno_fan.h"
 
 #define WORK_SIZE               (80)
 #define DEVICE_TARGET_SIZE      (32)
@@ -92,10 +91,6 @@ static uint8_t A1Pll4=A5_PLL_CLOCK_400MHz;
 static uint8_t A1Pll5=A5_PLL_CLOCK_400MHz;
 static uint8_t A1Pll6=A5_PLL_CLOCK_400MHz;
 
-/* FAN CTRL */
-inno_fan_temp_s g_fan_ctrl;
-inno_reg_ctrl_t s_reg_ctrl;
-
 static uint32_t show_log[ASIC_CHAIN_NUM];
 static uint32_t update_temp[ASIC_CHAIN_NUM];
 static uint32_t check_disbale_flag[ASIC_CHAIN_NUM];
@@ -104,13 +99,13 @@ int spi_plug_status[ASIC_CHAIN_NUM] = {0};
 
 char szShowLog[ASIC_CHAIN_NUM][ASIC_CHIP_NUM][256] = {0};
 char volShowLog[ASIC_CHAIN_NUM][256] = {0};
-int fan_level[8]={30,40,50,60,70,80,90,100};
 
 hardware_version_e g_hwver;
 inno_type_e g_type;
 int g_reset_delay = 0xffff;
 int g_miner_state = 0;
 int chain_flag[ASIC_CHAIN_NUM] = {0};
+inno_reg_ctrl_t s_reg_ctrl;
 
 /* added by yex in 20170907 */
 /*
@@ -246,7 +241,7 @@ void chain_detect_reload(struct A1_chain *a1)
 
     if(!im_cmd_bist_collect(cid, ADDR_BROADCAST)){
         applog(LOG_NOTICE, "[reload]bist collect fail");
-        return -1;
+        return ;
     }
 
     applog(LOG_NOTICE, "collect core success");
@@ -268,7 +263,6 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
 
     applog(LOG_INFO, "%d: A1 init chain reload", chain_id);
 
-#ifndef FPGA_DEBUG_MODE
 //    result = im_cmd_resetbist(a1->chain_id, ADDR_BROADCAST, buffer);
 //applog(LOG_INFO, "im_cmd_resetbist(): %d - %02X", result, buffer[0]);
 //    sleep(1);
@@ -279,12 +273,9 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
 //    src_reg[7] = src_reg[7] | 0x10;
 //    im_cmd_write_register(a1->chain_id, ADDR_BROADCAST, src_reg, REG_LENGTH);
 //    usleep(200);
-#endif
 
-#ifndef FPGA_DEBUG_MODE
     im_set_spi_speed(a1->chain_id, 4);    // 4: 6250000
     usleep(100000);
-#endif
 
     chain_detect_reload(a1);
     usleep(10000);
@@ -309,7 +300,6 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
 
     usleep(200);
 
-#ifndef FPGA_DEBUG_MODE
     //configure for vsensor
     inno_configure_tvsensor(a1,ADDR_BROADCAST,0);
     for (i = 0; i < a1->num_active_chips; i++){
@@ -323,30 +313,13 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
         s_reg_ctrl.highest_vol[a1->chain_id],s_reg_ctrl.avarge_vol[a1->chain_id],s_reg_ctrl.lowest_vol[a1->chain_id]);
 
     inno_log_record(a1->chain_id, volShowLog[a1->chain_id], strlen(volShowLog[0]));
-#endif
 
     for (i = 0; i < a1->num_active_chips; i++){
         check_chip(a1, i);
-#ifndef FPGA_DEBUG_MODE
-        inno_fan_temp_add(&g_fan_ctrl, chain_id, i+1, a1->chips[i].temp);
-#endif
     }
 
-#ifndef FPGA_DEBUG_MODE
-    chain_temp_update(&g_fan_ctrl,chain_id, g_type);
-#endif
-    //inno_fan_speed_update(&g_fan_ctrl,fan_level);
 
     applog(LOG_ERR, "[chain_ID:%d]: Found %d Chips With Total %d Active Cores",a1->chain_id, a1->num_active_chips, a1->num_cores);
-    applog(LOG_ERR, "[chain_ID]: Temp:%d\n",g_fan_ctrl.temp_highest[chain_id]);
-
-#ifndef FPGA_DEBUG_MODE
-    if(g_fan_ctrl.temp_highest[chain_id] < DANGEROUS_TMP){
-        //im_chain_power_down(a1->chain_id);
-        goto failure;
-        //early_quit(1,"Notice Chain %d temp:%d Maybe Has Some Problem in Temperate\n",a1->chain_id,s_fan_ctrl.temp_highest[chain_id]);
-    }
-#endif
 
     return true;
 
@@ -376,9 +349,7 @@ struct A1_chain *init_A1_chain(int chain_id)
     
     usleep(100000);
     //sleep(10);
-#ifndef FPGA_DEBUG_MODE
     cfg_tsadc_divider(a1, CHIP_PLL_DEF);// PLL_Clk_12Mhz[A1Pll1].speedMHz);	
-#endif
 
     /* override max number of active chips if requested */
     a1->num_active_chips = a1->num_chips;
@@ -404,34 +375,6 @@ failure:
     return NULL;
 }
 
-static  int prepll_chip_temp(struct A1_chain *a1)
-{
-    int i;
-    uint8_t reg[64];
-    int cid = a1->chain_id;
-    int temp;
-    memset(reg,0,sizeof(reg));
-
-    //while(s_fan_ctrl.temp_highest[cid] > 505)//FAN_FIRST_STAGE)
-    for (i = a1->num_active_chips; i > 0; i --)
-    { 
-        if (!im_cmd_read_register(a1->chain_id, i, reg, REG_LENGTH))
-        {
-            applog(LOG_ERR, "%d: Failed to read temperature sensor register for chip %d ", a1->chain_id, i);
-
-            continue;
-        }
-
-        temp = 0x000003ff & ((reg[7] << 8) | reg[8]);
-        //applog(LOG_ERR,"cid %d,chip %d,temp %d\n",cid, i, temp);
-        inno_fan_temp_add(&g_fan_ctrl, cid, i, temp);
-    } 
-
-    chain_temp_update(&g_fan_ctrl,cid,g_type);
-
-    return 0;
-
-}
 
 int inno_preinit( uint32_t pll, uint32_t last_pll)
 { 
@@ -447,13 +390,13 @@ int inno_preinit( uint32_t pll, uint32_t last_pll)
             continue;
         }
 
-        usleep(200000);
-        prepll_chip_temp(chain[i]);
+        //usleep(200000);
+       // prepll_chip_temp(chain[i]);
 
         while(prechain_detect(chain[i], A1_ConfigA1PLLClock(pll),A1_ConfigA1PLLClock(last_pll)))
         {
          
-          if(( rep_cnt <= 5) && (g_fan_ctrl.temp_highest[i] > DANGEROUS_TMP) && (g_fan_ctrl.temp_lowest[i] < START_FAN_TH))
+          if(( rep_cnt <= 5) )
           {
              rep_cnt++;
              sleep(5);
@@ -466,7 +409,6 @@ int inno_preinit( uint32_t pll, uint32_t last_pll)
     }
     
 out_cfgpll:
-    inno_fan_speed_update(&g_fan_ctrl);
 
     return 0;
 }
@@ -578,7 +520,6 @@ static bool detect_A1_chain(void)
             res++;
             chain_flag[i] = 1;
         }
-#ifndef FPGA_DEBUG_MODE
         if(!im_cmd_resetall(i, ADDR_BROADCAST, buffer))
         {
             applog(LOG_ERR, "failed to reset chain %d!", i);
@@ -587,16 +528,13 @@ static bool detect_A1_chain(void)
         {
             applog(LOG_ERR, "incompatible chip type %02X for chain %d!", buffer[0] & 0xf0, i);
         }
-#endif
         applog(LOG_WARNING, "Detected the %d A1 chain with %d chips",i, chain[i]->num_active_chips);
     }
 
     usleep(200000);
 
-#ifndef FPGA_DEBUG_MODE
     inc_pll();
     recfg_vid();
-#endif
 
     for(i = 0; i < ASIC_CHAIN_NUM; i++){
         ret = init_A1_chain_reload(chain[i], i);
@@ -624,11 +562,21 @@ static bool detect_A1_chain(void)
         applog(LOG_WARNING, "Detected the %d A1 chain with %d chips / %d cores",i, chain[i]->num_active_chips, chain[i]->num_cores);
     }
 
-#ifndef FPGA_DEBUG_MODE
-    inno_fan_speed_update(&g_fan_ctrl);
-#endif
 
     return (res == 0) ? false : true;
+}
+
+static void config_fan_module()
+{
+    im_temp_config_s temp_config;
+    temp_config.temp_hi_thr = 408;       
+    temp_config.temp_lo_thr = 652;
+    temp_config.temp_start_thr = 550;
+    temp_config.dangerous_stat_temp = 460;
+    temp_config.work_temp = 505;
+
+    im_fan_temp_init(&temp_config,0);
+
 }
 
 static void coinflex_detect(bool __maybe_unused hotplug)
@@ -639,7 +587,7 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 
     struct timeval test_tv;
     int j = 0;
-
+  
     /* parse bimine-a1-options */
     if ((opt_bitmine_a1_options != NULL) && (parsed_config_options == NULL)) {
         int ref_clk = 0;
@@ -678,12 +626,9 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 
     // TODO: 根据接口获取hwver和type
     sys_platform_init(PLATFORM_ZYNQ_HUB_G19, -1, ASIC_CHAIN_NUM, ASIC_CHIP_NUM);
+    sys_platform_debug_init(3);
+    config_fan_module();
 
-    memset(&s_reg_ctrl,0,sizeof(s_reg_ctrl));
-    memset(&g_fan_ctrl,0,sizeof(g_fan_ctrl));
-
-#ifndef FPGA_DEBUG_MODE
-    inno_fan_temp_init(&g_fan_ctrl,fan_level);
 
     // update time
     for(j = 0; j < 64; j++)
@@ -696,7 +641,6 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 
         usleep(500000);
     }
-#endif
 
     // chain poweron & reset
     im_power_down_all_chain();
@@ -727,7 +671,6 @@ static void coinflex_get_statline_before(char *buf, size_t bufsiz, struct cgpu_i
 
 static void coinflex_flush_work(struct cgpu_info *coinflex)
 {
-#if 1
     struct A1_chain *a1 = coinflex->device_data;
     int cid = a1->chain_id;
     //board_selector->select(cid);
@@ -758,19 +701,11 @@ static void coinflex_flush_work(struct cgpu_info *coinflex)
 
         chip->last_queued_id = 0;
 
-
-#ifdef USE_AUTONONCE
-            im_cmd_auto_nonce(a1->chain_id, 0, REG_LENGTH);   // disable autononce
-#endif
-
         if(!im_cmd_resetjob(a1->chain_id, i+1, buffer))
         {
             applog(LOG_WARNING, "chip %d clear work failed", i);\
             continue;
         }
-#ifdef USE_AUTONONCE
-            im_cmd_auto_nonce(a1->chain_id, 1, REG_LENGTH);   // disable autononce
-#endif
 
         //applog(LOG_INFO, "chip :%d flushing queued work success", i);
     }
@@ -784,7 +719,6 @@ static void coinflex_flush_work(struct cgpu_info *coinflex)
     }
     mutex_unlock(&a1->lock);
 
-#endif
 }
 
 
@@ -896,20 +830,20 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
         show_log[cid]++;
         check_disbale_flag[cid]++;
 
+        cgpu->temp = (float)((594 - fan_temp_ctrl->im_temp[cid].final_temp_avg)* 5) / 7.5;
+        cgpu->temp_max = (float)((594 - fan_temp_ctrl->im_temp[cid].final_temp_hi)* 5) / 7.5;
+        cgpu->temp_min = (float)((594 - fan_temp_ctrl->im_temp[cid].final_temp_lo)* 5) / 7.5;
+
+        cgpu->fan_duty = fan_temp_ctrl->speed;
+        cgpu->chip_num = a1->num_active_chips;
+        cgpu->core_num = a1->num_cores;
+
         //printf("volShowLog[%d]=%s",cid,volShowLog[cid]);
         
         inno_log_print(cid, szShowLog[cid], sizeof(szShowLog[0]));
 
         a1->last_temp_time = get_current_ms();
     }
-
-#ifndef FPGA_DEBUG_MODE
-    if(g_fan_ctrl.temp_highest[a1->chain_id] < DANGEROUS_TMP){
-        im_chain_power_down(a1->chain_id);
-        loop_blink_led(a1->chain_id, 10);
-        applog(LOG_ERR,"Notice Chain %d temp:%d Maybe Has Some Problem in Temperate\n",a1->chain_id,g_fan_ctrl.temp_highest[a1->chain_id]);
-    }
-#endif
 
     /* poll queued results */
     while (true){
@@ -967,60 +901,23 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     }
     else
     {
-        if(update_temp[cid] > 1)
-        {
-            for (i = a1->num_active_chips; i > 0; i--) 
-            {
-               
-                if(!im_cmd_read_register(a1->chain_id, i, reg, REG_LENGTH))
-                {
-                    applog(LOG_ERR, "chip %d reg read failed.", i);
-                    continue;
-                }else{
-
-                    /* update temp database */
-                    uint32_t temp = 0;
-                    temp = 0x000003ff & ((reg[7] << 8) | reg[8]);
-                    inno_fan_temp_add(&g_fan_ctrl, cid, i, temp);
-                } 
-            }
-
-            chain_temp_update(&g_fan_ctrl, cid, g_type);
-
-            applog(LOG_INFO,"cid %d,hi %d,lo:%d,av:%d\n",cid,g_fan_ctrl.temp_highest[cid],g_fan_ctrl.temp_lowest[cid],g_fan_ctrl.temp_arvarge[cid]);
-
-            cgpu->temp = g_fan_ctrl.temp2float[cid][1];
-            cgpu->temp_max = g_fan_ctrl.temp2float[cid][0];
-            cgpu->temp_min = g_fan_ctrl.temp2float[cid][2];
-            cgpu->fan_duty = g_fan_ctrl.speed;
-            cgpu->pre_heat = a1->pre_heat;
-            memcpy(cgpu->temp_prewarn,g_fan_ctrl.pre_warn, 4*sizeof(int));
-
-            cgpu->chip_num = a1->num_active_chips;
-            cgpu->core_num = a1->num_cores; 
-
-            update_temp[cid] = 0;
-
-        }
-
-        // 超过一半chip计算完毕
-        if(im_cmd_read_register(a1->chain_id, 4, reg, REG_LENGTH))
+      // 超过一半chip计算完毕
+        if(im_cmd_read_register(a1->chain_id, ASIC_CHIP_NUM >> 2, reg, REG_LENGTH))
        {
-            struct work *work;
-            uint8_t qstate = reg[9] & 0x03;
+            uint8_t qstate = reg[9] & 0x02;
 
-            if (qstate == 0x01)
+            if (qstate != 0x02)
             {
                 work_updated = true;
                 for (i = a1->num_active_chips; i > 0; i--) 
                 {
                     uint8_t c=i;
                     struct A1_chip *chip = &a1->chips[i - 1];
-                    work = wq_dequeue(&a1->active_wq);
+                    struct work *work = wq_dequeue(&a1->active_wq);
                     if(work == NULL)
                     {
                         applog(LOG_ERR, "Wait work queue...");
-                        usleep(100);
+                        usleep(500);
                         continue;
                     }
                     //assert(work != NULL);
@@ -1030,48 +927,6 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
                         nonce_ranges_processed++;
                         chip->nonce_ranges_done++;
                     }
-
-                    if(show_log[cid] > 0)                   
-                    {   
-                        Inno_Log_Save(chip,c-1,cid);
-                        if(i==1) show_log[cid] = 0; 
-                    }
-                }
-            }else if(qstate == 0x00){
-             work_updated = true;
-                for (i = a1->num_active_chips; i > 0; i--) 
-                {
-                    uint8_t c=i;
-                    struct A1_chip *chip = &a1->chips[i - 1];
-                    work = wq_dequeue(&a1->active_wq);
-                    if(work == NULL)
-                    {
-                        applog(LOG_ERR, "Wait work queue...");
-                        usleep(100);
-                        continue;
-                    }
-                    //assert(work != NULL);
-
-                    if (set_work(a1, c, work, 0))
-                    {
-                        nonce_ranges_processed++;
-                        chip->nonce_ranges_done++;
-                    }
-
-                    work = wq_dequeue(&a1->active_wq);
-                     if(work == NULL)
-                     {
-                         applog(LOG_ERR, "Wait work queue...");
-                         usleep(100);
-                         continue;
-                     }
-                     //assert(work != NULL);
-                    
-                     if (set_work(a1, c, work, 0))
-                     {
-                         nonce_ranges_processed++;
-                         chip->nonce_ranges_done++;
-                     }
 
                     if(show_log[cid] > 0)                   
                     {   
@@ -1083,16 +938,50 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
         }
     }
 
+#if 0
+    if (last_temp_time + 60*TEMP_UPDATE_INT_MS < get_current_ms())
+    {
+        //if(cnt > VOLTAGE_UPDATE_INT){
+        //configure for vsensor
+        inno_configure_tvsensor(a1,ADDR_BROADCAST,0);
+        for (i = 0; i < a1->num_active_chips; i++){
+            inno_check_voltage(a1, i+1, &s_reg_ctrl);
+        }
+        last_temp_time = get_current_ms();
+        //configure for tsensor
+        inno_configure_tvsensor(a1,ADDR_BROADCAST,1);
+        usleep(200);
+    }
+#endif
+
+    //if(check_disbale_flag[cid] > CHECK_DISABLE_TIME)
+   // {
+        //applog(LOG_INFO, "start to check disable chips");
+     //   check_disabled_chips(a1);
+      //  check_disbale_flag[cid] = 0;
+    //}
+
     mutex_unlock(&a1->lock);
     
 #ifdef USE_AUTONONCE
     im_cmd_auto_nonce(a1->chain_id, 1, REG_LENGTH);   // enable autononce
 #endif
 
+    if (nonce_ranges_processed < 0){
+        applog(LOG_INFO, "nonce_ranges_processed less than 0");
+        nonce_ranges_processed = 0;
+    }else{
+        applog(LOG_DEBUG, "%d, nonces processed %d", cid, nonce_ranges_processed);
+    }
+
     cgtime(&a1->tvScryptCurr);
     timersub(&a1->tvScryptCurr, &a1->tvScryptLast, &a1->tvScryptDiff);
     cgtime(&a1->tvScryptLast);
-    cgsleep_ms(5);
+
+      /* in case of no progress, prevent busy looping */
+    if (!work_updated) // after work updated, also delay 10ms
+        cgsleep_ms(5);
+
 
     return ((((double)opt_A1Pll1*a1->tvScryptDiff.tv_usec /2) * (a1->num_cores)));
 }

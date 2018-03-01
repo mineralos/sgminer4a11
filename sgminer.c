@@ -115,11 +115,17 @@ int opt_voltage7 = 3;
 int opt_voltage8 = 3;
 int opt_vote = 0;
 
+im_fan_temp_s *fan_temp_ctrl;
+im_temp_s *tmp_ctrl;
+
+
 static char packagename[256];
 
 bool opt_work_update;
 bool opt_protocol;
 
+int g_auto_fan = 1;  
+int g_fan_speed = 1;
 
 #ifdef HAVE_LIBCURL
 static char *opt_btc_address;
@@ -518,7 +524,7 @@ static void sharelog(const char*disposition, const struct work*work)
     t = (unsigned long int)(work->tv_work_found.tv_sec);
     target = bin2hex(work->target, sizeof(work->target));
     hash = bin2hex(work->hash, sizeof(work->hash));
-    data = bin2hex(work->data, sizeof(work->data));
+    data = bin2hex((unsigned char *)work->data, sizeof(work->data));
 
     // timestamp,disposition,target,pool,dev,thr,sharehash,sharedata
     rv = snprintf(s, sizeof(s), "%lu,%s,%s,%s,%s%u,%u,%s,%s\n", t, disposition, target, pool->rpc_url, cgpu->drv->name, cgpu->device_id, thr_id, hash, data);
@@ -1584,18 +1590,6 @@ static bool jobj_binary(const json_t *obj, const char *key,
 }
 #endif
 
-static void calc_midstate(struct work *work)
-{
-    unsigned char data[64];
-    uint32_t *data32 = (uint32_t *)data;
-    sha256_ctx ctx;
-
-    flip64(data32, work->data);
-    sha256_init(&ctx);
-    sha256_update(&ctx, data, 64);
-    memcpy(work->midstate, ctx.h, 32);
-    endian_flip32(work->midstate, work->midstate);
-}
 
 /* Returns the current value of total_work and increments it */
 static int total_work_inc(void)
@@ -1660,15 +1654,6 @@ char *workpadding = "00000080000000000000000000000000000000000000000000000000000
  * transaction, and the hashes of the remaining transactions since these
  * remain constant with an altered coinbase when generating work. Must be
  * entered under gbt_lock */
-static void gbt_merkle_bins(struct pool *pool, json_t *transaction_arr);
-
-static void __build_gbt_txns(struct pool *pool, json_t *res_val)
-{
-    json_t *txn_array;
-
-    txn_array = json_object_get(res_val, "transactions");
-    gbt_merkle_bins(pool, txn_array);
-}
 
 static void __gbt_merkleroot(struct pool *pool, unsigned char *merkle_root)
 {
@@ -2514,7 +2499,7 @@ share_result(json_t *val, json_t *res, json_t *err, const struct work *work,
                        hashshow, cgpu->drv->name, cgpu->device_id, work->pool->pool_no, resubmit ? "(resubmit)" : "", worktime);
             }
             else {
-                applog(LOG_NOTICE, "Accepted %s %s %d %s%s",
+                applog(LOG_ERR, "Accepted %s %s %d %s%s",
                        hashshow, cgpu->drv->name, cgpu->device_id, resubmit ? "(resubmit)" : "", worktime);
             }
         }
@@ -2739,7 +2724,7 @@ static bool submit_upstream_work(struct work *work, CURL *curl, bool resubmit)
         endian_flip128(work->data, work->data);
 
         /* build hex string */
-        hexstr = bin2hex(work->data, 118);
+        hexstr = bin2hex((unsigned char *)work->data, 118);
         s = strdup("{\"method\": \"getwork\", \"params\": [ \"");
         s = realloc_strcat(s, hexstr);
         s = realloc_strcat(s, "\" ], \"id\":1}");
@@ -3884,17 +3869,6 @@ double share_diff(const struct work *work)
     return ret;
 }
 
-static void regen_hash(struct work *work)
-{
-    uint32_t *data32 = (uint32_t *)(work->data);
-    unsigned char swap[80];
-    uint32_t *swap32 = (uint32_t *)swap;
-    unsigned char hash1[32];
-
-    flip80(swap32, data32);
-    sha256(swap, 80, hash1);
-    sha256(hash1, 32, (unsigned char *)(work->hash));
-}
 
 static inline void flip180(void *dest_p, const void *src_p)
 {
@@ -3930,7 +3904,7 @@ void blake256_regenhash(struct work *work)
     uint32_t input_len = 180;
     uint32_t ohash[32] = {0};
     uint32_t data_len = 1440;
-    int32_t nonce = (work->data[143]<<24)|(work->data[142]<<16)|(work->data[141]<<8)|(work->data[140]);
+    uint32_t nonce = (work->data[143]<<24)|(work->data[142]<<16)|(work->data[141]<<8)|(work->data[140]);
     applog(LOG_DEBUG, "nonce: %x %x %x %x ", work->data[143], work->data[142],work->data[141], work->data[140]);
 
     uint8_t nonce_flag = (uint8_t)(work->data[140]&0x1);
@@ -5780,7 +5754,7 @@ static void *stratum_sthread(void *userdata)
         struct stratum_share *sshare;
         uint32_t *hash32, nonce, ntime;
         char s[1024], nonce2[8];
-        char *ntimestr, *noncestr, *xnonce2str, *nvotestr, *nonce2hex;
+        unsigned char *ntimestr, *noncestr, *xnonce2str, *nvotestr, *nonce2hex;
         struct work *work;
         bool submitted;
 
@@ -6505,7 +6479,7 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
         int i;
         if (!pool->swork.job_id) {
              applog(LOG_WARNING, "stratum_gen_work: job not yet retrieved");
-            return false;
+            return ;
         }
         
     cg_wlock(&pool->data_lock);
@@ -6572,7 +6546,7 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
         free(merkle_hash);
     }
 
-    calc_midstate(work);
+    //calc_midstate(work);
     
     //applog(LOG_DEBUG, "yex Generated sdiff %f", work->sdiff);
     set_target(work->target, work->sdiff);
@@ -7693,65 +7667,11 @@ void reinit_device(struct cgpu_info *cgpu)
 
 static struct timeval rotate_tv;
 
-/* We reap curls if they are unused for over a minute */
-static void reap_curl(struct pool *pool)
-{
-    struct curl_ent *ent, *iter;
-    struct timeval now;
-    int reaped = 0;
-
-    cgtime(&now);
-
-    mutex_lock(&pool->pool_lock);
-    list_for_each_entry_safe(ent, iter, &pool->curlring, node) {
-        if (pool->curls < 2)
-            break;
-        if (now.tv_sec - ent->tv.tv_sec > 300) {
-            reaped++;
-            pool->curls--;
-            list_del(&ent->node);
-            curl_easy_cleanup(ent->curl);
-            free(ent);
-        }
-    }
-    mutex_unlock(&pool->pool_lock);
-
-    if (reaped)
-        applog(LOG_DEBUG, "Reaped %d curl%s from pool %d", reaped, reaped > 1 ? "s" : "", pool->pool_no);
-}
 
 /* Prune old shares we haven't had a response about for over 2 minutes in case
  * the pool never plans to respond and we're just leaking memory. If we get a
  * response beyond that time they will be seen as untracked shares. */
-static void prune_stratum_shares(struct pool *pool)
-{
-    struct stratum_share *sshare, *tmpshare;
-    time_t current_time = time(NULL);
-    int cleared = 0;
 
-    mutex_lock(&sshare_lock);
-    HASH_ITER(hh, stratum_shares, sshare, tmpshare) {
-        if (sshare->work->pool == pool && current_time > sshare->sshare_time + 120) {
-            HASH_DEL(stratum_shares, sshare);
-            free_work(sshare->work);
-            free(sshare);
-            cleared++;
-        }
-    }
-    mutex_unlock(&sshare_lock);
-
-    if (cleared)
-    {
-        applog(LOG_WARNING, "Lost %d shares due to no stratum share response from pool %d", cleared, pool->pool_no);
-        pool->stale_shares  += cleared;
-        total_stale         += cleared;
-
-// For display by HKS
-#if defined(USE_LTCTECH) || defined(USE_COINFLEX)
-        lost_share_noresponse ++;
-#endif
-    }
-}
 
 static void *watchpool_thread(void __maybe_unused *userdata)
 {
@@ -8637,6 +8557,11 @@ int main(int argc, char *argv[])
     unsigned int k;
     char *s;
 
+    fan_temp_ctrl = malloc(sizeof(*fan_temp_ctrl));
+    tmp_ctrl = malloc(ASIC_CHAIN_NUM * sizeof(*fan_temp_ctrl));
+    fan_temp_ctrl->im_temp = tmp_ctrl;
+
+
     /* This dangerous functions tramples random dynamically allocated
      * variables so do it before anything at all */
     if (unlikely(curl_global_init(CURL_GLOBAL_ALL))){
@@ -9023,7 +8948,9 @@ begin_bench:
 
        if (last_temp_time + TEMP_UPDATE_INT_MS < get_current_ms())
        {
-        inno_fan_speed_update(&g_fan_ctrl);
+       // inno_fan_speed_update(&g_fan_ctrl);
+        hub_cmd_get_temp(fan_temp_ctrl);
+        im_fan_speed_update_hub(fan_temp_ctrl);
         last_temp_time = get_current_ms();
        }
 

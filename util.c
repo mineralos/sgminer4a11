@@ -720,29 +720,7 @@ bool hex2bin(unsigned char *p, const char *hexstr, size_t len)
     return ret;
 }
 
-static bool _valid_hex(char *s, const char *file, const char *func, const int line)
-{
-    bool ret = false;
-    int i, len;
 
-    if (unlikely(!s)) {
-        applog(LOG_ERR, "Null string passed to valid_hex from"IN_FMT_FFL, file, func, line);
-        return ret;
-    }
-    len = strlen(s);
-    for (i = 0; i < len; i++) {
-        unsigned char idx = s[i];
-
-        if (unlikely(hex2bin_tbl[idx] < 0)) {
-            applog(LOG_ERR, "Invalid char 0x%x passed to valid_hex from"IN_FMT_FFL, idx, file, func, line);
-            return ret;
-        }
-    }
-    ret = true;
-    return ret;
-}
-
-#define valid_hex(s) _valid_hex(s, __FILE__, __func__, __LINE__)
 
 static bool _valid_ascii(char *s, const char *file, const char *func, const int line)
 {
@@ -1715,7 +1693,7 @@ static char *json_array_string(json_t *val, unsigned int entry)
     return NULL;
 }
 
-static char *blank_merkle = "0000000000000000000000000000000000000000000000000000000000000000";
+//static char *blank_merkle = "0000000000000000000000000000000000000000000000000000000000000000";
 
 #if !HAVE_DECL_LE16DEC
 static  inline uint16_t le16dec(const void *pp)

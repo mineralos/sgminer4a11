@@ -293,13 +293,14 @@ void sha256(const unsigned char *message, unsigned int len, unsigned char *diges
 {
     sha256_ctx ctx;
 
-    sha256_init(&ctx);
+   // sha256_init(&ctx);
     sha256_update(&ctx, message, len);
     sha256_final(&ctx, digest);
 }
 
-void sha256_init(sha256_ctx *ctx)
+void sha256_init(uint32_t *state)
 {
+#if 0
     int i;
     for (i = 0; i < 8; i++) {
         ctx->h[i] = sha256_h0[i];
@@ -307,6 +308,9 @@ void sha256_init(sha256_ctx *ctx)
 
     ctx->len = 0;
     ctx->tot_len = 0;
+    #else
+    memcpy(state, sha256_h0, 32);
+    #endif
 }
 
 void sha256_update(sha256_ctx *ctx, const unsigned char *message,

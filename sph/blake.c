@@ -1079,7 +1079,7 @@ void blake256_compress(state *S, const unsigned char *block,unsigned char nonce_
         v[14] ^= S->t[1];
         v[15] ^= S->t[1];
     }
-    int a,b,c,d,e;
+
     for (i = 0; i < 14; ++i) {
         G(0, 4,  8, 12,  0);
         G(1, 5,  9, 13,  2);

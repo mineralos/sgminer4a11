@@ -6,21 +6,6 @@
 
 #include "asic_inno.h"
 
-#define CMD_BIST_START      0x01
-#define CMD_BIST_COLLECT    0x0b
-#define CMD_BIST_FIX        0x03
-#define CMD_RESET           0x04
-#define CMD_RESETBC         0x05
-#define CMD_WRITE_JOB       0x07
-#define CMD_READ_RESULT     0x08
-#define CMD_WRITE_REG       0x09
-#define CMD_READ_REG        0x0a
-#define CMD_READ_REG_RESP   0x1a
-#define CMD_POWER_ON        0x02
-#define CMD_POWER_OFF       0x06
-#define CMD_POWER_RESET     0x0c
-#define CMD_READ_SEC_REG    0x0d
-
 #define CMD_TYPE_A7         0xb0
 #define CMD_TYPE_A8         0x30
 #define CMD_TYPE_A11        0x70

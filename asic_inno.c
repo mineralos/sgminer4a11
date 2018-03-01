@@ -14,7 +14,6 @@
 #include "asic_inno_cmd.h"
 #include "asic_inno_clock.h"
 #include "asic_inno_gpio.h"
-#include "inno_fan.h"
 
 
 //#define MAGIC_NUM  100 
@@ -599,7 +598,7 @@ bool get_nonce(struct A1_chain *a1, uint8_t *nonce, uint8_t *chip_id, uint8_t *j
         memcpy(nonce, buffer+2, 4);
 
         applog(LOG_INFO, "Got nonce for chain %d / chip %d / job_id %d", a1->chain_id, *chip_id, *job_id);
-        applog(LOG_INFO, "Nonce: %02x %02x %02x %02x", nonce[0], nonce[1], nonce[2], nonce[3]);
+        //applog(LOG_INFO, "Nonce: %02x %02x %02x %02x", nonce[0], nonce[1], nonce[2], nonce[3]);
         
         return true;
     }
@@ -860,7 +859,7 @@ bool inno_check_voltage(struct A1_chain *a1, int chip_id, inno_reg_ctrl_t *s_reg
         //applog(LOG_ERR,"nReadVolTimes = %d,nVolTotal = %d",nReadVolTimes,nVolTotal);
         
         if(nVolTotal >= 3){
-            applog(LOG_ERR,"Notice chain %d chip %d maybe has some promble in voltage",a1->chain_id,chip_id,a1->chips[chip_id-1].nVol);
+            applog(LOG_ERR,"Notice chain %d chip %d maybe has some promble in voltage %d",a1->chain_id,chip_id,a1->chips[chip_id-1].nVol);
             nVolTotal = 0;
             nReadVolTimes = 0;
             //im_chain_power_down(a1->chain_id);
@@ -979,6 +978,8 @@ int im_power_on_all_chain(void)
     {
         im_chain_power_on(i);
     }
+
+   return 0;
 }
 
 int im_power_down_all_chain(void)
@@ -989,5 +990,7 @@ int im_power_down_all_chain(void)
     {
         im_chain_power_down(i);
     }
+
+  return 0;
 }
 
