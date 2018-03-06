@@ -42,7 +42,7 @@
 #ifdef CHIP_A11
 #define CHIP_PLL_DEF            (30)
 #define CHIP_VID_DEF            (8)
-#define CHIP_VOL_MAX            (0.6)
+#define CHIP_VOL_MAX            (0.62)
 #define CHIP_VOL_MIN            (0.45)
 #else
 #define CHIP_PLL_DEF            (120)
