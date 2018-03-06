@@ -1619,15 +1619,34 @@ static struct work *make_work(void)
  * cleaned to remove any dynamically allocated arrays within the struct */
 void clean_work(struct work *work)
 {
+
 //applog(LOG_ERR,"free job id");
-   // free(work->job_id);
-    
+//if(work->job_id != NULL)
+//{
+//    free(work->job_id);
+ //   work->job_id = NULL;
+//}   
+
   //  applog(LOG_ERR,"free ntime");
+  if(work->ntime != NULL)
+  {
     free(work->ntime);
-    
+    work->ntime = NULL;
+  }
+  
     //applog(LOG_ERR,"free coinbase");
+  if(work->coinbase != NULL)
+  {
     free(work->coinbase);
+    work->coinbase = NULL;
+  }
+
+  if(work->nonce1 != NULL)
+  {
     free(work->nonce1);
+    work->nonce1 = NULL;
+  }
+  
     memset(work, 0, sizeof(struct work));
 }
 
@@ -3716,6 +3735,8 @@ void set_work_ntime(struct work *work, int ntime)
     *work_ntime = htobe32(ntime);
     if (work->ntime) {
         free(work->ntime);
+        work->ntime = NULL;
+        
         work->ntime = bin2hex((unsigned char *)work_ntime, 4);
     }
 }

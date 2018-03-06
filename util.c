@@ -1820,13 +1820,21 @@ static bool parse_notify(struct pool *pool, json_t *params)
     hex2bin(pool->swork.xnonce2 + pool->xnonce2_size, coinb2, coinb2_size);
 
     free(pool->swork.job_id);
+    pool->swork.job_id = NULL;
+    
     pool->swork.job_id = strdup(job_id);
     hex2bin(pool->swork.prevhash, prevhash, 32);
     pool->swork.height = getblocheight(pool);
 
     for (i = 0; i < pool->swork.merkle_count; i++)
-        free(pool->swork.merkle[i]);
+    {
+      free(pool->swork.merkle[i]);
+      pool->swork.merkle[i] = NULL;
+    }
+    
     free(pool->swork.merkle);
+    pool->swork.merkle = NULL;
+
     pool->swork.merkle = merkle;
     pool->swork.merkle_count = merkle_count;
 
