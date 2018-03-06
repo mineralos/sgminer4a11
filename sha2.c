@@ -268,7 +268,7 @@ void sha256d(unsigned char *hash, const unsigned char *data, int len)
 	uint32_t S[16], T[16];
 	int i, r;
 
-	sha256_init(S);
+	sha256d_init(S);
 	for (r = len; r > -9; r -= 64) {
 		if (r < 64)
 			memset(T, 0, 64);
@@ -282,7 +282,7 @@ void sha256d(unsigned char *hash, const unsigned char *data, int len)
 		sha256_transform(S, T, 0);
 	}
 	memcpy(S + 8, sha256d_hash1 + 8, 32);
-	sha256_init(T);
+	sha256d_init(T);
 	sha256_transform(T, S, 0);
 	for (i = 0; i < 8; i++)
 		be32enc((uint32_t *)hash + i, T[i]);
@@ -298,9 +298,8 @@ void sha256(const unsigned char *message, unsigned int len, unsigned char *diges
     sha256_final(&ctx, digest);
 }
 
-void sha256_init(uint32_t *state)
+void sha256_init(sha256_ctx *ctx)
 {
-#if 0
     int i;
     for (i = 0; i < 8; i++) {
         ctx->h[i] = sha256_h0[i];
@@ -308,9 +307,12 @@ void sha256_init(uint32_t *state)
 
     ctx->len = 0;
     ctx->tot_len = 0;
-    #else
+}
+
+
+void sha256d_init(uint32_t *state)
+{
     memcpy(state, sha256_h0, 32);
-    #endif
 }
 
 void sha256_update(sha256_ctx *ctx, const unsigned char *message,

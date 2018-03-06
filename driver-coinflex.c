@@ -524,10 +524,6 @@ static bool detect_A1_chain(void)
         {
             applog(LOG_ERR, "failed to reset chain %d!", i);
         }
-        if(CMD_TYPE_A12 != (buffer[0] & 0xf0))
-        {
-            applog(LOG_ERR, "incompatible chip type %02X for chain %d!", buffer[0] & 0xf0, i);
-        }
         applog(LOG_WARNING, "Detected the %d A1 chain with %d chips",i, chain[i]->num_active_chips);
     }
 
@@ -573,7 +569,7 @@ static void config_fan_module()
     temp_config.temp_lo_thr = 652;
     temp_config.temp_start_thr = 550;
     temp_config.dangerous_stat_temp = 460;
-    temp_config.work_temp = 505;
+    temp_config.work_temp = 475;
 
     im_fan_temp_init(&temp_config,0);
 
@@ -626,6 +622,7 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 
     // TODO: 根据接口获取hwver和type
     sys_platform_init(PLATFORM_ZYNQ_HUB_G19, -1, ASIC_CHAIN_NUM, ASIC_CHIP_NUM);
+    memset(&s_reg_ctrl,0,sizeof(s_reg_ctrl));
     sys_platform_debug_init(3);
     config_fan_module();
 
@@ -703,7 +700,7 @@ static void coinflex_flush_work(struct cgpu_info *coinflex)
 
         if(!im_cmd_resetjob(a1->chain_id, i+1, buffer))
         {
-            applog(LOG_WARNING, "chip %d clear work failed", i);\
+            applog(LOG_WARNING, "chip %d clear work failed", i);
             continue;
         }
 
@@ -826,14 +823,20 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 
     if (a1->last_temp_time + TEMP_UPDATE_INT_MS < get_current_ms())
     {
+
+    
+        hub_cmd_get_temp(fan_temp_ctrl,cid);
         update_temp[cid]++;
         show_log[cid]++;
         check_disbale_flag[cid]++;
 
+    if(fan_temp_ctrl->im_temp[cid].final_temp_avg && fan_temp_ctrl->im_temp[cid].final_temp_hi && fan_temp_ctrl->im_temp[cid].final_temp_lo)
+    {
         cgpu->temp = (float)((594 - fan_temp_ctrl->im_temp[cid].final_temp_avg)* 5) / 7.5;
         cgpu->temp_max = (float)((594 - fan_temp_ctrl->im_temp[cid].final_temp_hi)* 5) / 7.5;
         cgpu->temp_min = (float)((594 - fan_temp_ctrl->im_temp[cid].final_temp_lo)* 5) / 7.5;
-
+     }
+    
         cgpu->fan_duty = fan_temp_ctrl->speed;
         cgpu->chip_num = a1->num_active_chips;
         cgpu->core_num = a1->num_cores;
@@ -852,17 +855,6 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
         }
 
         work_updated = true;
-        if (chip_id < 1 || chip_id > a1->num_active_chips) {
-            applog(LOG_WARNING, "%d: wrong chip_id %d", cid, chip_id);
-            g_nonce_read_err++;
-            if (g_nonce_read_err > 100) {
-                im_power_down_all_chain();
-                early_quit(1, "unable to read nonce, exit");
-            }
-            continue;
-        }
-
-        g_nonce_read_err = 0;
         
         if (job_id < 1 || job_id > 4){
             applog(LOG_WARNING, "%d: chip %d: result has wrong ""job_id %d", cid, chip_id, job_id);
@@ -885,6 +877,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
             nonce_ranges_processed--;
             continue;
         }
+        
+        applog(LOG_ERR, "Got nonce for chain %d / chip %d / job_id %d", a1->chain_id, chip_id, job_id);
 
         chip->nonces_found++;
     }
@@ -954,18 +948,11 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     }
 #endif
 
-    //if(check_disbale_flag[cid] > CHECK_DISABLE_TIME)
-   // {
-        //applog(LOG_INFO, "start to check disable chips");
-     //   check_disabled_chips(a1);
-      //  check_disbale_flag[cid] = 0;
-    //}
-
-    mutex_unlock(&a1->lock);
     
 #ifdef USE_AUTONONCE
     im_cmd_auto_nonce(a1->chain_id, 1, REG_LENGTH);   // enable autononce
 #endif
+    mutex_unlock(&a1->lock);
 
     if (nonce_ranges_processed < 0){
         applog(LOG_INFO, "nonce_ranges_processed less than 0");

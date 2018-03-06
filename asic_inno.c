@@ -424,7 +424,7 @@ void create_job(uint8_t *job, uint8_t chip_id, uint8_t job_id, struct work *work
     job[1] = chip_id;
     
     
-    memcpy(job+2,work->data,180);
+    memcpy(job+2,(uint8_t *)work->data,180);
     swab256(job + 182, work->target);
     
     job[214] = 0xff;
@@ -595,12 +595,14 @@ bool get_nonce(struct A1_chain *a1, uint8_t *nonce, uint8_t *chip_id, uint8_t *j
         *job_id = buffer[0] >> 4;
         *chip_id = buffer[1];
 
-        memcpy(nonce, buffer+2, 4);
-
-        applog(LOG_INFO, "Got nonce for chain %d / chip %d / job_id %d", a1->chain_id, *chip_id, *job_id);
-        //applog(LOG_INFO, "Nonce: %02x %02x %02x %02x", nonce[0], nonce[1], nonce[2], nonce[3]);
-        
-        return true;
+        if(buffer[2] || buffer[3] || buffer[4] || buffer[5])
+        { 
+          memcpy(nonce, buffer+2, 4);
+        //applog(LOG_ERR, "Nonce: %02x %02x %02x %02x", nonce[0], nonce[1], nonce[2], nonce[3]);
+         return true;
+        }else{
+        return false;
+        }
     }
     
     return false;
@@ -658,7 +660,7 @@ int prechain_detect(struct A1_chain *a1, int idxpll, int lastidx)
     uint8_t temp_reg[REG_LENGTH];
     int i,nCount = 0;
   
-    usleep(500000);
+    //usleep(500000);
     
     for(i=lastidx; i<idxpll+1; i++)
     {
@@ -676,7 +678,7 @@ int prechain_detect(struct A1_chain *a1, int idxpll, int lastidx)
                 }
           }
        
-           usleep(200000);
+           usleep(20000);
       }
         
         applog(LOG_WARNING, "chain %d set PLL Lv.%d success", cid, i);

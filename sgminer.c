@@ -92,27 +92,27 @@ struct strategies strategies[] = {
 char *opt_bitmine_a1_options = NULL;
 
 //for A4
-uint32_t opt_A1Pll1=1000; // -1 Default
-uint32_t opt_A1Pll2=1000; // -1 Default
-uint32_t opt_A1Pll3=1000; // -1 Default
-uint32_t opt_A1Pll4=1000; // -1 Default
-uint32_t opt_A1Pll5=1000; // -1 Default
-uint32_t opt_A1Pll6=1000; // -1 Default
-uint32_t opt_A1Pll7=1000; // -1 Default
-uint32_t opt_A1Pll8=1000; // -1 Default
+uint32_t opt_A1Pll1=1100; // -1 Default
+uint32_t opt_A1Pll2=1100; // -1 Default
+uint32_t opt_A1Pll3=1100; // -1 Default
+uint32_t opt_A1Pll4=1100; // -1 Default
+uint32_t opt_A1Pll5=1100; // -1 Default
+uint32_t opt_A1Pll6=1100; // -1 Default
+uint32_t opt_A1Pll7=1100; // -1 Default
+uint32_t opt_A1Pll8=1100; // -1 Default
 
 #endif
 
 int opt_voltage = 8;
 
-int opt_voltage1 = 3;
-int opt_voltage2 = 3;
-int opt_voltage3 = 3;
-int opt_voltage4 = 3;
-int opt_voltage5 = 3;
-int opt_voltage6 = 3;
-int opt_voltage7 = 3;
-int opt_voltage8 = 3;
+int opt_voltage1 = 5;
+int opt_voltage2 = 5;
+int opt_voltage3 = 5;
+int opt_voltage4 = 5;
+int opt_voltage5 = 5;
+int opt_voltage6 = 5;
+int opt_voltage7 = 5;
+int opt_voltage8 = 5;
 int opt_vote = 0;
 
 im_fan_temp_s *fan_temp_ctrl;
@@ -1623,7 +1623,7 @@ void clean_work(struct work *work)
    // free(work->job_id);
     
   //  applog(LOG_ERR,"free ntime");
-    //free(work->ntime);
+    free(work->ntime);
     
     //applog(LOG_ERR,"free coinbase");
     free(work->coinbase);
@@ -1677,7 +1677,7 @@ static bool getwork_decode(json_t *res_val, struct work *work)
     //if (work->pool->algorithm.type == ALGO_CRE) worklen = 168;
     //if (work->pool->algorithm.type == ALGO_DECRED) worklen = 192;
 
-    if (unlikely(!jobj_binary(res_val, "data", work->data, worklen, true))) {
+    if (unlikely(!jobj_binary(res_val, "data", (const char* )work->data, worklen, true))) {
 
         return false;
     }
@@ -1691,10 +1691,10 @@ static bool getwork_decode(json_t *res_val, struct work *work)
 
     if (1) {
         uint16_t votebits;
-        memcpy(&votebits, &work->data[100], 2);
+        memcpy(&votebits, &work->data[25], 2);
         // never change the last bit!
         votebits = (uint16_t) (opt_vote << 1) | (votebits & 1);
-        memcpy(&work->data[100], &votebits, 2);
+        memcpy(&work->data[25], &votebits, 2);
         // some random extradata to make it unique
         ((uint32_t*)work->data)[36] = (rand()*4);
         ((uint32_t*)work->data)[37] = ((rand()*4) << 8) | work->thr_id;
@@ -2573,7 +2573,7 @@ share_result(json_t *val, json_t *res, json_t *err, const struct work *work,
                     snprintf(reason, 31, " (%s)", s);
                 }
             }
-            applog(LOG_NOTICE, "Rejected %s %s %d %s%s %s%s", hashshow, cgpu->drv->name, cgpu->device_id, where, reason, resubmit ? "(resubmit)" : "", worktime);
+            applog(LOG_ERR, "Rejected %s %s %d %s%s %s%s", hashshow, cgpu->drv->name, cgpu->device_id, where, reason, resubmit ? "(resubmit)" : "", worktime);
             sharelog(disposition, work);
         }
 
@@ -3510,7 +3510,7 @@ void roll_work(struct work *work)
     uint32_t *work_ntime;
     uint32_t ntime;
 
-    work_ntime = (uint32_t *)(work->data + 68);
+    work_ntime = (uint32_t *)(work->data + 34);
     ntime = be32toh(*work_ntime);
     ntime++;
     *work_ntime = htobe32(ntime);
@@ -3690,7 +3690,7 @@ static void _copy_work(struct work *work, const struct work *base_work, int noff
         /* If we are passed an noffset the binary work->data ntime and
          * the work->ntime hex string need to be adjusted. */
         if (noffset) {
-            uint32_t *work_ntime = (uint32_t *)(work->data + 68);
+            uint32_t *work_ntime = (work->data + 34);
             uint32_t ntime = be32toh(*work_ntime);
 
             ntime += noffset;
@@ -3699,7 +3699,7 @@ static void _copy_work(struct work *work, const struct work *base_work, int noff
         } else
             work->ntime = strdup(base_work->ntime);
     } else if (noffset) {
-        uint32_t *work_ntime = (uint32_t *)(work->data + 68);
+        uint32_t *work_ntime = (work->data + 34);
         uint32_t ntime = be32toh(*work_ntime);
 
         ntime += noffset;
@@ -3711,7 +3711,7 @@ static void _copy_work(struct work *work, const struct work *base_work, int noff
 
 void set_work_ntime(struct work *work, int ntime)
 {
-    uint32_t *work_ntime = (uint32_t *)(work->data + 68);
+    uint32_t *work_ntime = (work->data + 34);
 
     *work_ntime = htobe32(ntime);
     if (work->ntime) {
@@ -3904,10 +3904,10 @@ void blake256_regenhash(struct work *work)
     uint32_t input_len = 180;
     uint32_t ohash[32] = {0};
     uint32_t data_len = 1440;
-    uint32_t nonce = (work->data[143]<<24)|(work->data[142]<<16)|(work->data[141]<<8)|(work->data[140]);
-    applog(LOG_DEBUG, "nonce: %x %x %x %x ", work->data[143], work->data[142],work->data[141], work->data[140]);
+    uint32_t nonce = (work->data[35]<<24)|(work->data[35]<<16)|(work->data[35]<<8)|(work->data[35]);
+  //  applog(LOG_DEBUG, "nonce: %x %x %x %x ", work->data[143], work->data[142],work->data[141], work->data[140]);
 
-    uint8_t nonce_flag = (uint8_t)(work->data[140]&0x1);
+    uint8_t nonce_flag = (uint8_t)(work->data[35]&0x1);
 #if 0
     printf("out :work data: \r\n");
     for(i = 0; i < 180; i++)
@@ -3938,7 +3938,7 @@ void blake256_regenhash(struct work *work)
     blake256_init(&S);
     //applog(LOG_INFO, "s: %x %x %x %x flag %x, change %x,data_len %d", S.h[0], S.h[1],S.h[2], S.h[3],nonce_flag,change,data_len);
 
-    blake256_update(&S, work->data, data_len, nonce_flag,change);
+    blake256_update(&S, (const unsigned char *)work->data, data_len, nonce_flag,change);
     // applog(LOG_INFO, "L4488 ");
 
     blake256_final(&S, ohash,nonce_flag,change);
@@ -4260,28 +4260,20 @@ static int block_sort(struct block *blocka, struct block *blockb)
 /* Decode the current block difficulty which is in packed form */
 static void set_blockdiff(const struct work *work)
 {
-    uint8_t pow = work->data[18];
-    int powdiff = (8 * (0x1d - 3)) - (8 * (pow - 3));
-    uint32_t diff32 = be32toh(*((uint32_t *)(work->data + 72))) & 0x00FFFFFF;
-    double numerator;
-    double ddiff;
-
-#if defined(USE_LTCTECH) || defined(USE_COINFLEX)
-    switch(kernel)
-    {
-        case KL_SCRYPT:
-            //          numerator = 0xFFFFFFFFULL << powdiff;
-            //          ddiff = numerator / (double)diff32;
-            //          break;
-        case KL_X11MOD:
-        case KL_X13MOD:
-        case KL_X15MOD:
-        default:
-            numerator = 0xFFFFULL << powdiff;
-            ddiff = numerator / (double)diff32;
-            break;
-    }
-#endif
+   uint32_t diff32BE = work->data[29];
+	
+	/* Mask off the exponent and make it into a byte */
+	uint8_t pow = (uint8_t)((diff32BE&0xff000000)>>24);
+	 
+	/* Pop off the rest and shift it according to    */
+	/* the exponent. Divide mindiff by it.           */
+	/* Testnet has a different mindiff than mainnet  */
+	/* mindiff, this may calculate incorrectly on    */
+	/* testnet mining.                               */
+	int powdiff = (8 * (0x1d - 3)) - (8 * (pow - 3));
+	uint32_t diff32 = be32toh(diff32BE) & 0x00FFFFFF;
+	double numerator = 0xFFFFULL << powdiff;
+	double ddiff = numerator / (double)diff32;
 
     if(unlikely(current_diff != ddiff))
     {
@@ -6451,7 +6443,6 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
         free(merkle_hash);
     }
 
-    calc_midstate(work);
     set_target(work->target, work->sdiff);
 
     local_work++;
@@ -8949,7 +8940,7 @@ begin_bench:
        if (last_temp_time + TEMP_UPDATE_INT_MS < get_current_ms())
        {
        // inno_fan_speed_update(&g_fan_ctrl);
-        hub_cmd_get_temp(fan_temp_ctrl);
+    //    hub_cmd_get_temp(fan_temp_ctrl);
         im_fan_speed_update_hub(fan_temp_ctrl);
         last_temp_time = get_current_ms();
        }

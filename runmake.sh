@@ -4,9 +4,7 @@
 ./autogen.sh
 
 ROOTFS_DIR=$1
-#ROOTFS_DIR=/home/public/duanh/src/rootfs
 MAKE_JOBS=$2
-#MAKE_JOBS=8
 ROOTFS_DIR_G19=$3
 
 LDFLAGS="-L${ROOTFS_DIR}/lib -lim_lib -lim_drv " \

@@ -10,8 +10,8 @@
 #define NO_FAN_CTRL
 
 #ifdef CHIP_A11
-#define ASIC_CHAIN_NUM          (3)
-#define ASIC_CHIP_NUM           (63)    // 45
+#define ASIC_CHAIN_NUM          (6)
+#define ASIC_CHIP_NUM           (51)    // 45
 #define ASIC_CORE_NUM           (28)    // 63
 #endif
 
