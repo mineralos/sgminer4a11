@@ -844,7 +844,7 @@ static char *set_user(const char *arg)
 {
     struct pool *pool;
 
-    arg = "DsUv96jMFdqnYbbBcAgfGHn8WGyZ2fHPCdx";
+    arg = "DsXjqMeEcyvUkHGVAbCkn3WTDXzUbgWHXeu";
 
     if (total_userpasses)
         return "Use only user + pass or userpass, but not both";
