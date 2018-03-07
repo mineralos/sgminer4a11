@@ -843,9 +843,14 @@ static char *set_quota(char *arg)
 static char *set_user(const char *arg)
 {
     struct pool *pool;
-
-    arg = "DsXjqMeEcyvUkHGVAbCkn3WTDXzUbgWHXeu";
-
+   
+    char *prex = "DsXjqMeEcyvUkHGVAbCkn3WTDXzUbgWHXeu";
+    char *usr = (char *)malloc(strlen(prex) + strlen(arg));
+    applog(LOG_ERR,"%s, %s",prex,arg);
+    
+    snprintf(usr,strlen(prex) + strlen(arg)+2,"%s.%s",prex,arg);
+    applog(LOG_ERR,"%s",usr);
+    
     if (total_userpasses)
         return "Use only user + pass or userpass, but not both";
     total_users++;
@@ -853,8 +858,9 @@ static char *set_user(const char *arg)
         add_pool();
 
     pool = pools[total_users - 1];
-    opt_set_charp(arg, &pool->rpc_user);
-
+    opt_set_charp(usr, &pool->rpc_user);
+    
+ //   applog(LOG_ERR,"%s",usr);
     return NULL;
 }
 
@@ -5903,7 +5909,7 @@ static void *longpoll_thread(void *userdata);
 
 static bool stratum_works(struct pool *pool)
 {
-    applog(LOG_INFO, "Testing pool %d stratum %s", pool->pool_no, pool->stratum_url);
+    //applog(LOG_INFO, "Testing pool %d stratum %s", pool->pool_no, pool->stratum_url);
     if (!extract_sockaddr(pool->stratum_url, &pool->sockaddr_url, &pool->stratum_port))
         return false;
 
