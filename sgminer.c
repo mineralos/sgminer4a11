@@ -5941,7 +5941,7 @@ static bool pool_active(struct pool *pool, bool pinging)
     if (pool->has_gbt)
         applog(LOG_DEBUG, "Retrieving block template from pool %s", pool->rpc_url);
     else
-        applog(LOG_INFO, "Testing pool %s", pool->rpc_url);
+        //applog(LOG_INFO, "Testing pool %s", pool->rpc_url);
 
     /* This is the central point we activate stratum when we can */
 retry_stratum:
