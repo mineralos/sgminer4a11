@@ -533,12 +533,12 @@ void check_disabled_chips(struct A1_chain *a1)
         {
             applog(LOG_WARNING, "****core:%d*start to reset the chain:%d******************", a1->num_cores, cid);
 
-            im_power_down_all_chain();
+            im_chain_power_down_all();
         }
     } else {
          applog(LOG_WARNING, "chain %d not insert,change all gpio to zero****", cid);
 
-         im_power_down_all_chain();
+         im_chain_power_down_all();
     }
 #endif             
 }
@@ -941,58 +941,4 @@ inno_type_e inno_get_miner_type(void)
     return miner_type;
 }
 
-int im_chain_power_on(int chain_id)
-{
-    if(im_get_plug(chain_id) != 0)
-    {
-        applog(LOG_WARNING, "chain %d >>> the board not inserted !!!", chain_id);
-        return -1;
-    }
-
-    im_set_power_en(chain_id, 1);
-    sleep(5);
-    im_set_reset(chain_id, 1);
-    sleep(1);
-    im_set_start_en(chain_id, 1);
-
-    applog(LOG_INFO, "power on chain %d ", chain_id);
-
-    return 0;
-}
-
-
-int im_chain_power_down(int chain_id)
-{
-    im_set_power_en(chain_id, 0);
-    sleep(1);
-    im_set_reset(chain_id, 0);
-    im_set_start_en(chain_id, 0);
-    im_set_led(chain_id, 1);
-
-    return 0;
-}
-
-int im_power_on_all_chain(void)
-{
-    int i;
-
-    for(i = 0; i < ASIC_CHAIN_NUM; i++)
-    {
-        im_chain_power_on(i);
-    }
-
-   return 0;
-}
-
-int im_power_down_all_chain(void)
-{
-    int i;
-
-    for(i = 0; i < ASIC_CHAIN_NUM; i++)
-    {
-        im_chain_power_down(i);
-    }
-
-  return 0;
-}
 

@@ -165,10 +165,5 @@ bool get_nonce(struct A1_chain *a1, uint8_t *nonce, uint8_t *chip_id, uint8_t *j
 bool set_work(struct A1_chain *a1, uint8_t chip_id, struct work *work, uint8_t queue_states);
 bool abort_work(struct A1_chain *a1);
 
-int im_chain_power_on(int chain_id);
-int im_chain_power_down(int chain_id);
-int im_power_on_all_chain(void);
-int im_power_down_all_chain(void);
-
 #endif
 

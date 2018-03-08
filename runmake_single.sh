@@ -4,7 +4,7 @@
 ./autogen.sh
 
 #ROOTFS_DIR=$1
-ROOTFS_DIR=/home/public/yex/check_from_git/check_from_std/work_by_date/service_0228/rootfs
+ROOTFS_DIR=/home/public/yex/check_from_git/check_from_std/work_by_date/service_0309/rootfs
 MAKE_JOBS=$2
 #MAKE_JOBS=8
 ROOTFS_DIR_G19=$3

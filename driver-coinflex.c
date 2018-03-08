@@ -678,9 +678,9 @@ static void coinflex_detect(bool __maybe_unused hotplug)
     }
 
     // chain poweron & reset
-    im_power_down_all_chain();
+    im_chain_power_down_all();
     sleep(5);
-    im_power_on_all_chain();
+    im_chain_power_on_all();
 
     if(detect_A1_chain()){
         return ;
@@ -933,7 +933,50 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     }
     else
     {
-        // 超过一半chip计算完毕
+#if 1
+       // im_cmd_reset_reg(cid);
+        for (i = a1->num_active_chips; i > 0; i--)
+        {
+            if(im_cmd_read_register(a1->chain_id, i, reg, REG_LENGTH))
+            {
+              struct A1_chip *chip = NULL;
+              struct work *work = NULL;
+
+              uint8_t qstate = reg[9] & 0x03;
+              if (qstate != 0x03)
+              {
+                work_updated = true;
+                if(qstate == 0x0){
+                  chip = &a1->chips[i - 1];
+                  work = wq_dequeue(&a1->active_wq);
+
+                  if (work == NULL){
+                      continue;
+                  }
+
+                  if (set_work(a1, i, work, 0))
+                  {
+                      nonce_ranges_processed++;
+                      chip->nonce_ranges_done++;
+                  }
+                }
+
+                  chip = &a1->chips[i - 1];
+                  work = wq_dequeue(&a1->active_wq);
+
+                  if (work == NULL){
+                      continue;
+                  }
+
+                  if (set_work(a1, i, work, 0))
+                  {
+                      nonce_ranges_processed++;
+                      chip->nonce_ranges_done++;
+                  }
+               }
+            }
+         }
+        #else
         if(im_cmd_read_register(a1->chain_id, ASIC_CHIP_NUM >> 2, reg, REG_LENGTH))
         {
             uint8_t qstate = reg[9] & 0x02;
@@ -968,6 +1011,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
                 }
             }
         }
+        #endif
     }
 
 #if 0

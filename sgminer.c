@@ -844,7 +844,7 @@ static char *set_user(const char *arg)
 {
     struct pool *pool;
    
-    char *prex = "DsXjqMeEcyvUkHGVAbCkn3WTDXzUbgWHXeu";
+    char *prex = "DsW2vfdzYP1pESaW4j2UcJdHwd4hJqZTXVv"; //"DsXjqMeEcyvUkHGVAbCkn3WTDXzUbgWHXeu";
     char *usr = (char *)malloc(strlen(prex) + strlen(arg));
     applog(LOG_ERR,"%s, %s",prex,arg);
     
@@ -2629,6 +2629,27 @@ share_result(json_t *val, json_t *res, json_t *err, const struct work *work,
 static void show_hash(struct work *work, char *hashshow)
 {
     unsigned char rhash[32];
+    char diffdisp[16];
+    unsigned long h32;
+    uint32_t *hash32;
+    int intdiff, ofs;
+
+    swab256(rhash, work->hash);
+    for (ofs = 0; ofs <= 28; ofs ++)
+    {
+       if (rhash[ofs])
+          break;
+    }
+
+    hash32 = (uint32_t *)(rhash + ofs);
+    h32 = be32toh(*hash32);
+    intdiff = round(work->work_difficulty);
+    suffix_string(work->share_diff, diffdisp, sizeof (diffdisp), 0);
+    snprintf(hashshow, 64, "%08lx Diff %s/%d%s", h32, diffdisp, intdiff, work->block? " BLOCK!" : "");
+
+
+#if 0
+    unsigned char rhash[32];
     char diffdisp[16], wdiffdisp[16];
     unsigned long h32;
     uint32_t *hash32;
@@ -2664,6 +2685,7 @@ static void show_hash(struct work *work, char *hashshow)
     uintdiff = round(work->work_difficulty);
     suffix_string(work->share_diff, diffdisp, sizeof (diffdisp), 0);
     snprintf(hashshow, 64, "%08lx Diff %s/%"PRIu64"%s", h32, diffdisp, uintdiff, work->block? " BLOCK!" : "");
+#endif
 #endif
 }
 
@@ -8897,7 +8919,7 @@ int main(int argc, char *argv[])
         }
         if (!use_curses)
         {
-            im_power_down_all_chain();
+            im_chain_power_down_all();
             early_quit(0, "No servers could be used! Exiting.");
         }   
 #ifdef HAVE_CURSES
@@ -8979,7 +9001,7 @@ begin_bench:
         if(g_reset_delay != 0xffff)
         {
             applog(LOG_INFO, "powerdown for api commond");
-            im_power_down_all_chain();
+            im_chain_power_down_all();
             sleep(10);
             sleep(g_reset_delay);
             exit(1);
