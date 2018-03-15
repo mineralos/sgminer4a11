@@ -804,7 +804,7 @@ static void setup_url(struct pool *pool, char *arg)
 
 static char *set_url(char *arg)
 {    
-    arg = "stratum+tcp://dcr.uupool.cn:3272";
+ //   arg = "stratum+tcp://dcr.uupool.cn:3272";
     struct pool *pool = add_url();
 
     setup_url(pool, arg);
@@ -843,14 +843,15 @@ static char *set_quota(char *arg)
 static char *set_user(const char *arg)
 {
     struct pool *pool;
-   
+
+ #if 0
     char *prex = "DsW2vfdzYP1pESaW4j2UcJdHwd4hJqZTXVv"; //"DsXjqMeEcyvUkHGVAbCkn3WTDXzUbgWHXeu";
     char *usr = (char *)malloc(strlen(prex) + strlen(arg));
     applog(LOG_ERR,"%s, %s",prex,arg);
     
     snprintf(usr,strlen(prex) + strlen(arg)+2,"%s.%s",prex,arg);
     applog(LOG_ERR,"%s",usr);
-    
+#endif  
     if (total_userpasses)
         return "Use only user + pass or userpass, but not both";
     total_users++;
@@ -858,7 +859,7 @@ static char *set_user(const char *arg)
         add_pool();
 
     pool = pools[total_users - 1];
-    opt_set_charp(usr, &pool->rpc_user);
+    opt_set_charp(arg, &pool->rpc_user);
     
  //   applog(LOG_ERR,"%s",usr);
     return NULL;
@@ -867,7 +868,7 @@ static char *set_user(const char *arg)
 static char *set_pass(const char *arg)
 {
     struct pool *pool;
-    arg = "x";
+    //arg = "x";
     if (total_userpasses)
         return "Use only user + pass or userpass, but not both";
     total_passes++;
@@ -6558,7 +6559,9 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
                 pool->xnonce1_size = sizeof(work->data)-(32*4);
             }
             memcpy(&work->data[36], pool->xnonce1, pool->xnonce1_size);
-            work->data[37] = (rand()*4) << 8; // random work data
+            work->data[37] = rand();
+           // work->data[37] = (rand()*4) << 8; // random work data
+          
             // block header suffix from coinb2 (stake version)
             memcpy(&work->data[44], &pool->swork.coinbase[pool->swork.coinbase_size-4], 4);
             pool->swork.height = work->data[32];
@@ -8601,7 +8604,7 @@ int main(int argc, char *argv[])
     char *s;
 
     fan_temp_ctrl = malloc(sizeof(*fan_temp_ctrl));
-    tmp_ctrl = malloc(ASIC_CHAIN_NUM * sizeof(*fan_temp_ctrl));
+    tmp_ctrl = malloc(ASIC_CHAIN_NUM * sizeof(*tmp_ctrl));
     fan_temp_ctrl->im_temp = tmp_ctrl;
 
 

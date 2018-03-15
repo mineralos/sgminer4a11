@@ -608,8 +608,8 @@ temp_config.temp_lo_thr = 652;
 temp_config.temp_start_thr = 550;
 temp_config.dangerous_stat_temp = 460;
 temp_config.work_temp = 485;
-
-im_fan_temp_init(&temp_config,0);
+temp_config.default_fan_speed = 60;
+im_fan_temp_init(0,temp_config);
 
 }
 
@@ -896,7 +896,6 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 
         if (job_id < 1 || job_id > 4){
             applog(LOG_WARNING, "%d: chip %d: result has wrong ""job_id %d", cid, chip_id, job_id);
-            //            flush_spi(a1);    // hub - duanhao
             continue;
         }
 
