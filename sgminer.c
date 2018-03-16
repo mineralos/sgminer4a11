@@ -357,7 +357,6 @@ static int include_count;
 #define JSON_MAX_DEPTH 10
 #define JSON_MAX_DEPTH_ERR "Too many levels of JSON includes (limit 10) or a loop"
 #define JSON_WEB_ERROR "WEB config err"
-#define TEMP_UPDATE_INT_MS  10000
 
 
 #if defined(unix) || defined(__APPLE__)
@@ -5843,9 +5842,14 @@ static void *stratum_sthread(void *userdata)
      
        nonce2hex = malloc(pool->xnonce1_size);
        memset(nonce2hex,0,pool->xnonce1_size);
-       memcpy(nonce2hex+pool->xnonce1_size-4,pool->xnonce1+pool->xnonce1_size-4,4);
-       memcpy(nonce2hex+pool->xnonce1_size-8,(const unsigned char*)&work->data[37],4);
 
+       if(pool->xnonce1_size > 4)
+       {
+        memcpy(nonce2hex+pool->xnonce1_size-4,pool->xnonce1+pool->xnonce1_size-4,4);
+        memcpy(nonce2hex+pool->xnonce1_size-8,(const unsigned char*)&work->data[37],4);
+        }else
+        memcpy(nonce2hex, (const unsigned char*)&work->data[37], pool->xnonce1_size);
+        
        xnonce2str = bin2hex(nonce2hex, pool->xnonce1_size);
       // xnonce2str = bin2hex((const unsigned char*)&work->data[36], pool->xnonce1_size);
         

@@ -68,7 +68,7 @@
 
 #define REPLY_SIZE              (2)
 #define BUF_SIZE                (128)
-#define TEMP_UPDATE_INT_MS  10000
+//#define TEMP_UPDATE_INT_MS  10000
 #define CHECK_DISABLE_TIME  0
 
 static int ret_pll[ASIC_CHAIN_NUM] = {0};
@@ -606,9 +606,9 @@ im_temp_config_s temp_config;
 temp_config.temp_hi_thr = 408;
 temp_config.temp_lo_thr = 652;
 temp_config.temp_start_thr = 550;
-temp_config.dangerous_stat_temp = 460;
-temp_config.work_temp = 485;
-temp_config.default_fan_speed = 60;
+temp_config.dangerous_stat_temp = 445;
+temp_config.work_temp = 483;
+temp_config.default_fan_speed = 100;
 im_fan_temp_init(0,temp_config);
 
 }
@@ -714,10 +714,10 @@ static void coinflex_flush_work(struct cgpu_info *coinflex)
 
     mutex_lock(&a1->lock);
     /* stop chips hashing current work */
-    if (!abort_work(a1)) 
-    {
-        applog(LOG_ERR, "%d: failed to abort work in chip chain!", cid);
-    }
+  //  if (!abort_work(a1)) 
+   // {
+  //      applog(LOG_ERR, "%d: failed to abort work in chip chain!", cid);
+  //  }
     /* flush the work chips were currently hashing */
     for (i = 0; i < a1->num_active_chips; i++) 
     {
@@ -736,11 +736,11 @@ static void coinflex_flush_work(struct cgpu_info *coinflex)
 
         chip->last_queued_id = 0;
 
-        if(!im_cmd_resetjob(a1->chain_id, i+1, buffer))
-        {
-            applog(LOG_WARNING, "chip %d clear work failed", i);
-            continue;
-        }
+       // if(!im_cmd_resetjob(a1->chain_id, i+1, buffer))
+       // {
+      //      applog(LOG_WARNING, "chip %d clear work failed", i);
+      //      continue;
+      //  }
 
         //applog(LOG_INFO, "chip :%d flushing queued work success", i);
     }

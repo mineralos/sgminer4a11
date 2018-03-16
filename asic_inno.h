@@ -38,6 +38,8 @@
 #define BROKEN_CHIP_THRESHOLD   (1)
 #define WEAK_CHIP_SYS_CLK       (600 * 1000)
 #define BROKEN_CHIP_SYS_CLK     (400 * 1000)
+#define TEMP_UPDATE_INT_MS  5000
+
 
 #ifdef CHIP_A11
 #define CHIP_PLL_DEF            (30)
