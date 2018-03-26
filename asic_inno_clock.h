@@ -19,13 +19,13 @@
                            //     0:  Internal  SPI  frequency  is System  clock  frequency  divide 128
 
 
-#ifdef CHIP_A11
+#if defined(CHIP_A11) || defined(CHIP_A12)   
 #define A4_PLL(prediv,fbdiv,postdiv) ((prediv<<(89-64))|fbdiv<<(80-64)|0b010<<(77-64)|postdiv<<(78-64)|0x02)
 #else
 #define A4_PLL(prediv,fbdiv,postdiv) ((prediv<<(89-64))|fbdiv<<(80-64)|0b010<<(77-64)|postdiv<<(70-64))
 #endif
 
-#define A12_PLL_LV_NUM          (359)
+#define PLL_LV_NUM          (359)
 
 typedef enum
 {
@@ -112,7 +112,7 @@ struct A1_config_options {
 void A1_SetA1PLLClock(struct A1_chain *a1,int pllClkIdx);
 int A1_ConfigA1PLLClock(int optPll);
 
-extern const struct PLL_Clock PLL_Clk_12Mhz[A12_PLL_LV_NUM];
+extern const struct PLL_Clock PLL_Clk_12Mhz[PLL_LV_NUM];
 
 
 

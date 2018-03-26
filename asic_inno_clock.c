@@ -15,7 +15,7 @@
 #include "asic_inno_clock.h"
 
 
-const struct PLL_Clock PLL_Clk_12Mhz[A12_PLL_LV_NUM]={
+const struct PLL_Clock PLL_Clk_12Mhz[PLL_LV_NUM]={
     {  0,   30, A4_PLL(1,  80, 5)},
     {  1,   32, A4_PLL(1,  84, 5)},
     {  2,   33, A4_PLL(1,  88, 5)},
@@ -386,16 +386,18 @@ int A1_ConfigA1PLLClock(int optPll)
 
     if(optPll>0){
         pllIdx=0;
-        if(optPll<=PLL_Clk_12Mhz[0].speedMHz) {
+        if(optPll<=PLL_Clk_12Mhz[0].speedMHz) 
+		{
             pllIdx=0; //found
         }else{
-            for(i=1; i < A12_PLL_LV_NUM; i++){
-                if((optPll<PLL_Clk_12Mhz[i].speedMHz)&&(optPll>=PLL_Clk_12Mhz[i-1].speedMHz)){
+            for(i = 1; i < PLL_LV_NUM; i++)
+                if((optPll<PLL_Clk_12Mhz[i].speedMHz)&&(optPll>=PLL_Clk_12Mhz[i-1].speedMHz))
+				{
                     pllIdx=i-1; //found
                     break;
                 }
             }
-        }
+        
         applog(LOG_NOTICE, "A1 = %d,%d", optPll, pllIdx);
         applog(LOG_NOTICE, "A1 PLL Clock = %dMHz",PLL_Clk_12Mhz[pllIdx].speedMHz);
     }
