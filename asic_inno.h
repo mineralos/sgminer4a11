@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include "elist.h"
 #include "im_drv.h"
-#include "im_lib.h"
 
 #define CHIP_A11
 #define NO_FAN_CTRL

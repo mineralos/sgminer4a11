@@ -28,7 +28,6 @@ extern char *curly;
 #include <sys/types.h>
 #include "inno_log.h"
 #include "im_drv.h"
-#include "im_lib.h"
 
 #ifndef WIN32
 # include <sys/socket.h>

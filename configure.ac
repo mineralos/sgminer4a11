@@ -165,11 +165,7 @@ else
 	])
 fi
 
-if test x$ltctech!= xnono; then
-	want_usbutils=true
-else
-	want_usbutils=false
-fi
+want_usbutils=false
 
 AM_CONDITIONAL([WANT_USBUTILS], [test x$want_usbutils != xfalse])
 AM_CONDITIONAL([HAVE_CURSES], [test x$curses = xyes])
@@ -212,8 +208,26 @@ fi
 
 AM_CONDITIONAL([WANT_STATIC_LIBUSB], [test x$dlibusb = xno])
 
-AC_CONFIG_SUBDIRS([compat/jansson-2.5])
-JANSSON_LIBS="compat/jansson-2.5/src/.libs/libjansson.a"
+djansson="yes"
+case $target in
+	*-*-freebsd*)
+		JANSSON_LIBS="-ljansson"
+		JANSSON_CFLAGS=""
+		AC_DEFINE(HAVE_JANSSON, 1, [Define if you have jansson >= 2.6])
+		;;
+	*)
+		PKG_CHECK_MODULES(JANSSON, jansson >= 2.6, [AC_DEFINE(HAVE_JANSSON, 1, [Define if you have jansson >= 2.6])], [djansson="no"])
+		;;
+esac
+
+if test "x$djansson" = xno; then
+	AC_CONFIG_SUBDIRS([compat/jansson-2.9])
+	JANSSON_LIBS="compat/jansson-2.9/src/.libs/libjansson.a"
+fi
+
+AM_CONDITIONAL([WANT_STATIC_JANSSON], [test x$djansson = xno])
+
+AC_CHECK_HEADERS([uthash.h])
 
 PKG_PROG_PKG_CONFIG()
 

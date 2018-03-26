@@ -1,7 +1,7 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
-JANSSON_CPPFLAGS= -I$(top_builddir)/compat/jansson-2.5/src -I$(top_srcdir)/compat/jansson-2.5/src
+JANSSON_CPPFLAGS= -I$(top_builddir)/compat/jansson-2.9/src -I$(top_srcdir)/compat/jansson-2.9/src
 
 EXTRA_DIST	= example.conf linux-usb-sgminer \
 		  api-example.php miner.php	\
@@ -43,8 +43,8 @@ sgminer_SOURCES	+= noncedup.c
 
 sgminer_SOURCES += scrypt.c scrypt.h
 
-sgminer_SOURCES += darkcoin.c darkcoin.h
-sgminer_SOURCES += marucoin.c marucoin.h
+#sgminer_SOURCES += darkcoin.c darkcoin.h
+#sgminer_SOURCES += marucoin.c marucoin.h
 
 # Device drivers
 if HAS_LTCTECH
