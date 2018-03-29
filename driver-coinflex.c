@@ -195,7 +195,7 @@ void exit_A1_chain(struct A1_chain *a1)
     }
     free(a1->chips);
 
-    im_chain_power_down(a1->chain_id);
+    mcompat_chain_power_down(a1->chain_id);
 
     a1->chips = NULL;
     free(a1);
@@ -218,7 +218,7 @@ int  cfg_tsadc_divider(struct A1_chain *a1,uint32_t pll_clk)
 
     buffer[5] = 0x00 | tsadc_divider;
 
-    if(!im_cmd_read_write_reg0d(a1->chain_id, ADDR_BROADCAST, buffer, REG_LENGTH, readbuf)){
+    if(!mcompat_cmd_read_write_reg0d(a1->chain_id, ADDR_BROADCAST, buffer, REG_LENGTH, readbuf)){
         applog(LOG_WARNING, "#####Write t/v sensor Value Failed!\n");
     }else{
         applog(LOG_WARNING, "#####Write t/v sensor Value Success!\n");
@@ -230,7 +230,7 @@ void chain_detect_reload(struct A1_chain *a1)
 {
     int cid = a1->chain_id;
 
-    int n_chips = im_cmd_bist_start(cid, ADDR_BROADCAST);
+    int n_chips = mcompat_cmd_bist_start(cid, ADDR_BROADCAST);
     if(likely(n_chips > 0) && likely(n_chips != 0xff)){
         a1->num_chips = n_chips;
     }
@@ -239,7 +239,7 @@ void chain_detect_reload(struct A1_chain *a1)
 
     usleep(10000);
 
-    if(!im_cmd_bist_collect(cid, ADDR_BROADCAST)){
+    if(!mcompat_cmd_bist_collect(cid, ADDR_BROADCAST)){
         applog(LOG_NOTICE, "[reload]bist collect fail");
         return ;
     }
@@ -263,18 +263,18 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
 
     applog(LOG_INFO, "%d: A1 init chain reload", chain_id);
 
-    //    result = im_cmd_resetbist(a1->chain_id, ADDR_BROADCAST, buffer);
-    //applog(LOG_INFO, "im_cmd_resetbist(): %d - %02X", result, buffer[0]);
+    //    result = mcompat_cmd_resetbist(a1->chain_id, ADDR_BROADCAST, buffer);
+    //applog(LOG_INFO, "mcompat_cmd_resetbist(): %d - %02X", result, buffer[0]);
     //    sleep(1);
 
     //bist mask
-    //    im_cmd_read_register(a1->chain_id, 0x01, reg, REG_LENGTH);
+    //    mcompat_cmd_read_register(a1->chain_id, 0x01, reg, REG_LENGTH);
     //    memcpy(src_reg, reg, REG_LENGTH);
     //    src_reg[7] = src_reg[7] | 0x10;
-    //    im_cmd_write_register(a1->chain_id, ADDR_BROADCAST, src_reg, REG_LENGTH);
+    //    mcompat_cmd_write_register(a1->chain_id, ADDR_BROADCAST, src_reg, REG_LENGTH);
     //    usleep(200);
 
-    im_set_spi_speed(a1->chain_id, 4);    // 4: 6250000
+    mcompat_set_spi_speed(a1->chain_id, 4);    // 4: 6250000
     usleep(100000);
 
     chain_detect_reload(a1);
@@ -294,7 +294,7 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
     a1->chips = calloc(a1->num_active_chips, sizeof(struct A1_chip));
     assert (a1->chips != NULL);
 
-    if (!im_cmd_bist_fix(a1->chain_id, ADDR_BROADCAST)){
+    if (!mcompat_cmd_bist_fix(a1->chain_id, ADDR_BROADCAST)){
         goto failure;
     }
 
@@ -429,7 +429,7 @@ static int inc_pll(void)
         for(j=0; j<ASIC_CHAIN_NUM; j++)
         {
             if (-1 == ret_pll[j]){
-                im_chain_power_down(j);
+                mcompat_chain_power_down(j);
             }
             else
             {
@@ -476,8 +476,8 @@ static void recfg_vid()
         {
             for(j = CHIP_VID_DEF + 1; j <= opt_voltage1; j++)
             {
-                applog(LOG_ERR,"im_set_vid(chain=%d, vid=%d)\n", i, j);
-                im_set_vid(i, j);
+                applog(LOG_ERR,"mcompat_set_vid(chain=%d, vid=%d)\n", i, j);
+                mcompat_set_vid(i, j);
                 usleep(500000);
             }
         }
@@ -485,8 +485,8 @@ static void recfg_vid()
         {
             for(j = CHIP_VID_DEF - 1; j >= opt_voltage1; j--)
             {
-                applog(LOG_ERR,"im_set_vid(chain=%d, vid=%d)\n", i, j);
-                im_set_vid(i, j);
+                applog(LOG_ERR,"mcompat_set_vid(chain=%d, vid=%d)\n", i, j);
+                mcompat_set_vid(i, j);
                 usleep(500000);
             }
         }
@@ -499,7 +499,7 @@ static bool detect_A1_chain(void)
     uint8_t buffer[4] = {0};
 
     for(i = 0; i < ASIC_CHAIN_NUM; i++){    
-        if(im_get_plug(i) != 0)
+        if(mcompat_get_plug(i) != 0)
         {
             applog(LOG_ERR, "chain %d power on fail", i);
             chain[i] = NULL;
@@ -507,8 +507,8 @@ static bool detect_A1_chain(void)
             continue;
         }
 
-        im_set_vid(i, CHIP_VID_DEF);   // init vid
-        im_set_spi_speed(i, 0);        // init spi speped 0: 400K
+        mcompat_set_vid(i, CHIP_VID_DEF);   // init vid
+        mcompat_set_spi_speed(i, 0);        // init spi speped 0: 400K
         usleep(10000);
 
         chain[i] = init_A1_chain(i);
@@ -520,7 +520,7 @@ static bool detect_A1_chain(void)
             res++;
             chain_flag[i] = 1;
         }
-        if(!im_cmd_resetall(i, ADDR_BROADCAST, buffer))
+        if(!mcompat_cmd_resetall(i, ADDR_BROADCAST, buffer))
         {
             applog(LOG_ERR, "failed to reset chain %d!", i);
         }
@@ -553,7 +553,7 @@ static bool detect_A1_chain(void)
         add_cgpu(cgpu);
 
         // led on
-        im_set_led(chain[i]->chain_id, 0);
+        mcompat_set_led(chain[i]->chain_id, 0);
 
         applog(LOG_WARNING, "Detected the %d A1 chain with %d chips / %d cores",i, chain[i]->num_active_chips, chain[i]->num_cores);
     }
@@ -602,14 +602,14 @@ static void config_fan_module()
        };
        */
 
-im_temp_config_s temp_config;
+mcompat_temp_config_s temp_config;
 temp_config.temp_hi_thr = 408;
 temp_config.temp_lo_thr = 652;
 temp_config.temp_start_thr = 550;
 temp_config.dangerous_stat_temp = 445;
 temp_config.work_temp = 483;
 temp_config.default_fan_speed = 100;
-im_fan_temp_init(0,temp_config);
+mcompat_fan_temp_init(0,temp_config);
 
 }
 
@@ -678,9 +678,9 @@ static void coinflex_detect(bool __maybe_unused hotplug)
     }
 
     // chain poweron & reset
-    im_chain_power_down_all();
+    mcompat_chain_power_down_all();
     sleep(5);
-    im_chain_power_on_all();
+    mcompat_chain_power_on_all();
 
     if(detect_A1_chain()){
         return ;
@@ -736,7 +736,7 @@ static void coinflex_flush_work(struct cgpu_info *coinflex)
 
         chip->last_queued_id = 0;
 
-       // if(!im_cmd_resetjob(a1->chain_id, i+1, buffer))
+       // if(!mcompat_cmd_resetjob(a1->chain_id, i+1, buffer))
        // {
       //      applog(LOG_WARNING, "chip %d clear work failed", i);
       //      continue;
@@ -868,11 +868,11 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
         show_log[cid]++;
         check_disbale_flag[cid]++;
 
-        if(fan_temp_ctrl->im_temp[cid].final_temp_avg && fan_temp_ctrl->im_temp[cid].final_temp_hi && fan_temp_ctrl->im_temp[cid].final_temp_lo)
+        if(fan_temp_ctrl->mcompat_temp[cid].final_temp_avg && fan_temp_ctrl->mcompat_temp[cid].final_temp_hi && fan_temp_ctrl->mcompat_temp[cid].final_temp_lo)
         {
-            cgpu->temp = (float)((594 - fan_temp_ctrl->im_temp[cid].final_temp_avg)* 5) / 7.5;
-            cgpu->temp_max = (float)((594 - fan_temp_ctrl->im_temp[cid].final_temp_hi)* 5) / 7.5;
-            cgpu->temp_min = (float)((594 - fan_temp_ctrl->im_temp[cid].final_temp_lo)* 5) / 7.5;
+            cgpu->temp = (float)((594 - fan_temp_ctrl->mcompat_temp[cid].final_temp_avg)* 5) / 7.5;
+            cgpu->temp_max = (float)((594 - fan_temp_ctrl->mcompat_temp[cid].final_temp_hi)* 5) / 7.5;
+            cgpu->temp_min = (float)((594 - fan_temp_ctrl->mcompat_temp[cid].final_temp_lo)* 5) / 7.5;
         }
 
         cgpu->fan_duty = fan_temp_ctrl->speed;
@@ -921,7 +921,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     }
 
 #ifdef USE_AUTONONCE
-    im_cmd_auto_nonce(a1->chain_id, 0, REG_LENGTH);   // disable autononce
+    mcompat_cmd_auto_nonce(a1->chain_id, 0, REG_LENGTH);   // disable autononce
 #endif
 
     /* check for completed works */
@@ -933,10 +933,10 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     else
     {
 #if 1
-       // im_cmd_reset_reg(cid);
+       // mcompat_cmd_reset_reg(cid);
         for (i = a1->num_active_chips; i > 0; i--)
         {
-            if(im_cmd_read_register(a1->chain_id, i, reg, REG_LENGTH))
+            if(mcompat_cmd_read_register(a1->chain_id, i, reg, REG_LENGTH))
             {
               struct A1_chip *chip = NULL;
               struct work *work = NULL;
@@ -976,7 +976,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
             }
          }
         #else
-        if(im_cmd_read_register(a1->chain_id, ASIC_CHIP_NUM >> 2, reg, REG_LENGTH))
+        if(mcompat_cmd_read_register(a1->chain_id, ASIC_CHIP_NUM >> 2, reg, REG_LENGTH))
         {
             uint8_t qstate = reg[9] & 0x02;
 
@@ -1031,7 +1031,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 
 
 #ifdef USE_AUTONONCE
-    im_cmd_auto_nonce(a1->chain_id, 1, REG_LENGTH);   // enable autononce
+    mcompat_cmd_auto_nonce(a1->chain_id, 1, REG_LENGTH);   // enable autononce
 #endif
     mutex_unlock(&a1->lock);
 

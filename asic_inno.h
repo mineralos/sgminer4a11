@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include "elist.h"
-#include "im_drv.h"
+#include "mcompat_drv.h"
 
 #define CHIP_A11
 #define NO_FAN_CTRL
