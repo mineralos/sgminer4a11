@@ -26,7 +26,6 @@ extern char *curly;
 #include "logging.h"
 #include "util.h"
 #include <sys/types.h>
-#include "inno_log.h"
 #include "mcompat_drv.h"
 
 #ifndef WIN32
