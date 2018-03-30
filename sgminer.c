@@ -28,9 +28,9 @@
 #include <assert.h>
 #include <signal.h>
 #include <limits.h>
-#include "asic_inno.h"
-#include "asic_inno_cmd.h"
-#include "asic_inno_clock.h"
+#include "dragonmint_a11.h"
+#include "dragonmint_a11_cmd.h"
+#include "dragonmint_a11_clock.h"
 
 #include "sph/sph_sha2.h"
 

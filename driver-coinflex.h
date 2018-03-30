@@ -30,7 +30,7 @@
 
 
 #include "miner.h"
-#include "asic_inno_cmd.h"
+#include "dragonmint_a11_cmd.h"
 
 #define COINFLEX_DRIVER_NAME                            ("Coinflex")
 #define COINFLEX_DRIVER_VER                             ("1.0")

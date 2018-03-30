@@ -49,12 +49,12 @@
 #include "A1-board-selector.h"
 #include "A1-trimpot-mcp4x.h"
 
-#include "asic_inno.h"
-#include "asic_inno_clock.h"
-#include "asic_inno_cmd.h"
-#include "asic_inno_gpio.h"
+#include "dragonmint_a11.h"
+#include "dragonmint_a11_clock.h"
+#include "dragonmint_a11_cmd.h"
+#include "dragonmint_a11_gpio.h"
 
-#include "inno_fan.h"
+#include "dragonmint_fan.h"
 
 
 

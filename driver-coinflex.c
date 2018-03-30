@@ -50,10 +50,10 @@
 #include "A1-board-selector.h"
 #include "A1-trimpot-mcp4x.h"
 
-#include "asic_inno.h"
-#include "asic_inno_clock.h"
-#include "asic_inno_cmd.h"
-#include "asic_inno_gpio.h"
+#include "dragonmint_a11.h"
+#include "dragonmint_a11_clock.h"
+#include "dragonmint_a11_cmd.h"
+#include "dragonmint_a11_gpio.h"
 
 
 #define WORK_SIZE               (80)
@@ -658,7 +658,7 @@ static void coinflex_detect(bool __maybe_unused hotplug)
     g_hwver = inno_get_hwver();
     g_type = inno_get_miner_type();
 
-    // TODO: 根据接口获取hwver和type
+    // TODO: 锟斤拷锟捷接口伙拷取hwver锟斤拷type
     sys_platform_init(PLATFORM_ZYNQ_HUB_G19, -1, ASIC_CHAIN_NUM, ASIC_CHIP_NUM);
     memset(&s_reg_ctrl,0,sizeof(s_reg_ctrl));
     sys_platform_debug_init(3);

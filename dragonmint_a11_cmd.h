@@ -4,7 +4,7 @@
 #include <pthread.h>
 #include <sys/time.h>
 
-#include "asic_inno.h"
+#include "dragonmint_a11.h"
 
 #define CMD_TYPE_A7         0xb0
 #define CMD_TYPE_A8         0x30
