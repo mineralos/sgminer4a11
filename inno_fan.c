@@ -48,7 +48,7 @@ static void asic_temp_to_float(inno_fan_temp_s *fan_ctrl, int chain_id)
                 (fan_ctrl->temp_arvarge[chain_id] > ERR_LOW_TEMP) || (fan_ctrl->temp_arvarge[chain_id] < ERR_HIGH_TEMP) || \
                 (fan_ctrl->temp_lowest[chain_id] > ERR_LOW_TEMP) || (fan_ctrl->temp_lowest[chain_id] < ERR_HIGH_TEMP) )
         {
-            inno_log(IM_LOG_ERR,"Notice!!! Error temperature for chain %d,h:%d,a:%d,l:%d\n", chain_id, \
+            inno_log(MCOMPAT_LOG_ERR,"Notice!!! Error temperature for chain %d,h:%d,a:%d,l:%d\n", chain_id, \
                 fan_ctrl->temp_highest[chain_id],fan_ctrl->temp_arvarge[chain_id],fan_ctrl->temp_lowest[chain_id]);
             return ;
         }
@@ -105,14 +105,14 @@ void inno_fan_speed_set(inno_fan_temp_s *fan_temp, int speed)
     int fan_id;
     int duty_driver = 0;
     duty_driver = ASIC_INNO_FAN_PWM_FREQ_TARGET / 100 * (100 - speed);
-	inno_log(IM_LOG_ERR, "set fan speed %d\n", speed);
+	inno_log(MCOMPAT_LOG_ERR, "set fan speed %d\n", speed);
     pthread_mutex_lock(&fan_temp->lock);
 
     /* 开启风扇结点 */
     fd = open(ASIC_INNO_FAN_PWM0_DEVICE_NAME, O_RDWR);
     if(fd < 0)
     {
-        inno_log(IM_LOG_ERR, "open %s fail\n", ASIC_INNO_FAN_PWM0_DEVICE_NAME);
+        inno_log(MCOMPAT_LOG_ERR, "open %s fail\n", ASIC_INNO_FAN_PWM0_DEVICE_NAME);
         pthread_mutex_unlock(&fan_temp->lock);
         return;
     }
@@ -121,14 +121,14 @@ void inno_fan_speed_set(inno_fan_temp_s *fan_temp, int speed)
     {
         if(ioctl(fd, IOCTL_SET_FREQ(fan_id), ASIC_INNO_FAN_PWM_FREQ) < 0)
         {
-            inno_log(IM_LOG_ERR,"set fan0 frequency fail\n");
+            inno_log(MCOMPAT_LOG_ERR,"set fan0 frequency fail\n");
             close(fd);
             pthread_mutex_unlock(&fan_temp->lock);
             return ;
         }
         if(ioctl(fd, IOCTL_SET_DUTY(fan_id), duty_driver) < 0)
         {
-            inno_log(IM_LOG_ERR,"set duty fail \n");
+            inno_log(MCOMPAT_LOG_ERR,"set duty fail \n");
             close(fd);
             pthread_mutex_unlock(&fan_temp->lock);
             return ;
@@ -137,7 +137,7 @@ void inno_fan_speed_set(inno_fan_temp_s *fan_temp, int speed)
     close(fd);
     pthread_mutex_unlock(&fan_temp->lock);
 #else
-    inno_log(IM_LOG_ERR, "no fan control\n");
+    inno_log(MCOMPAT_LOG_ERR, "no fan control\n");
 #endif
     return;
 }
@@ -169,22 +169,22 @@ void inno_fan_temp_init(inno_fan_temp_s *fan_temp,int *fan_level)
         asic_temp_clear(fan_temp, chain_id);
     }
 
-    inno_log(IM_LOG_DEBUG, "pwm  name:%s.\n", ASIC_INNO_FAN_PWM0_DEVICE_NAME);
-    inno_log(IM_LOG_DEBUG, "pwm  step:%d.\n", ASIC_INNO_FAN_PWM_STEP);
-    inno_log(IM_LOG_DEBUG, "duty max: %d.\n", ASIC_INNO_FAN_PWM_DUTY_MAX);
-    inno_log(IM_LOG_DEBUG, "targ freq:%d.\n", ASIC_INNO_FAN_PWM_FREQ_TARGET);
-    inno_log(IM_LOG_DEBUG, "freq rate:%d.\n", ASIC_INNO_FAN_PWM_FREQ);
-    inno_log(IM_LOG_DEBUG, "fan speed thrd:%d.\n", ASIC_INNO_FAN_TEMP_MAX_THRESHOLD);
-    inno_log(IM_LOG_DEBUG, "fan up thrd:%d.\n", ASIC_INNO_FAN_TEMP_UP_THRESHOLD);
-    inno_log(IM_LOG_DEBUG, "fan down thrd:%d.\n", ASIC_INNO_FAN_TEMP_DOWN_THRESHOLD);
-    inno_log(IM_LOG_DEBUG, "auto_fan %s, fan_speed %d\n",g_auto_fan == 0?"false":"true", g_fan_speed);
+    inno_log(MCOMPAT_LOG_DEBUG, "pwm  name:%s.\n", ASIC_INNO_FAN_PWM0_DEVICE_NAME);
+    inno_log(MCOMPAT_LOG_DEBUG, "pwm  step:%d.\n", ASIC_INNO_FAN_PWM_STEP);
+    inno_log(MCOMPAT_LOG_DEBUG, "duty max: %d.\n", ASIC_INNO_FAN_PWM_DUTY_MAX);
+    inno_log(MCOMPAT_LOG_DEBUG, "targ freq:%d.\n", ASIC_INNO_FAN_PWM_FREQ_TARGET);
+    inno_log(MCOMPAT_LOG_DEBUG, "freq rate:%d.\n", ASIC_INNO_FAN_PWM_FREQ);
+    inno_log(MCOMPAT_LOG_DEBUG, "fan speed thrd:%d.\n", ASIC_INNO_FAN_TEMP_MAX_THRESHOLD);
+    inno_log(MCOMPAT_LOG_DEBUG, "fan up thrd:%d.\n", ASIC_INNO_FAN_TEMP_UP_THRESHOLD);
+    inno_log(MCOMPAT_LOG_DEBUG, "fan down thrd:%d.\n", ASIC_INNO_FAN_TEMP_DOWN_THRESHOLD);
+    inno_log(MCOMPAT_LOG_DEBUG, "auto_fan %s, fan_speed %d\n",g_auto_fan == 0?"false":"true", g_fan_speed);
 }
 
 bool inno_fan_temp_add(inno_fan_temp_s *fan_temp,int chain_id, int chip_id, int temp)
 {
     if((temp > ERR_LOW_TEMP) || (temp < ERR_HIGH_TEMP))
     {
-        inno_log(IM_LOG_DEBUG,"Notice!!! Error temperature %d for chain %d, chip %d\n",temp, chain_id, chip_id);
+        inno_log(MCOMPAT_LOG_DEBUG,"Notice!!! Error temperature %d for chain %d, chip %d\n",temp, chain_id, chip_id);
         //printf("Notice!!! Error temperature %d for chain %d, chip %d\n",temp, chain_id, chip_id);
         return false;
     }
@@ -206,7 +206,7 @@ bool inno_fan_temp_add(inno_fan_temp_s *fan_temp,int chain_id, int chip_id, int 
 
     fan_temp->temp[chain_id][chip_id-1] = temp;
     pthread_mutex_unlock(&fan_temp->lock);
-   //inno_log(IM_LOG_DEBUG,"chain %d, chip %d, temp %d\n",chain_id, chip_id,fan_temp->temp[chain_id][chip_id-1]);
+   //inno_log(MCOMPAT_LOG_DEBUG,"chain %d, chip %d, temp %d\n",chain_id, chip_id,fan_temp->temp[chain_id][chip_id-1]);
     return true;
 }
 
@@ -220,7 +220,7 @@ int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e i
     switch(inno_type)
     {
         case INNO_TYPE_A4:
-            inno_log(IM_LOG_DEBUG,"Sorry do not have such type named INNO_TYPE_A4\n");
+            inno_log(MCOMPAT_LOG_DEBUG,"Sorry do not have such type named INNO_TYPE_A4\n");
             break;
 
         case INNO_TYPE_A5:
@@ -266,12 +266,12 @@ int inno_fan_temp_highest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e i
 
             break;
         case INNO_TYPE_A9:
-            inno_log(IM_LOG_DEBUG,"Sorry do not have such type named INNO_TYPE_A9\n");
+            inno_log(MCOMPAT_LOG_DEBUG,"Sorry do not have such type named INNO_TYPE_A9\n");
         default:
             break;
 
     }
-//inno_log(IM_LOG_DEBUG,"chain %d, hi:%d\n",chain_id, fan_temp->temp_highest[chain_id]);
+//inno_log(MCOMPAT_LOG_DEBUG,"chain %d, hi:%d\n",chain_id, fan_temp->temp_highest[chain_id]);
     pthread_mutex_unlock(&fan_temp->lock);
     return fan_temp->temp_highest[chain_id];
 }
@@ -286,7 +286,7 @@ int inno_fan_temp_lowest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e in
     switch(inno_type)
     {
         case INNO_TYPE_A4:
-            inno_log(IM_LOG_DEBUG,"Sorry do not have such type named INNO_TYPE_A4\n");
+            inno_log(MCOMPAT_LOG_DEBUG,"Sorry do not have such type named INNO_TYPE_A4\n");
             break;
 
         case INNO_TYPE_A5:
@@ -320,7 +320,7 @@ int inno_fan_temp_lowest(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e in
             break;
 
         case INNO_TYPE_A9:
-            inno_log(IM_LOG_DEBUG,"Sorry do not have such type named INNO_TYPE_A9\n");
+            inno_log(MCOMPAT_LOG_DEBUG,"Sorry do not have such type named INNO_TYPE_A9\n");
         default:
             break;
     }
@@ -338,7 +338,7 @@ int inno_fan_temp_avg(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e inno_
     switch(inno_type)
     {
         case INNO_TYPE_A4:
-            inno_log(IM_LOG_DEBUG,"Sorry do not have such type named INNO_TYPE_A4\n");
+            inno_log(MCOMPAT_LOG_DEBUG,"Sorry do not have such type named INNO_TYPE_A4\n");
             break;
 
         case INNO_TYPE_A5:
@@ -362,7 +362,7 @@ int inno_fan_temp_avg(inno_fan_temp_s *fan_temp, int chain_id, inno_type_e inno_
             break;
 
         case INNO_TYPE_A9:
-            inno_log(IM_LOG_DEBUG,"Sorry do not have such type named INNO_TYPE_A9\n");
+            inno_log(MCOMPAT_LOG_DEBUG,"Sorry do not have such type named INNO_TYPE_A9\n");
         default:
             break;
 
@@ -405,7 +405,7 @@ void inno_fan_speed_update(inno_fan_temp_s *fan_temp)
    for(i=0; i<ASIC_CHAIN_NUM; i++)
    {
    
-     //inno_log(IM_LOG_DEBUG,"hi:%d lo:%d av:%d,valid %d\n",fan_temp->temp_highest[i],fan_temp->temp_lowest[i],fan_temp->temp_arvarge[i],fan_temp->valid_chain[i]);
+     //inno_log(MCOMPAT_LOG_DEBUG,"hi:%d lo:%d av:%d,valid %d\n",fan_temp->temp_highest[i],fan_temp->temp_lowest[i],fan_temp->temp_arvarge[i],fan_temp->valid_chain[i]);
      if((fan_temp->temp_highest[i] > ERR_LOW_TEMP) || (fan_temp->temp_highest[i] < ERR_HIGH_TEMP) || fan_temp->valid_chain[i])
         continue;
 
@@ -443,6 +443,6 @@ void inno_fan_speed_update(inno_fan_temp_s *fan_temp)
         inno_fan_speed_set(fan_temp,fan_temp->speed);
     }
 
-  // inno_log(IM_LOG_DEBUG,"hi %d,spd %d,lid: %d,md %d,list: %d, %d, %d, %d\n",temp_hi,fan_speed[fan_temp->last_fan_temp],fan_temp->last_fan_temp,fan_temp->auto_ctrl,fan_level[0],fan_level[1],fan_level[2],fan_level[3]);
+  // inno_log(MCOMPAT_LOG_DEBUG,"hi %d,spd %d,lid: %d,md %d,list: %d, %d, %d, %d\n",temp_hi,fan_speed[fan_temp->last_fan_temp],fan_temp->last_fan_temp,fan_temp->auto_ctrl,fan_level[0],fan_level[1],fan_level[2],fan_level[3]);
 }
 
