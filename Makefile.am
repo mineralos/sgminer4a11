@@ -62,10 +62,10 @@ sgminer_SOURCES += A1-board-selector-CCD.c A1-board-selector-CCR.c
 sgminer_SOURCES += A1-trimpot-mcp4x.h A1-trimpot-mcp4x.c
 sgminer_SOURCES += i2c-context.c i2c-context.h
 
-sgminer_SOURCES += asic_inno.c
-sgminer_SOURCES += asic_inno_cmd.c
-sgminer_SOURCES += asic_inno_clock.c
-sgminer_SOURCES += asic_inno_gpio.c
+sgminer_SOURCES += asic_b29.c
+sgminer_SOURCES += asic_b29_cmd.c
+sgminer_SOURCES += asic_b29_clock.c
+sgminer_SOURCES += asic_b29_gpio.c
 #sgminer_SOURCES += scrypt.c
 # bitstreamsdir = $(bindir)/bitstreams						# Blocked by HKS 2016.07.05
 # dist_bitstreams_DATA = $(top_srcdir)/bitstreams/README	# Blocked by HKS 2016.07.05

@@ -1949,9 +1949,9 @@ static void ascstatus(struct io_data *io_data, int asc, bool isjson, bool precom
             return;
 
         struct cgpu_info *cgpu = get_devices(dev);
-        float temp = cgpu->temp;
-        float temp_max = cgpu->temp_max;
-        float temp_min = cgpu->temp_min;
+        float temp = (float) cgpu->temp;
+        float temp_max = (float) cgpu->temp_max;
+        float temp_min = (float) cgpu->temp_min;
 
         double dev_runtime;
 

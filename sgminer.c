@@ -28,9 +28,9 @@
 #include <assert.h>
 #include <signal.h>
 #include <limits.h>
-#include "asic_inno.h"
-#include "asic_inno_cmd.h"
-#include "asic_inno_clock.h"
+#include "asic_b29.h"
+#include "asic_b29_cmd.h"
+#include "asic_b29_clock.h"
 
 #include "sph/sph_sha2.h"
 
@@ -77,7 +77,7 @@ char *curly = ":D";
 #if defined(USE_COINFLEX)
 #include "sysendian.h"
 #include "driver-coinflex.h"
-#include "asic_inno_cmd.h"
+#include "asic_b29_cmd.h"
 #endif
 
 struct strategies strategies[] = {
@@ -6862,7 +6862,7 @@ bool submit_nonce(struct thr_info *thr, struct work *work, uint32_t nonce)
 {
     uint32_t t_nonce;
     t_nonce = swab32(nonce);
-    //applog(LOG_INFO, "inno: nonce = %0x,hash 0x%x,%x,%x,%x", t_nonce, work->hash[28],work->hash[29],work->hash[30],work->hash[31]);
+    //applog(LOG_INFO, "b29_: nonce = %0x,hash 0x%x,%x,%x,%x", t_nonce, work->hash[28],work->hash[29],work->hash[30],work->hash[31]);
 
     if (test_nonce(work, t_nonce))
         submit_tested_work(thr, work);
@@ -8998,7 +8998,7 @@ begin_bench:
 
        if (last_temp_time + TEMP_UPDATE_INT_MS < get_current_ms())
        {
-       // inno_fan_speed_update(&g_fan_ctrl);
+       // b29_fan_speed_update(&g_fan_ctrl);
     //    hub_cmd_get_temp(fan_temp_ctrl);
         mcompat_fan_speed_update_hub(fan_temp_ctrl);
         last_temp_time = get_current_ms();

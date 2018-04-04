@@ -507,14 +507,17 @@ struct cgpu_info {
 
     bool new_work;
 
-    float temp;
+    double temp;
     //add by witt
-    float temp_max;
-    float temp_min;
+    double temp_max;
+    double temp_min;
     int chip_num;
 //  int core_num;
-    int fan_duty;
     int pre_heat;
+    
+	int fan_duty;
+	int chainNum;
+	double mhs_av;
     int temp_prewarn[4];
     
     int cutofftemp;
@@ -1564,6 +1567,9 @@ extern struct api_data *api_add_hs(struct api_data *root, char *name, double *da
 extern struct api_data *api_add_diff(struct api_data *root, char *name, double *data, bool copy_data);
 extern struct api_data *api_add_percent(struct api_data *root, char *name, double *data, bool copy_data);
 extern struct api_data *api_add_avg(struct api_data *root, char *name, float *data, bool copy_data);
+
+#define ROOT_ADD_API(FUNC, NAME, VAR, BOOL) root = api_add_##FUNC(root, NAME, &VAR, BOOL);
+
 
 extern void dupalloc(struct cgpu_info *cgpu, int timelimit);
 extern bool isdupnonce(struct cgpu_info *cgpu, struct work *work, uint32_t nonce);

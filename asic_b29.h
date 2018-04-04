@@ -1,5 +1,5 @@
-#ifndef _ASIC_INNO_
-#define _ASIC_INNO_
+#ifndef _ASIC_B29_
+#define _ASIC_B29_
 
 #include <stdint.h>
 #include "elist.h"
@@ -54,8 +54,8 @@
 
 #define USE_AUTONONCE
 
-#define INNO_MINER_TYPE_FILE            "/tmp/type"
-#define INNO_HARDWARE_VERSION_FILE      "/tmp/hwver"
+#define B29_MINER_TYPE_FILE            "/tmp/type"
+#define B29_HARDWARE_VERSION_FILE      "/tmp/hwver"
 
 typedef enum{
     HARDWARE_VERSION_NONE = 0x00,
@@ -64,16 +64,16 @@ typedef enum{
 } hardware_version_e;
     
 typedef enum{
-    INNO_TYPE_NONE = 0x00,
-    INNO_TYPE_A4,
-    INNO_TYPE_A5,
-    INNO_TYPE_A6,
-    INNO_TYPE_A7,
-    INNO_TYPE_A8,
-    INNO_TYPE_A9,
-	INNO_TYPE_A11,
-    INNO_TYPE_A12,
-}inno_type_e;
+    B29_TYPE_NONE = 0x00,
+    B29_TYPE_A4,
+    B29_TYPE_A5,
+    B29_TYPE_A6,
+    B29_TYPE_A7,
+    B29_TYPE_A8,
+    B29_TYPE_A9,
+	B29_TYPE_A11,
+    B29_TYPE_A12,
+}b29_type_e;
 
 typedef struct{
    float highest_vol[ASIC_CHAIN_NUM];    /* chip temp bits */;
@@ -81,7 +81,7 @@ typedef struct{
    float avarge_vol[ASIC_CHAIN_NUM];    /* chip temp bits */; 
    int stat_val[ASIC_CHAIN_NUM][ASIC_CHIP_NUM];
    int stat_cnt[ASIC_CHAIN_NUM][ASIC_CHIP_NUM];
-}inno_reg_ctrl_t;
+}b29_reg_ctrl_t;
 
 struct work_ent {
     struct work *work;
@@ -116,6 +116,13 @@ struct A1_chip {
     int temp;
 
     int nVol;
+    
+	int tunedir; // Tune direction, +/- 1
+
+	int pll;
+	int cycles;
+	double product; // Hashrate product of cycles / time
+	bool pllOptimal; // We've stopped tuning frequency
 };
 
 struct A1_chain {
@@ -126,7 +133,7 @@ struct A1_chain {
     int num_cores;
     int num_active_chips;
     int chain_skew;
-    int vid;
+    //int vid;
     uint8_t spi_tx[MAX_CMD_LENGTH];
     uint8_t spi_rx[MAX_CMD_LENGTH];
     struct spi_ctx *spi_ctx;
@@ -134,6 +141,16 @@ struct A1_chain {
     pthread_mutex_t lock;
 
     struct work_queue active_wq;
+	bool throttle; /* Needs throttling */
+	int cycles; /* Cycles used for iVid tuning */
+	int tunedir; // Tune direction, -1..+1
+	int pll; /* Current chain speed */
+	int base_pll; /* Initial chain speed */
+
+	int vid; /* Current actual iVid */
+	double product; // Hashrate product of cycles / time
+	bool VidOptimal; // We've stopped tuning voltage
+	bool pllOptimal; // We've stopped tuning frequency
 
     /* mark chain disabled, do not try to re-enable it */
     bool disabled;
@@ -147,12 +164,12 @@ struct A1_chain {
     int work_start_delay;
 };
 
-bool inno_check_voltage(struct A1_chain *a1, int chip_id, inno_reg_ctrl_t *s_reg_ctrl);
-void inno_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor);
-int inno_get_voltage_stats(struct A1_chain *a1, inno_reg_ctrl_t *s_reg_ctrl);
+bool b29_check_voltage(struct A1_chain *a1, int chip_id, b29_reg_ctrl_t *s_reg_ctrl);
+void b29_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor);
+int b29_get_voltage_stats(struct A1_chain *a1, b29_reg_ctrl_t *s_reg_ctrl);
 
-extern hardware_version_e inno_get_hwver(void);
-extern inno_type_e inno_get_miner_type(void);
+extern hardware_version_e b29_get_hwver(void);
+extern b29_type_e b29_get_miner_type(void);
 
 int get_current_ms(void);
 bool is_chip_disabled(struct A1_chain *a1, uint8_t chip_id);

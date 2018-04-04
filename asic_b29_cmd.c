@@ -10,9 +10,9 @@
 #include "miner.h"
 #include "util.h"
 
-#include "asic_inno.h"
-#include "asic_inno_cmd.h"
-#include "asic_inno_clock.h"
+#include "asic_b29.h"
+#include "asic_b29_cmd.h"
+#include "asic_b29_clock.h"
 
 #define CMD0D_LEN            7
 #define CMD0D_RD_DATA_LEN    (CMD0D_LEN-2)

@@ -1,7 +1,7 @@
-#ifndef _ASIC_INNO_CLOCK_
-#define _ASIC_INNO_CLOCK_
+#ifndef _ASIC_B29_CLOCK_
+#define _ASIC_B29_CLOCK_
 
-#include "asic_inno.h"
+#include "asic_b29.h"
 
 #define A1_PLL_POSTDIV_MASK     0b11
 #define A1_PLL_PREDIV_MASK      0b11111
