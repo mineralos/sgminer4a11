@@ -1843,6 +1843,8 @@ static bool parse_notify(struct pool *pool, json_t *params)
     hex2bin(pool->swork.ntime, stime, 4);
    
     pool->swork.clean = clean;
+    pool->getwork_requested++;
+    total_getworks++;
 
     cg_wunlock(&pool->data_lock);
     ret = true;

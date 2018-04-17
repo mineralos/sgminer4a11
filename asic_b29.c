@@ -649,7 +649,7 @@ bool check_chip(struct A1_chain *a1, int cid)
         applog(LOG_NOTICE, "%d: weak chip %d with %d active cores (threshold = %d)",a1->chain_id,chip_id, a1->chips[cid].num_cores, WEAK_CHIP_THRESHOLD);
         return false;
     }
-
+    a1->chips[cid].pll = a1->pll;
     return true;
 }
 
@@ -825,7 +825,7 @@ int b29_get_voltage_stats(struct A1_chain *a1, b29_reg_ctrl_t *s_reg_ctrl)
         total_vol += s_reg_ctrl->stat_val[cid][i];
     }
 
-    s_reg_ctrl->avarge_vol[cid] = total_vol / a1->num_active_chips;
+    s_reg_ctrl->average_vol[cid] = total_vol / a1->num_active_chips;
 
     return 0;
 }

@@ -310,7 +310,7 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
     b29_configure_tvsensor(a1,ADDR_BROADCAST,1);
     b29_get_voltage_stats(a1, &s_reg_ctrl);
     sprintf(volShowLog[a1->chain_id], "+         %2d  |  %8f  |  %8f  |  %8f  |\n",a1->chain_id,   \
-            s_reg_ctrl.highest_vol[a1->chain_id],s_reg_ctrl.avarge_vol[a1->chain_id],s_reg_ctrl.lowest_vol[a1->chain_id]);
+            s_reg_ctrl.highest_vol[a1->chain_id],s_reg_ctrl.average_vol[a1->chain_id],s_reg_ctrl.lowest_vol[a1->chain_id]);
 
     b29_log_record(a1->chain_id, volShowLog[a1->chain_id], strlen(volShowLog[0]));
 
@@ -389,9 +389,6 @@ int b29_preinit( uint32_t pll, uint32_t last_pll)
             ret[i] = -2;
             continue;
         }
-
-        //usleep(200000);
-        // prepll_chip_temp(chain[i]);
 
         while(prechain_detect(chain[i], A1_ConfigA1PLLClock(pll),A1_ConfigA1PLLClock(last_pll)))
         {
@@ -547,8 +544,15 @@ static bool detect_A1_chain(void)
         cgpu->drv = &coinflex_drv;
         cgpu->name = "BitmineA1.SingleChain";
         cgpu->threads = 1;
+        cgpu->chainNum = i;
         
         cgpu->device_data = chain[i];
+        if ((chain[i]->num_chips <= MAX_CHIP_NUM) && (chain[i]->num_cores <= MAX_CORES)){
+                    cgpu->mhs_av = (double)(opt_A1Pll1 *  (chain[i]->num_cores) / 2);
+        }else{
+            cgpu->mhs_av = 0;
+            chain_flag[i] = 0;
+        }
 
         chain[i]->cgpu = cgpu;
         add_cgpu(cgpu);
@@ -933,7 +937,6 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     }
     else
     {
-#if 1
        // mcompat_cmd_reset_reg(cid);
         for (i = a1->num_active_chips; i > 0; i--)
         {
@@ -975,60 +978,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
                   }
                }
             }
-         }
-        #else
-        if(mcompat_cmd_read_register(a1->chain_id, ASIC_CHIP_NUM >> 2, reg, REG_LENGTH))
-        {
-            uint8_t qstate = reg[9] & 0x02;
-
-            if (qstate != 0x02)
-            {
-                work_updated = true;
-                for (i = a1->num_active_chips; i > 0; i--) 
-                {
-                    uint8_t c=i;
-                    struct A1_chip *chip = &a1->chips[i - 1];
-                    struct work *work = wq_dequeue(&a1->active_wq);
-                    if(work == NULL)
-                    {
-                        applog(LOG_ERR, "Wait work queue...");
-                        usleep(500);
-                        continue;
-                    }
-                    //assert(work != NULL);
-
-                    if (set_work(a1, c, work, 0))
-                    {
-                        nonce_ranges_processed++;
-                        chip->nonce_ranges_done++;
-                    }
-
-                    if(show_log[cid] > 0)                   
-                    {   
-                        B29_Log_Save(chip,c-1,cid);
-                        if(i==1) show_log[cid] = 0; 
-                    }
-                }
-            }
-        }
-        #endif
+         } 
     }
-
-#if 0
-    if (last_temp_time + 60*TEMP_UPDATE_INT_MS < get_current_ms())
-    {
-        //if(cnt > VOLTAGE_UPDATE_INT){
-        //configure for vsensor
-        b29_configure_tvsensor(a1,ADDR_BROADCAST,0);
-        for (i = 0; i < a1->num_active_chips; i++){
-            b29_check_voltage(a1, i+1, &s_reg_ctrl);
-        }
-        last_temp_time = get_current_ms();
-        //configure for tsensor
-        b29_configure_tvsensor(a1,ADDR_BROADCAST,1);
-        usleep(200);
-    }
-#endif
 
 
 #ifdef USE_AUTONONCE
@@ -1051,41 +1002,10 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     if (!work_updated) // after work updated, also delay 10ms
         cgsleep_ms(5);
 
-            cgpu->mhs_av = ((double)opt_A1Pll1*a1->tvScryptDiff.tv_usec /2) * (a1->num_cores);
-  
-
-
-
-    return cgpu->mhs_av;
+    return ((double)opt_A1Pll1*a1->tvScryptDiff.tv_usec /2) * (a1->num_cores);
     }
 
-#if 0
-    static void coinflex_print_hw_error(char *drv_name, int device_id, struct work *work, uint32_t nonce)
-    {
-        char        *twork;
-        char        twork_data[BUF_SIZE];
-        int     twork_index;
-        int     display_size = 16;      // 16 Bytes
 
-        applog(LOG_ERR, "---------------------------------------------------------");
-        applog(LOG_ERR, "[%s %d]:ERROR  - Nonce = 0x%X,Work_ID = %3d", drv_name, device_id, nonce, work->work_id);
-        twork = bin2hex(work->data, WORK_SIZE);                     // Multiply 2 for making string in bin2hex()
-        for(twork_index = 0; twork_index < (WORK_SIZE * 2); twork_index += (display_size * 2))
-        {
-            snprintf(twork_data, (display_size * 2) + 1, "%s", &twork[twork_index]);
-            applog(LOG_ERR, "Work Data      = %s", twork_data);
-        }
-        free(twork);
-        twork = bin2hex(work->device_target, DEVICE_TARGET_SIZE);       // Multiply 2 for making string in bin2hex()
-        for(twork_index = 0; twork_index < (DEVICE_TARGET_SIZE * 2); twork_index += (display_size * 2))
-        {
-            snprintf(twork_data, (display_size * 2) + 1, "%s", &twork[twork_index]);
-            applog(LOG_ERR, "Device Target  = %s", twork_data);
-        }
-        free(twork);
-        applog(LOG_ERR, "---------------------------------------------------------");
-    }
-#endif
 
 static struct api_data *coinflex_api_stats(struct cgpu_info *cgpu)
 {
@@ -1102,51 +1022,53 @@ static struct api_data *coinflex_api_stats(struct cgpu_info *cgpu)
     ROOT_ADD_API(int, "Chain skew", t1->chain_skew, false);
     ROOT_ADD_API(double, "Temp max", cgpu->temp_max, false);
     ROOT_ADD_API(double, "Temp min", cgpu->temp_min, false);
-    for (i = 0; i < 4; i++) {
-        sprintf(s, "Temp prewarn %d", i);
-        ROOT_ADD_API(int, s, cgpu->temp_prewarn[i], false);
-    }
+   
     ROOT_ADD_API(int, "Fan duty", cgpu->fan_duty, false);
-    //	ROOT_ADD_API(bool, "FanOptimal", g_fan_ctrl.optimal, false);
-    ROOT_ADD_API(int, "iVid", t1->vid, false);
-    ROOT_ADD_API(bool, "VidOptimal", t1->VidOptimal, false);
-    ROOT_ADD_API(int, "Chain num", cgpu->chainNum, false);
-    ROOT_ADD_API(double, "MHS av", cgpu->mhs_av, false);
-    ROOT_ADD_API(bool, "Disabled", t1->disabled, false);
-    for (i = 0; i < t1->num_chips; i++) {
-        if (!t1->chips[i].disabled)
-            chipmap |= 1 << i;
-    }
-    sprintf(s, "%Lx", chipmap);
-    ROOT_ADD_API(string, "Enabled chips", s[0], true);
-    ROOT_ADD_API(double, "Temp", cgpu->temp, false);
-    ROOT_ADD_API(int, "Last temp time", t1->last_temp_time, false);
+//	ROOT_ADD_API(bool, "FanOptimal", g_fan_ctrl.optimal, false);
+	ROOT_ADD_API(int, "iVid", t1->vid, false);
+    ROOT_ADD_API(int, "PLL", t1->pll, false);
+	ROOT_ADD_API(double, "Voltage Max", s_reg_ctrl.highest_vol[t1->chain_id], false);
+	ROOT_ADD_API(double, "Voltage Min", s_reg_ctrl.lowest_vol[t1->chain_id], false);
+	ROOT_ADD_API(double, "Voltage Avg", s_reg_ctrl.average_vol[t1->chain_id], false);
+	ROOT_ADD_API(bool, "VidOptimal", t1->VidOptimal, false);
+	ROOT_ADD_API(bool, "pllOptimal", t1->pllOptimal, false);
+	ROOT_ADD_API(bool, "VoltageBalanced", t1->voltagebalanced, false);
+	ROOT_ADD_API(int, "Chain num", cgpu->chainNum, false);
+	ROOT_ADD_API(double, "MHS av", cgpu->mhs_av, false);
+	ROOT_ADD_API(bool, "Disabled", t1->disabled, false);
+	for (i = 0; i < t1->num_chips; i++) {
+		if (!t1->chips[i].disabled)
+			chipmap |= 1 << i;
+	}
+	sprintf(s, "%Lx", chipmap);
+	ROOT_ADD_API(string, "Enabled chips", s[0], true);
+	ROOT_ADD_API(double, "Temp", cgpu->temp, false);
 
-    for (i = 0; i < t1->num_chips; i++) {
-        sprintf(s, "%02d HW errors", i);
-        ROOT_ADD_API(int, s, t1->chips[i].hw_errors, false);
-        sprintf(s, "%02d Stales", i);
-        ROOT_ADD_API(int, s, t1->chips[i].stales, false);
-        sprintf(s, "%02d Nonces found", i);
-        ROOT_ADD_API(int, s, t1->chips[i].nonces_found, false);
-        sprintf(s, "%02d Nonce ranges", i);
-        ROOT_ADD_API(int, s, t1->chips[i].nonce_ranges_done, false);
-        sprintf(s, "%02d Cooldown", i);
-        ROOT_ADD_API(int, s, t1->chips[i].cooldown_begin, false);
-        sprintf(s, "%02d Fail count", i);
-        ROOT_ADD_API(int, s, t1->chips[i].fail_count, false);
-        sprintf(s, "%02d Fail reset", i);
-        ROOT_ADD_API(int, s, t1->chips[i].fail_reset, false);
-        sprintf(s, "%02d Temp", i);
-        ROOT_ADD_API(int, s, t1->chips[i].temp, false);
-        sprintf(s, "%02d nVol", i);
-        ROOT_ADD_API(int, s, t1->chips[i].nVol, false);
-        sprintf(s, "%02d PLL", i);
-        ROOT_ADD_API(int, s, t1->chips[i].pll, false);
-        sprintf(s, "%02d pllOptimal", i);
-        ROOT_ADD_API(bool, s, t1->chips[i].pllOptimal, false);
-    }
-    return root;
+	for (i = 0; i < t1->num_chips; i++) {
+		sprintf(s, "%02d HW errors", i);
+		ROOT_ADD_API(int, s, t1->chips[i].hw_errors, true);
+		sprintf(s, "%02d Stales", i);
+		ROOT_ADD_API(int, s, t1->chips[i].stales, true);
+		sprintf(s, "%02d Nonces found", i);
+		ROOT_ADD_API(int, s, t1->chips[i].nonces_found, true);
+		sprintf(s, "%02d Nonce ranges", i);
+		ROOT_ADD_API(int, s, t1->chips[i].nonce_ranges_done, true);
+		sprintf(s, "%02d Cooldown", i);
+		ROOT_ADD_API(int, s, t1->chips[i].cooldown_begin, true);
+		sprintf(s, "%02d Fail count", i);
+		ROOT_ADD_API(int, s, t1->chips[i].fail_count, true);
+		sprintf(s, "%02d Fail reset", i);
+		ROOT_ADD_API(int, s, t1->chips[i].fail_reset, true);
+		sprintf(s, "%02d Temp", i);
+		ROOT_ADD_API(int, s, t1->chips[i].temp, true);
+		sprintf(s, "%02d nVol", i);
+		ROOT_ADD_API(int, s, t1->chips[i].nVol, true);
+		sprintf(s, "%02d PLL", i);
+		ROOT_ADD_API(int, s, t1->chips[i].pll, true);
+		sprintf(s, "%02d pllOptimal", i);
+		ROOT_ADD_API(bool, s, t1->chips[i].pllOptimal, true);
+	}
+	return root;
 }
 
 
