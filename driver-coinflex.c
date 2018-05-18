@@ -942,7 +942,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
             continue;
         }
 
-        applog(LOG_INFO, "Got nonce for chain %d / chip %d / job_id %d", a1->chain_id, chip_id, job_id);
+//        applog(LOG_INFO, "Got nonce for chain %d / chip %d / job_id %d", a1->chain_id, chip_id, job_id);
 
         chip->nonces_found++;
     }
