@@ -2520,6 +2520,7 @@ share_result(json_t *val, json_t *res, json_t *err, const struct work *work,
         pool->last_share_time = cgpu->last_share_pool_time;
         pool->last_share_diff = work->work_difficulty;
         applog(LOG_DEBUG, "PROOF OF WORK RESULT: true (yay!!!)");
+#if 0
         if (!QUIET)
         {
             if (total_pools > 1) {
@@ -2527,10 +2528,11 @@ share_result(json_t *val, json_t *res, json_t *err, const struct work *work,
                        hashshow, cgpu->drv->name, cgpu->device_id, work->pool->pool_no, resubmit ? "(resubmit)" : "", worktime);
             }
             else {
-                applog(LOG_ERR, "Accepted %s %s %d %s%s",
+                applog(LOG_NOTICE, "Accepted %s %s %d %s%s",
                        hashshow, cgpu->drv->name, cgpu->device_id, resubmit ? "(resubmit)" : "", worktime);
             }
         }
+#endif
         sharelog("accept", work);
         if (opt_shares && total_diff_accepted >= opt_shares) {
             applog(LOG_WARNING, "Successfully mined %d accepted shares as requested and exiting.", opt_shares);
