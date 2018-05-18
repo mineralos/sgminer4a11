@@ -202,7 +202,7 @@ void exit_A1_chain(struct A1_chain *a1)
     a1->chips = NULL;
     free(a1);
 }
-
+#if 0
 int  cfg_tsadc_divider(struct A1_chain *a1,uint32_t pll_clk)
 {
     // uint8_t  cmd_return;
@@ -227,7 +227,7 @@ int  cfg_tsadc_divider(struct A1_chain *a1,uint32_t pll_clk)
     }
     return 0;
 }
-
+#endif
 void chain_detect_reload(struct A1_chain *a1)
 {
     int cid = a1->chain_id;
@@ -352,7 +352,7 @@ struct A1_chain *init_A1_chain(int chain_id)
 
     usleep(100000);
     //sleep(10);
-    cfg_tsadc_divider(a1, CHIP_PLL_DEF);// PLL_Clk_12Mhz[A1Pll1].speedMHz);	
+    mcompat_cfg_tsadc_divider(chain_id, CHIP_PLL_DEF);
 
     /* override max number of active chips if requested */
     a1->num_active_chips = a1->num_chips;
@@ -532,6 +532,7 @@ static bool detect_A1_chain(void)
 
     inc_pll();
     recfg_vid();
+	
 
     for(i = 0; i < ASIC_CHAIN_NUM; i++){
         ret = init_A1_chain_reload(chain[i], i);
