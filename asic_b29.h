@@ -3,13 +3,15 @@
 
 #include <stdint.h>
 #include "elist.h"
+#include "miner.h"
 #include "mcompat_drv.h"
+#include "mcompat_lib.h"
 
 #define CHIP_A11
 #define NO_FAN_CTRL
 
 #ifdef CHIP_A11
-#define ASIC_CHAIN_NUM          (6)
+#define ASIC_CHAIN_NUM          (3)
 #define ASIC_CHIP_NUM           (51)    // 45
 #define ASIC_CORE_NUM           (28)    // 63
 #define MAX_CHIP_NUM            (ASIC_CHIP_NUM)
@@ -56,9 +58,14 @@
 #endif
 
 #define USE_AUTONONCE
+#define USE_AUTOCMD0A
 
 #define B29_MINER_TYPE_FILE            "/tmp/type"
 #define B29_HARDWARE_VERSION_FILE      "/tmp/hwver"
+
+#define LED_ON					(0)
+#define LED_OFF					(1)
+
 
 typedef enum{
     HARDWARE_VERSION_NONE = 0x00,

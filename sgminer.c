@@ -8996,14 +8996,6 @@ begin_bench:
         bool lagging = false;
         static int  last_temp_time = 0;
 
-       if (last_temp_time + TEMP_UPDATE_INT_MS < get_current_ms())
-       {
-       // b29_fan_speed_update(&g_fan_ctrl);
-    //    hub_cmd_get_temp(fan_temp_ctrl);
-        mcompat_fan_speed_update_hub(fan_temp_ctrl);
-        last_temp_time = get_current_ms();
-       }
-
         //
         if(g_reset_delay != 0xffff)
         {

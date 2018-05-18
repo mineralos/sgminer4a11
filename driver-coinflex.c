@@ -55,6 +55,8 @@
 #include "asic_b29_cmd.h"
 #include "asic_b29_gpio.h"
 
+#include "dm_temp_ctrl.h"
+#include "dm_fan_ctrl.h"
 
 #define WORK_SIZE               (80)
 #define DEVICE_TARGET_SIZE      (32)
@@ -318,8 +320,9 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
         check_chip(a1, i);
     }
 
-
     applog(LOG_ERR, "[chain_ID:%d]: Found %d Chips With Total %d Active Cores",a1->chain_id, a1->num_active_chips, a1->num_cores);
+
+	a1->VidOptimal = a1->pllOptimal = true;
 
     return true;
 
@@ -664,11 +667,26 @@ static void coinflex_detect(bool __maybe_unused hotplug)
     g_type = b29_get_miner_type();
 
     // TODO: 根据接口获取hwver和type
-    sys_platform_init(PLATFORM_ZYNQ_HUB_G19, -1, ASIC_CHAIN_NUM, ASIC_CHIP_NUM);
+    sys_platform_init(PLATFORM_ZYNQ_HUB_G19, MCOMPAT_LIB_MINER_TYPE_D11, ASIC_CHAIN_NUM, ASIC_CHIP_NUM);
     memset(&s_reg_ctrl,0,sizeof(s_reg_ctrl));
     sys_platform_debug_init(3);
-    config_fan_module();
+	
+	// init temp ctrl
+	c_temp_cfg tmp_cfg;
+	dm_tempctrl_get_defcfg(&tmp_cfg);
+	/* Set initial target temperature lower for more reliable startup */
+	tmp_cfg.tmp_target = 70;	// target temperature
+	dm_tempctrl_init(&tmp_cfg);
 
+	// start fan ctrl thread
+	c_fan_cfg fan_cfg;
+	dm_fanctrl_get_defcfg(&fan_cfg);
+	fan_cfg.preheat = false;		// disable preheat
+	fan_cfg.fan_speed = 100;
+	dm_fanctrl_init(&fan_cfg);
+//	dm_fanctrl_init(NULL);			// using default cfg
+	pthread_t tid;
+	pthread_create(&tid, NULL, dm_fanctrl_thread, NULL);
 
     // update time
     for(j = 0; j < 64; j++)
@@ -841,6 +859,17 @@ void b29_log_record(int cid, void* log, int len)
     fclose(fd);
 }
 
+static void overheated_blinking(int cid)
+{
+	// block thread and blink led
+	while (42) {
+		mcompat_set_led(cid, LED_OFF);
+		cgsleep_ms(500);
+		mcompat_set_led(cid, LED_ON);
+		cgsleep_ms(500);
+	}
+}
+
 volatile int g_nonce_read_err = 0;
 
 static int64_t coinflex_scanwork(struct thr_info *thr)
@@ -873,14 +902,6 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
         show_log[cid]++;
         check_disbale_flag[cid]++;
 
-        if(fan_temp_ctrl->mcompat_temp[cid].final_temp_avg && fan_temp_ctrl->mcompat_temp[cid].final_temp_hi && fan_temp_ctrl->mcompat_temp[cid].final_temp_lo)
-        {
-            cgpu->temp = (double)((594 - fan_temp_ctrl->mcompat_temp[cid].final_temp_avg)* 5) / 7.5;
-            cgpu->temp_max = (double)((594 - fan_temp_ctrl->mcompat_temp[cid].final_temp_hi)* 5) / 7.5;
-            cgpu->temp_min = (double)((594 - fan_temp_ctrl->mcompat_temp[cid].final_temp_lo)* 5) / 7.5;
-        }
-
-        cgpu->fan_duty = fan_temp_ctrl->speed;
         cgpu->chip_num = a1->num_active_chips;
         cgpu->core_num = a1->num_cores;
 
@@ -981,6 +1002,24 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
          } 
     }
 
+	/* Temperature control */
+	int chain_temp_status = dm_tempctrl_update_chain_temp(cid);
+
+	cgpu->temp_min = (double)g_chain_tmp[cid].tmp_lo;
+	cgpu->temp_max = (double)g_chain_tmp[cid].tmp_hi;
+	cgpu->temp	   = (double)g_chain_tmp[cid].tmp_avg;
+
+	if (chain_temp_status == TEMP_SHUTDOWN) {
+		// shut down chain
+		applog(LOG_ERR, "DANGEROUS TEMPERATURE(%.0f): power down chain %d",
+			cgpu->temp_max, cid);
+		mcompat_chain_power_down(cid);
+		cgpu->status = LIFE_DEAD;
+		cgtime(&thr->sick);
+
+		/* Function doesn't currently return */
+		overheated_blinking(cid);
+	}
 
 #ifdef USE_AUTONONCE
     mcompat_cmd_auto_nonce(a1->chain_id, 1, REG_LENGTH);   // enable autononce
@@ -1010,6 +1049,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 static struct api_data *coinflex_api_stats(struct cgpu_info *cgpu)
 {
     struct A1_chain *t1 = cgpu->device_data;
+	int fan_speed = g_fan_cfg.fan_speed;
     unsigned long long int chipmap = 0;
     struct api_data *root = NULL;
     char s[32];
@@ -1023,7 +1063,7 @@ static struct api_data *coinflex_api_stats(struct cgpu_info *cgpu)
     ROOT_ADD_API(double, "Temp max", cgpu->temp_max, false);
     ROOT_ADD_API(double, "Temp min", cgpu->temp_min, false);
    
-    ROOT_ADD_API(int, "Fan duty", cgpu->fan_duty, false);
+    ROOT_ADD_API(int, "Fan duty", fan_speed, true);
 //	ROOT_ADD_API(bool, "FanOptimal", g_fan_ctrl.optimal, false);
 	ROOT_ADD_API(int, "iVid", t1->vid, false);
     ROOT_ADD_API(int, "PLL", t1->pll, false);
