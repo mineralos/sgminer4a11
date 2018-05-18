@@ -549,6 +549,8 @@ static bool detect_A1_chain(void)
         cgpu->name = "BitmineA1.SingleChain";
         cgpu->threads = 1;
         cgpu->chainNum = i;
+		cgtime(&cgpu->dev_start_tv);
+		chain[i]->lastshare = cgpu->dev_start_tv.tv_sec;
         
         cgpu->device_data = chain[i];
         if ((chain[i]->num_chips <= MAX_CHIP_NUM) && (chain[i]->num_cores <= MAX_CORES)){
@@ -885,6 +887,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     uint8_t chip_id;
     uint8_t job_id;
     bool work_updated = false;
+	struct timeval now;
 
     if (a1->num_cores == 0) {
         cgpu->deven = DEV_DISABLED;
@@ -912,6 +915,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 
         a1->last_temp_time = get_current_ms();
     }
+
+	cgtime(&now);
 
     /* poll queued results */
     while (true){
@@ -945,11 +950,22 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 //        applog(LOG_INFO, "Got nonce for chain %d / chip %d / job_id %d", a1->chain_id, chip_id, job_id);
 
         chip->nonces_found++;
+		a1->lastshare = now.tv_sec;
     }
 
 #ifdef USE_AUTONONCE
     mcompat_cmd_auto_nonce(a1->chain_id, 0, REG_LENGTH);   // disable autononce
 #endif
+
+	if (unlikely(now.tv_sec - a1->lastshare > CHAIN_DEAD_TIME)) {
+		applog(LOG_EMERG, "chain %d not producing shares for more than %d mins, shutting down.",
+		       cid, CHAIN_DEAD_TIME / 60);
+		// TODO: should restart current chain only
+		/* Exit cgminer, allowing systemd watchdog to restart */
+		for (i = 0; i < ASIC_CHAIN_NUM; ++i)
+			mcompat_chain_power_down(a1->chain_id);
+		exit(1);
+	}
 
     /* check for completed works */
     if(a1->work_start_delay > 0)
