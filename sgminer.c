@@ -115,9 +115,6 @@ int opt_voltage7 = CHIP_VID_RUN;
 int opt_voltage8 = CHIP_VID_RUN;
 int opt_vote = 0;
 
-mcompat_fan_temp_s *fan_temp_ctrl;
-mcompat_temp_s *tmp_ctrl;
-
 
 static char packagename[256];
 
@@ -8609,11 +8606,6 @@ int main(int argc, char *argv[])
     int i, j, slept = 0;
     unsigned int k;
     char *s;
-
-    fan_temp_ctrl = malloc(sizeof(*fan_temp_ctrl));
-    tmp_ctrl = malloc(ASIC_CHAIN_NUM * sizeof(*tmp_ctrl));
-    fan_temp_ctrl->mcompat_temp = tmp_ctrl;
-
 
     /* This dangerous functions tramples random dynamically allocated
      * variables so do it before anything at all */

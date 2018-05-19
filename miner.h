@@ -147,8 +147,6 @@ extern int g_fan_speed;
 
 extern int g_reset_delay;
 extern int g_miner_state;
-extern mcompat_fan_temp_s *fan_temp_ctrl;
-
 
 #endif
 

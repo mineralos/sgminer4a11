@@ -94,7 +94,6 @@ static uint8_t A1Pll5=A5_PLL_CLOCK_400MHz;
 static uint8_t A1Pll6=A5_PLL_CLOCK_400MHz;
 
 static uint32_t show_log[ASIC_CHAIN_NUM];
-static uint32_t update_temp[ASIC_CHAIN_NUM];
 static uint32_t check_disbale_flag[ASIC_CHAIN_NUM];
 
 int spi_plug_status[ASIC_CHAIN_NUM] = {0};
@@ -857,9 +856,6 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 
     if (a1->last_temp_time + TEMP_UPDATE_INT_MS < get_current_ms())
     {
-
-
-        hub_cmd_get_temp(fan_temp_ctrl,cid);
         update_temp[cid]++;
         show_log[cid]++;
         check_disbale_flag[cid]++;
