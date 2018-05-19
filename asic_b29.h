@@ -48,19 +48,21 @@
 #ifdef CHIP_A11
 #define CHIP_PLL_DEF            (30)
 #define CHIP_VID_DEF            (8)
+#define CHIP_VID_RUN            (5)
 #define CHIP_VOL_MAX            (0.62)
 #define CHIP_VOL_MIN            (0.45)
 #else
 #define CHIP_PLL_DEF            (120)
 #define CHIP_VID_DEF            (8)
+#define CHIP_VID_RUN            (12)
 #define CHIP_VOL_MAX            (0.55)
 #define CHIP_VOL_MIN            (0.45)
 #endif
 
 #define CHAIN_DEAD_TIME			(600)			// s
 
-#define USE_AUTONONCE
-#define USE_AUTOCMD0A
+//#define USE_AUTONONCE
+//#define USE_AUTOCMD0A
 
 #define B29_MINER_TYPE_FILE            "/tmp/type"
 #define B29_HARDWARE_VERSION_FILE      "/tmp/hwver"

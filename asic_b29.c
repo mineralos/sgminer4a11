@@ -630,7 +630,11 @@ bool get_nonce(struct A1_chain *a1, uint8_t *nonce, uint8_t *chip_id, uint8_t *j
     uint8_t buffer[NONCE_LEN + 2];
     memset(buffer, 0, sizeof(buffer));
 
-    if(mcompat_cmd_read_nonce(a1->chain_id, buffer, NONCE_LEN))
+#ifdef USE_AUTONONCE
+	if (mcompat_cmd_read_nonce(a1->chain_id, buffer, NONCE_LEN))
+#else
+	if (mcompat_cmd_read_result(a1->chain_id, CMD_ADDR_BROADCAST, buffer, NONCE_LEN))
+#endif
     {
         *job_id = buffer[0] >> 4;
         *chip_id = buffer[1];
