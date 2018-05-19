@@ -104,7 +104,14 @@ void *dm_fanctrl_thread(void *argv)
 //	dm_fanctrl_set_fan_speed(g_fan_cfg.fan_speed);
 
 	while(true) {
+		sleep(g_fan_cfg.fan_ctrl_cycle);
+			
 		if (dm_fanctrl_get_tmp()) {
+			if (g_fan_cfg.fan_mode == FAN_MODE_MANUAL) {
+				dm_fanctrl_set_fan_speed(g_fan_speed);
+				continue;
+			}
+
 			dm_fanctrl_update_fan_speed();
 			timeout_get_tmp = 0;
 		} else
@@ -117,8 +124,6 @@ void *dm_fanctrl_thread(void *argv)
 			dm_fanctrl_set_fan_speed(FAN_SPEED_MAX);
 			timeout_get_tmp = 0;
 		}
-
-		sleep(g_fan_cfg.fan_ctrl_cycle);
 	}
 
 	return NULL;

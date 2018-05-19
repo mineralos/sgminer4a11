@@ -125,7 +125,7 @@ bool opt_work_update;
 bool opt_protocol;
 
 int g_auto_fan = 1;  
-int g_fan_speed = 1;
+int g_fan_speed = -1;
 
 #ifdef HAVE_LIBCURL
 static char *opt_btc_address;

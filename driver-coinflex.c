@@ -634,7 +634,8 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 	c_fan_cfg fan_cfg;
 	dm_fanctrl_get_defcfg(&fan_cfg);
 	fan_cfg.preheat = false;		// disable preheat
-	fan_cfg.fan_speed = 30;
+	fan_cfg.fan_mode = g_auto_fan;
+	fan_cfg.fan_speed = g_fan_speed;
 	fan_cfg.fan_speed_target = 20;
 	dm_fanctrl_init(&fan_cfg);
 //	dm_fanctrl_init(NULL);			// using default cfg

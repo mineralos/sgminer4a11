@@ -120,7 +120,7 @@ static inline int fsync (int fd)
 #if defined(USE_COINFLEX)
 
 #include "sph/sph_blake.h"
-#include "mcompat_fan.h"
+
 
 extern char *opt_bitmine_a1_options;
 extern uint32_t opt_A1Pll1;
@@ -141,6 +141,9 @@ extern int opt_voltage5;
 extern int opt_voltage6;
 extern int opt_voltage7;
 extern int opt_voltage8;
+
+extern int g_auto_fan;
+extern int g_fan_speed;
 
 extern int g_reset_delay;
 extern int g_miner_state;
