@@ -826,6 +826,12 @@ static void overheated_blinking(int cid)
 
 volatile int g_nonce_read_err = 0;
 
+#define MAX_CMD_FAILS		(0)
+#define MAX_CMD_RESETS		(50)
+
+static int g_cmd_fails[ASIC_CHAIN_NUM];
+static int g_cmd_resets[ASIC_CHAIN_NUM];
+
 static int64_t coinflex_scanwork(struct thr_info *thr)
 {
     int i;
@@ -916,7 +922,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 		// TODO: should restart current chain only
 		/* Exit cgminer, allowing systemd watchdog to restart */
 		for (i = 0; i < ASIC_CHAIN_NUM; ++i)
-			mcompat_chain_power_down(a1->chain_id);
+			mcompat_chain_power_down(cid);
 		exit(1);
 	}
 
@@ -928,49 +934,68 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     }
     else
     {
-       // mcompat_cmd_reset_reg(cid);
-        for (i = a1->num_active_chips; i > 0; i--)
-        {
-            if(mcompat_cmd_read_register(a1->chain_id, i, reg, REG_LENGTH))
-            {
-              struct A1_chip *chip = NULL;
-              struct work *work = NULL;
+    	
+		/* Clean spi buffer before read 0a reg */
+		hub_spi_clean_chain(cid);
 
-              uint8_t qstate = reg[9] & 0x03;
-              if (qstate != 0x03)
-              {
-                work_updated = true;
-                if(qstate == 0x0){
-                  chip = &a1->chips[i - 1];
-                  work = wq_dequeue(&a1->active_wq);
+		// mcompat_cmd_reset_reg(cid);
+        for (i = a1->num_active_chips; i > 0; i--) {
+			if (mcompat_cmd_read_register(a1->chain_id, i, reg, REG_LENGTH)) {
+				struct A1_chip *chip = NULL;
+				struct work *work = NULL;
 
-                  if (work == NULL){
-                      continue;
-                  }
+				/* Clear counter */
+				g_cmd_fails[cid] = 0;
+				g_cmd_resets[cid] = 0;
 
-                  if (set_work(a1, i, work, 0))
-                  {
-                      nonce_ranges_processed++;
-                      chip->nonce_ranges_done++;
-                  }
-                }
+				uint8_t qstate = reg[9] & 0x03;
+				if (qstate != 0x03)
+				{
+					work_updated = true;
+					if(qstate == 0x0){
+						chip = &a1->chips[i - 1];
+						work = wq_dequeue(&a1->active_wq);
 
-                  chip = &a1->chips[i - 1];
-                  work = wq_dequeue(&a1->active_wq);
+						if (work == NULL)
+						  continue;
 
-                  if (work == NULL){
-                      continue;
-                  }
+						if (set_work(a1, i, work, 0)) {
+						  nonce_ranges_processed++;
+						  chip->nonce_ranges_done++;
+						}
+					}
 
-                  if (set_work(a1, i, work, 0))
-                  {
-                      nonce_ranges_processed++;
-                      chip->nonce_ranges_done++;
-                  }
-               }
-            }
-         } 
-    }
+					chip = &a1->chips[i - 1];
+					work = wq_dequeue(&a1->active_wq);
+
+					if (work == NULL)
+						continue;
+
+					if (set_work(a1, i, work, 0)) {
+						nonce_ranges_processed++;
+						chip->nonce_ranges_done++;
+					}
+				}
+			} else {
+				g_cmd_fails[cid]++;
+				if (g_cmd_fails[cid] > MAX_CMD_FAILS) {
+					applog(LOG_ERR, "Chain %d reset spihub", cid);
+					// TODO: replaced with mcompat_spi_reset()
+					hub_spi_clean_chain(cid);
+					g_cmd_resets[cid]++;
+					if (g_cmd_resets[cid] > MAX_CMD_RESETS) {
+						applog(LOG_ERR, "Chain %d is not working due to multiple resets. shutdown.",
+						       cid);
+						/* Exit cgminer, allowing systemd watchdog to
+						 * restart */
+						for (i = 0; i < ASIC_CHAIN_NUM; ++i)
+							mcompat_chain_power_down(cid);
+						exit(1);
+					}
+				}
+			}
+		} 
+	}
 
 	/* Temperature control */
 	int chain_temp_status = dm_tempctrl_update_chain_temp(cid);
