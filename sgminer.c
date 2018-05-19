@@ -2520,7 +2520,7 @@ share_result(json_t *val, json_t *res, json_t *err, const struct work *work,
         pool->last_share_time = cgpu->last_share_pool_time;
         pool->last_share_diff = work->work_difficulty;
         applog(LOG_DEBUG, "PROOF OF WORK RESULT: true (yay!!!)");
-#if 0
+#if 1
         if (!QUIET)
         {
             if (total_pools > 1) {
@@ -6322,7 +6322,7 @@ void set_target(unsigned char *dest_target, double diff)
 void set_target(unsigned char *dest_target, double diff)
 {
 #if 0
-uint64_t m;
+	uint64_t m;
 	int k;
 
 	for (k = 6; k > 0 && diff > 1.0; k--)
@@ -6338,57 +6338,58 @@ uint64_t m;
 
 #else
 
-   unsigned char target[32];
-uint64_t *data64, h64;
-double d64, dcut64;
+	unsigned char target[32];
+	uint64_t *data64, h64;
+	double d64, dcut64;
 
-if (unlikely(diff == 0.0)) {
-/* This shouldn't happen but best we check to prevent a crash */
-applog(LOG_ERR, "Diff zero passed to set_target");
-diff = 1.0;
-}
+	if (unlikely(diff == 0.0)) {
+		/* This shouldn't happen but best we check to prevent a crash */
+		applog(LOG_ERR, "Diff zero passed to set_target");
+		diff = 1.0;
+	}
 
-d64 = truediffone;
+	d64 = truediffone;
 
-d64 /= diff;
+	d64 /= diff;
 
-dcut64 = d64 / bits192;
-h64 = dcut64;
-data64 = (uint64_t *)(target + 24);
-*data64 = htole64(h64);
-dcut64 = h64;
-dcut64 *= bits192;
-d64 -= dcut64;
+	dcut64 = d64 / bits192;
+	h64 = dcut64;
+	data64 = (uint64_t *)(target + 24);
+	*data64 = htole64(h64);
+	dcut64 = h64;
+	dcut64 *= bits192;
+	d64 -= dcut64;
 
-dcut64 = d64 / bits128;
-h64 = dcut64;
-data64 = (uint64_t *)(target + 16);
-*data64 = htole64(h64);
-dcut64 = h64;
-dcut64 *= bits128;
-d64 -= dcut64;
+	dcut64 = d64 / bits128;
+	h64 = dcut64;
+	data64 = (uint64_t *)(target + 16);
+	*data64 = htole64(h64);
+	dcut64 = h64;
+	dcut64 *= bits128;
+	d64 -= dcut64;
 
-dcut64 = d64 / bits64;
-h64 = dcut64;
-data64 = (uint64_t *)(target + 8);
-*data64 = htole64(h64);
-dcut64 = h64;
-dcut64 *= bits64;
-d64 -= dcut64;
+	dcut64 = d64 / bits64;
+	h64 = dcut64;
+	data64 = (uint64_t *)(target + 8);
+	*data64 = htole64(h64);
+	dcut64 = h64;
+	dcut64 *= bits64;
+	d64 -= dcut64;
 
-h64 = d64;
-data64 = (uint64_t *)(target);
-*data64 = htole64(h64);
+	h64 = d64;
+	data64 = (uint64_t *)(target);
+	*data64 = htole64(h64);
 
-if (opt_debug) {
-char *htarget = bin2hex(target, 32);
+	if (opt_debug) {
+		char *htarget = bin2hex(target, 32);
 
-//applog(LOG_ERR, "Generated target %s", htarget);
-free(htarget);
-}
-memcpy(dest_target, target, 32);
+		//applog(LOG_ERR, "Generated target %s", htarget);
+		free(htarget);
+	}
+	memcpy(dest_target, target, 32);
 #endif
 }
+
 #else
 
 void set_target(unsigned char *dest_target, double diff, double diff_multiplier2, const int thr_id)
@@ -6851,7 +6852,7 @@ bool submit_tested_work(struct thr_info *thr, struct work *work)
     update_work_stats(thr, work);
 
     if (!fulltest(work->hash, work->target)) {
-        applog(LOG_INFO, "%s %d: Share above target", thr->cgpu->drv->name, thr->cgpu->device_id);
+//        applog(LOG_INFO, "%s %d: Share above target", thr->cgpu->drv->name, thr->cgpu->device_id);
         return false;
     }
     work_out = copy_work(work);

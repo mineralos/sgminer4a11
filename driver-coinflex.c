@@ -573,57 +573,6 @@ static bool detect_A1_chain(void)
     return (res == 0) ? false : true;
 }
 
-static void config_fan_module()
-{
-    /* val temp_f 
-       652, //-40,
-       645, //-35,
-       638, //-30,
-       631, //-25,
-       623, //-20,
-       616, //-15, 
-       609, //-10, 
-       601, // -5,
-       594, //  0,
-       587, //  5,
-       579, // 10,
-       572, // 15,  
-       564, // 20, 
-       557, // 25, 
-       550, // 30,
-       542, // 35,
-       535, // 40,
-       527, // 45,
-       520, // 50,
-       512, // 55,
-       505, // 60,
-       498, // 65,
-       490, // 70,
-       483, // 75,
-       475, // 80,
-       468, // 85,
-       460, // 90,
-       453, // 95,
-       445, //100,
-       438, //105,
-       430, //110,
-       423, //115,
-       415, //120,
-       408, //125,
-       };
-       */
-
-mcompat_temp_config_s temp_config;
-temp_config.temp_hi_thr = 408;
-temp_config.temp_lo_thr = 652;
-temp_config.temp_start_thr = 550;
-temp_config.dangerous_stat_temp = 445;
-temp_config.work_temp = 483;
-temp_config.default_fan_speed = 100;
-mcompat_fan_temp_init(0,temp_config);
-
-}
-
 static void coinflex_detect(bool __maybe_unused hotplug)
 {
     if (hotplug){
@@ -685,7 +634,8 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 	c_fan_cfg fan_cfg;
 	dm_fanctrl_get_defcfg(&fan_cfg);
 	fan_cfg.preheat = false;		// disable preheat
-	fan_cfg.fan_speed = 100;
+	fan_cfg.fan_speed = 30;
+	fan_cfg.fan_speed_target = 20;
 	dm_fanctrl_init(&fan_cfg);
 //	dm_fanctrl_init(NULL);			// using default cfg
 	pthread_t tid;
@@ -882,6 +832,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     struct cgpu_info *cgpu = thr->cgpu;
     struct A1_chain *a1 = cgpu->device_data;
     int32_t nonce_ranges_processed = 0;
+	int64_t hashes = 0;
 
     uint32_t nonce;
     uint8_t chip_id;
@@ -950,6 +901,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 //        applog(LOG_INFO, "Got nonce for chain %d / chip %d / job_id %d", a1->chain_id, chip_id, job_id);
 
         chip->nonces_found++;
+		hashes += work->device_diff;
 		a1->lastshare = now.tv_sec;
     }
 
@@ -1058,8 +1010,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     if (!work_updated) // after work updated, also delay 10ms
         cgsleep_ms(5);
 
-    return ((double)opt_A1Pll1*a1->tvScryptDiff.tv_usec /2) * (a1->num_cores);
-    }
+	return hashes * 0x100000000ull;
+}
 
 
 
@@ -1149,6 +1101,7 @@ static struct api_data *coinflex_api_stats(struct cgpu_info *cgpu)
         .update_work            = NULL,
         .flush_work             = coinflex_flush_work,          // new block detected or work restart 
         .scanwork               = coinflex_scanwork,            // scan hash
-        .max_diff               = 65536
+//        .max_diff               = 65536
+		.max_diff				= DIFF_DEF
     };
 

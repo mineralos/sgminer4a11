@@ -57,11 +57,15 @@
 #define CHIP_VOL_MIN            (0.45)
 #endif
 
+#define CHAIN_DEAD_TIME			(600)			// s
+
 #define USE_AUTONONCE
 #define USE_AUTOCMD0A
 
 #define B29_MINER_TYPE_FILE            "/tmp/type"
 #define B29_HARDWARE_VERSION_FILE      "/tmp/hwver"
+
+#define DIFF_DEF				(1024)
 
 #define LED_ON					(0)
 #define LED_OFF					(1)
@@ -168,6 +172,8 @@ struct A1_chain {
     uint8_t temp;
     int last_temp_time;
     int pre_heat;
+
+	time_t lastshare;
 
     struct timeval tvScryptLast;
     struct timeval tvScryptCurr;
