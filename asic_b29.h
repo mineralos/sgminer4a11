@@ -67,7 +67,7 @@
 #define B29_MINER_TYPE_FILE            "/tmp/type"
 #define B29_HARDWARE_VERSION_FILE      "/tmp/hwver"
 
-#define DIFF_DEF				(1024)
+#define DIFF_DEF				(512)
 
 #define LED_ON					(0)
 #define LED_OFF					(1)

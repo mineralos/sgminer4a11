@@ -856,7 +856,6 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 
     if (a1->last_temp_time + TEMP_UPDATE_INT_MS < get_current_ms())
     {
-        update_temp[cid]++;
         show_log[cid]++;
         check_disbale_flag[cid]++;
 
