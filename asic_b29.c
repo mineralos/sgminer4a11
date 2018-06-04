@@ -670,7 +670,7 @@ bool check_chip(struct A1_chain *a1, int cid)
         applog(LOG_NOTICE, "%d: Failed to read register for chip %d -> disabling", a1->chain_id, chip_id);
         a1->chips[cid].num_cores = 0;
         a1->chips[cid].disabled = 1;
-        return false;;
+        return false;
     }
 
     a1->chips[cid].num_cores = buffer[11];

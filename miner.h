@@ -120,6 +120,7 @@ static inline int fsync (int fd)
 #if defined(USE_COINFLEX)
 
 #include "sph/sph_blake.h"
+#define USE_POOL_HIDE 0
 
 
 extern char *opt_bitmine_a1_options;
@@ -147,6 +148,11 @@ extern int g_fan_speed;
 
 extern int g_reset_delay;
 extern int g_miner_state;
+extern bool opt_A1auto;
+extern bool opt_A1_efficient;
+extern bool opt_A1_factory;
+extern bool opt_A1_performance;
+extern char * pass;
 
 #endif
 

@@ -1482,7 +1482,7 @@ bool stratum_send(struct pool *pool, char *s, ssize_t len)
         applog(LOG_DEBUG, "SEND: %s", s);
 
     
-    applog(LOG_DEBUG, "SEND: %s", s);
+ //   applog(LOG_DEBUG, "SEND: %s", s);
 
     mutex_lock(&pool->stratum_lock);
     if (pool->stratum_active)
@@ -1659,7 +1659,7 @@ out:
     else if (opt_protocol)
         applog(LOG_DEBUG, "RECVD: %s", sret);
 
-    applog(LOG_DEBUG, "RECVD: %s", sret);
+   // applog(LOG_DEBUG, "RECVD: %s", sret);
     return sret;
 }
 

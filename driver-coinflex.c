@@ -201,7 +201,7 @@ void exit_A1_chain(struct A1_chain *a1)
     a1->chips = NULL;
     free(a1);
 }
-#if 0
+
 int  cfg_tsadc_divider(struct A1_chain *a1,uint32_t pll_clk)
 {
     // uint8_t  cmd_return;
@@ -226,7 +226,7 @@ int  cfg_tsadc_divider(struct A1_chain *a1,uint32_t pll_clk)
     }
     return 0;
 }
-#endif
+
 void chain_detect_reload(struct A1_chain *a1)
 {
     int cid = a1->chain_id;
@@ -321,7 +321,7 @@ bool init_A1_chain_reload(struct A1_chain *a1, int chain_id)
 
     applog(LOG_ERR, "[chain_ID:%d]: Found %d Chips With Total %d Active Cores",a1->chain_id, a1->num_active_chips, a1->num_cores);
 
-	a1->VidOptimal = a1->pllOptimal = true;
+//	a1->VidOptimal = a1->pllOptimal = true;
 
     return true;
 
@@ -493,6 +493,44 @@ static void recfg_vid()
     }
 }
 
+static void recfg_tsadc_divider()
+{
+	int i;
+	for(i = 0; i < ASIC_CHAIN_NUM; i++)
+	{
+		if((chain[i] == NULL) || (!chain_flag[i]))
+		{
+			continue;
+		}
+		cfg_tsadc_divider(chain[i], opt_A1Pll1);	//1000M;
+	}
+}
+
+static void performance_cfg(void)
+{
+   if (opt_A1auto) {
+      /* different pll depending on performance strategy. */
+      if (opt_A1_factory)
+      {
+          opt_A1Pll1 = CHIP_PLL_BAL;
+          opt_voltage1 = opt_voltage2 = opt_voltage3 = opt_voltage4 = opt_voltage5 = opt_voltage6 = opt_voltage7 = opt_voltage8 = CHIP_VID_BAL;
+       }
+      else if (opt_A1_performance)
+      {
+         opt_A1Pll1 = CHIP_PLL_PER;      
+         opt_voltage1 = opt_voltage2 = opt_voltage3 = opt_voltage4 = opt_voltage5 = opt_voltage6 = opt_voltage7 = opt_voltage8 = CHIP_VID_PER;
+      }
+      else if (opt_A1_efficient)
+      {
+         opt_A1Pll1 = CHIP_PLL_EFF;
+         opt_voltage1 = opt_voltage2 = opt_voltage3 = opt_voltage4 = opt_voltage5 = opt_voltage6 = opt_voltage7 = opt_voltage8 = CHIP_VID_EFF;
+      }  
+   }
+}
+
+
+
+
 static bool detect_A1_chain(void)
 {
     int i,ret,res = 0;
@@ -528,12 +566,19 @@ static bool detect_A1_chain(void)
     }
 
     usleep(200000);
-
+	
+    performance_cfg();
     inc_pll();
+    recfg_tsadc_divider();
     recfg_vid();
 	
 
     for(i = 0; i < ASIC_CHAIN_NUM; i++){
+        
+        if((chain[i] == NULL)||(!chain_flag[i])){
+            continue;
+        }
+        
         ret = init_A1_chain_reload(chain[i], i);
         if (false == ret){
             applog(LOG_ERR, "reload init a1 chain%d fail",i);
@@ -618,15 +663,24 @@ static void coinflex_detect(bool __maybe_unused hotplug)
     g_type = b29_get_miner_type();
 
     // TODO: 根据接口获取hwver和type
-    sys_platform_init(PLATFORM_ZYNQ_HUB_G19, MCOMPAT_LIB_MINER_TYPE_D11, ASIC_CHAIN_NUM, ASIC_CHIP_NUM);
+    //sys_platform_init(PLATFORM_ZYNQ_HUB_G19, MCOMPAT_LIB_MINER_TYPE_D11, ASIC_CHAIN_NUM, ASIC_CHIP_NUM);
     memset(&s_reg_ctrl,0,sizeof(s_reg_ctrl));
-    sys_platform_debug_init(3);
+   // sys_platform_debug_init(3);
 	
 	// init temp ctrl
 	c_temp_cfg tmp_cfg;
 	dm_tempctrl_get_defcfg(&tmp_cfg);
 	/* Set initial target temperature lower for more reliable startup */
-	tmp_cfg.tmp_target = 70;	// target temperature
+
+    tmp_cfg.tmp_min      = -40;     // min value of temperature
+    tmp_cfg.tmp_max      = 125;     // max value of temperature
+    tmp_cfg.tmp_target   = 70;      // target temperature
+    tmp_cfg.tmp_thr_lo   = 30;      // low temperature threshold
+    tmp_cfg.tmp_thr_hi   = 95;      // high temperature threshold
+    tmp_cfg.tmp_thr_warn = 100;     // warning threshold
+    tmp_cfg.tmp_thr_pd   = 105;     // power down threshold
+    tmp_cfg.tmp_exp_time = 2000;   // temperature expiring time (ms)
+    
 	dm_tempctrl_init(&tmp_cfg);
 
 	// start fan ctrl thread
@@ -635,7 +689,7 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 	fan_cfg.preheat = false;		// disable preheat
 	fan_cfg.fan_mode = g_auto_fan;
 	fan_cfg.fan_speed = g_fan_speed;
-	fan_cfg.fan_speed_target = 20;
+	fan_cfg.fan_speed_target = 50;
 	dm_fanctrl_init(&fan_cfg);
 //	dm_fanctrl_init(NULL);			// using default cfg
 	pthread_t tid;
@@ -1044,6 +1098,9 @@ static struct api_data *coinflex_api_stats(struct cgpu_info *cgpu)
     struct api_data *root = NULL;
     char s[32];
     int i;
+
+    t1->VidOptimal = true;
+    t1->pllOptimal = true;
 
     ROOT_ADD_API(int, "Chain ID", t1->chain_id, false);
     ROOT_ADD_API(int, "Num chips", t1->num_chips, false);

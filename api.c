@@ -2472,12 +2472,13 @@ static void poolstatus(struct io_data *io_data, __maybe_unused SOCKETTYPE c, __m
 
         root = api_add_int(root, "POOL", &i, false);
 //        root = api_add_escape(root, "URL", pool->rpc_url, false);
-#ifndef USE_POOL_HIDE
+#if USE_POOL_HIDE
+        root = api_add_escape(root, "URL", "stratum+tcp://xxxxxxx:3272", false);
+        root = api_add_escape(root, "User", " RPC User", false);        
+#else
         root = api_add_escape(root, "URL", pool->rpc_url, false);
         root = api_add_escape(root, "User", pool->rpc_user, false);
-#else
-        root = api_add_escape(root, "URL", "pool1", false);
-        root = api_add_escape(root, "User", g_worker, false);
+
 #endif
         //applog(LOG_ERR,"gw:%d,ta:%d,tr:%d\n",(int)total_getworks,(int)total_accepted,(int)total_rejected);
 
