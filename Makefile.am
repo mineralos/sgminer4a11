@@ -55,20 +55,20 @@ endif
 
 if HAS_COINFLEX
 sgminer_SOURCES += driver-coinflex.c
-sgminer_SOURCES += spi-context.c spi-context.h
-sgminer_SOURCES += A1-common.h
-sgminer_SOURCES += A1-board-selector.h
-sgminer_SOURCES += A1-board-selector-CCD.c A1-board-selector-CCR.c
-sgminer_SOURCES += A1-trimpot-mcp4x.h A1-trimpot-mcp4x.c
-sgminer_SOURCES += i2c-context.c i2c-context.h
+# sgminer_SOURCES += spi-context.c spi-context.h
+# sgminer_SOURCES += A1-common.h
+# sgminer_SOURCES += A1-board-selector.h
+# sgminer_SOURCES += A1-board-selector-CCD.c A1-board-selector-CCR.c
+# sgminer_SOURCES += A1-trimpot-mcp4x.h A1-trimpot-mcp4x.c
+# sgminer_SOURCES += i2c-context.c i2c-context.h
 
 sgminer_SOURCES += asic_b29.c
-sgminer_SOURCES += asic_b29_cmd.c
-sgminer_SOURCES += asic_b29_clock.c
-sgminer_SOURCES += asic_b29_gpio.c
+# sgminer_SOURCES += asic_b29_cmd.c
+# sgminer_SOURCES += asic_b29_clock.c
+# sgminer_SOURCES += asic_b29_gpio.c
 sgminer_SOURCES += dm_temp_ctrl.c
 sgminer_SOURCES += dm_fan_ctrl.c
-#sgminer_SOURCES += scrypt.c
+# sgminer_SOURCES += scrypt.c
 # bitstreamsdir = $(bindir)/bitstreams						# Blocked by HKS 2016.07.05
 # dist_bitstreams_DATA = $(top_srcdir)/bitstreams/README	# Blocked by HKS 2016.07.05
 endif

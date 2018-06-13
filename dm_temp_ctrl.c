@@ -188,11 +188,11 @@ void dm_tempctrl_update_temp(uint8_t chain_mask)
 {
 	int i;
 
-	for (i = 0; i < ASIC_CHAIN_NUM; ++i)
+	for (i = 0; i < g_chain_num; ++i)
 	{
 		if(chain_mask & (1 << i))
 		{
-			dm_tempctrl_update_chain_temp(i);
+			dm_tempctrl_update_chain_temp(g_chain_id[i]);
 		}
 	}
 }

@@ -25,8 +25,6 @@
 #define A4_PLL(prediv,fbdiv,postdiv) ((prediv<<(89-64))|fbdiv<<(80-64)|0b010<<(77-64)|postdiv<<(70-64))
 #endif
 
-#define PLL_LV_NUM          (359)
-
 typedef enum
 {
     A4_PLL_CLOCK_1600MHz = 0,

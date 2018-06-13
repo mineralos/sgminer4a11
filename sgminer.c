@@ -28,9 +28,6 @@
 #include <assert.h>
 #include <signal.h>
 #include <limits.h>
-#include "asic_b29.h"
-#include "asic_b29_cmd.h"
-#include "asic_b29_clock.h"
 
 #include "sph/sph_sha2.h"
 
@@ -77,7 +74,8 @@ char *curly = ":D";
 #if defined(USE_COINFLEX)
 #include "sysendian.h"
 #include "driver-coinflex.h"
-#include "asic_b29_cmd.h"
+#include "asic_b29.h"
+
 #endif
 
 struct strategies strategies[] = {
@@ -118,16 +116,9 @@ uint32_t opt_A1Pll8=1100; // -1 Default
 #endif
 #endif
 
-int opt_voltage = 8;
+int opt_voltage[ASIC_CHAIN_NUM] = { CHIP_VID_RUN, CHIP_VID_RUN, CHIP_VID_RUN,
+									CHIP_VID_RUN, CHIP_VID_RUN, CHIP_VID_RUN };
 
-int opt_voltage1 = CHIP_VID_RUN;
-int opt_voltage2 = CHIP_VID_RUN;
-int opt_voltage3 = CHIP_VID_RUN;
-int opt_voltage4 = CHIP_VID_RUN;
-int opt_voltage5 = CHIP_VID_RUN;
-int opt_voltage6 = CHIP_VID_RUN;
-int opt_voltage7 = CHIP_VID_RUN;
-int opt_voltage8 = CHIP_VID_RUN;
 int opt_vote = 0;
 
 
@@ -1194,34 +1185,24 @@ static struct opt_table opt_config_table[] = {
                  set_int_0_to_9999, opt_show_intval, &opt_A1Pll8,
                  "Set PLL Clock in bitmine A1 broad 8 chip (-1: 1000MHz, >0:Look PLL table)"),
 
-    // for G9
-    OPT_WITH_ARG("--A1Vol",
-             set_int_0_to_31, opt_show_intval, &opt_voltage,
-             "set voltage (1 ~ 31)"),
     // for G19
     OPT_WITH_ARG("--A1Vol1",
-             set_int_0_to_31, opt_show_intval, &opt_voltage1,
+             set_int_0_to_31, opt_show_intval, &opt_voltage[0],
              "set voltage (1 ~ 31)"),
     OPT_WITH_ARG("--A1Vol2",
-             set_int_0_to_31, opt_show_intval, &opt_voltage2,
+             set_int_0_to_31, opt_show_intval, &opt_voltage[1],
              "set voltage (1 ~ 31)"),
     OPT_WITH_ARG("--A1Vol3",
-             set_int_0_to_31, opt_show_intval, &opt_voltage3,
+             set_int_0_to_31, opt_show_intval, &opt_voltage[2],
              "set voltage (1 ~ 31)"),
     OPT_WITH_ARG("--A1Vol4",
-             set_int_0_to_31, opt_show_intval, &opt_voltage4,
+             set_int_0_to_31, opt_show_intval, &opt_voltage[3],
              "set voltage (1 ~ 31)"),
     OPT_WITH_ARG("--A1Vol5",
-             set_int_0_to_31, opt_show_intval, &opt_voltage5,
+             set_int_0_to_31, opt_show_intval, &opt_voltage[4],
              "set voltage (1 ~ 31)"),
     OPT_WITH_ARG("--A1Vol6",
-             set_int_0_to_31, opt_show_intval, &opt_voltage6,
-             "set voltage (1 ~ 31)"),
-    OPT_WITH_ARG("--A1Vol7",
-             set_int_0_to_31, opt_show_intval, &opt_voltage7,
-             "set voltage (1 ~ 31)"),
-    OPT_WITH_ARG("--A1Vol8",
-             set_int_0_to_31, opt_show_intval, &opt_voltage8,
+             set_int_0_to_31, opt_show_intval, &opt_voltage[5],
              "set voltage (1 ~ 31)"),
 #if 1
     OPT_WITH_ARG("--A1Fanspd",

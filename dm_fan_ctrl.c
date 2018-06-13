@@ -105,7 +105,7 @@ void *dm_fanctrl_thread(void *argv)
 
 	while(true) {
 		sleep(g_fan_cfg.fan_ctrl_cycle);
-			
+
 		if (dm_fanctrl_get_tmp()) {
 			if (g_fan_cfg.fan_mode == FAN_MODE_MANUAL) {
 				dm_fanctrl_set_fan_speed(g_fan_speed);
@@ -184,7 +184,7 @@ static bool dm_fanctrl_get_tmp(void)
 
 	// FIXME: add mutex here
 	for (i = 0; i < ASIC_CHAIN_NUM; ++i) {
-		if (chain_flag[i]
+		if (g_chain_alive[i]
 			&& g_chain_tmp[i].tmp_avg > g_tmp_cfg.tmp_min
 			&& g_chain_tmp[i].tmp_avg < g_tmp_cfg.tmp_max) {
 			// temperature stat.

@@ -9,23 +9,376 @@
 #include "miner.h"
 #include "util.h"
 
-#include "spi-context.h"
 #include "asic_b29.h"
-#include "asic_b29_cmd.h"
-#include "asic_b29_clock.h"
-#include "asic_b29_gpio.h"
 
-#include "dm_temp_ctrl.h"
-
-//#define MAGIC_NUM  100 
-#define MUL_COEF 1.23
-
-extern b29_reg_ctrl_t s_reg_ctrl;
 
 int nReadVolTimes = 0;
 int nVolTotal = 0;
 
-static const uint8_t default_reg[PLL_LV_NUM][REG_LENGTH] = 
+const int g_pll_list[PLL_LV_NUM] =
+{
+	30,
+	32,
+	33,
+	35,
+	36,
+	38,
+	39,
+	41,
+	42,
+	44,
+	45,
+	47,
+	48,
+	50,
+	51,
+	53,
+	54,
+	56,
+	57,
+	59,
+	60,
+	62,
+	63,
+	65,
+	66,
+	68,
+	69,
+	71,
+	72,
+	74,
+	75,
+	77,
+	78,
+	80,
+	81,
+	83,
+	84,
+	86,
+	87,
+	89,
+	90,
+	92,
+	93,
+	95,
+	96,
+	98,
+	99,
+	101,
+	102,
+	104,
+	105,
+	107,
+	108,
+	110,
+	111,
+	113,
+	114,
+	116,
+	117,
+	119,
+	120,
+	122,
+	123,
+	125,
+	126,
+	128,
+	129,
+	131,
+	132,
+	134,
+	135,
+	137,
+	138,
+	140,
+	141,
+	143,
+	144,
+	146,
+	147,
+	149,
+	150,
+	153,
+	156,
+	159,
+	162,
+	165,
+	168,
+	171,
+	174,
+	177,
+	180,
+	183,
+	186,
+	189,
+	192,
+	195,
+	198,
+	201,
+	204,
+	207,
+	210,
+	213,
+	216,
+	219,
+	222,
+	225,
+	228,
+	231,
+	234,
+	237,
+	240,
+	242,
+	243,
+	245,
+	246,
+	248,
+	249,
+	251,
+	252,
+	254,
+	255,
+	257,
+	258,
+	260,
+	261,
+	263,
+	264,
+	266,
+	267,
+	269,
+	270,
+	272,
+	273,
+	275,
+	276,
+	278,
+	279,
+	281,
+	282,
+	284,
+	285,
+	287,
+	288,
+	290,
+	291,
+	293,
+	294,
+	296,
+	297,
+	299,
+	300,
+	303,
+	306,
+	309,
+	312,
+	315,
+	318,
+	321,
+	324,
+	327,
+	330,
+	333,
+	336,
+	339,
+	342,
+	345,
+	348,
+	351,
+	354,
+	357,
+	360,
+	363,
+	366,
+	369,
+	372,
+	375,
+	378,
+	381,
+	384,
+	387,
+	390,
+	393,
+	396,
+	399,
+	402,
+	405,
+	408,
+	411,
+	414,
+	417,
+	420,
+	423,
+	426,
+	429,
+	432,
+	435,
+	438,
+	441,
+	444,
+	447,
+	450,
+	453,
+	456,
+	459,
+	462,
+	465,
+	468,
+	471,
+	474,
+	477,
+	480,
+	483,
+	486,
+	489,
+	492,
+	495,
+	498,
+	501,
+	504,
+	507,
+	510,
+	513,
+	516,
+	519,
+	522,
+	525,
+	528,
+	531,
+	534,
+	537,
+	540,
+	543,
+	546,
+	549,
+	552,
+	555,
+	558,
+	561,
+	564,
+	567,
+	570,
+	573,
+	576,
+	579,
+	582,
+	585,
+	588,
+	591,
+	594,
+	597,
+	600,
+	606,
+	612,
+	618,
+	624,
+	630,
+	636,
+	642,
+	648,
+	654,
+	660,
+	666,
+	672,
+	678,
+	684,
+	690,
+	696,
+	702,
+	708,
+	714,
+	720,
+	726,
+	732,
+	738,
+	744,
+	750,
+	756,
+	762,
+	768,
+	774,
+	780,
+	786,
+	792,
+	798,
+	804,
+	810,
+	816,
+	822,
+	828,
+	834,
+	840,
+	846,
+	852,
+	858,
+	864,
+	870,
+	876,
+	882,
+	888,
+	894,
+	900,
+	906,
+	912,
+	918,
+	924,
+	930,
+	936,
+	942,
+	948,
+	954,
+	960,
+	966,
+	972,
+	978,
+	984,
+	990,
+	996,
+	1002,
+	1008,
+	1014,
+	1020,
+	1026,
+	1032,
+	1038,
+	1044,
+	1050,
+	1056,
+	1062,
+	1068,
+	1074,
+	1080,
+	1086,
+	1092,
+	1098,
+	1104,
+	1110,
+	1116,
+	1122,
+	1128,
+	1134,
+	1140,
+	1146,
+	1152,
+	1158,
+	1164,
+	1170,
+	1176,
+	1182,
+	1188,
+	1194,
+	1200,
+	1212,
+	1224,
+	1236,
+	1248,
+	1260,
+	1272,
+	1284,
+	1296,
+};
+
+const uint8_t g_pll_regs[PLL_LV_NUM][REG_LENGTH] = 
 {
     {0x02, 0x50, 0x40, 0x52, 0x00, 0x00, 0x00, 0xa0, 0x00, 0x24, 0x00, 0x00},    // 30MHz
     {0x02, 0x54, 0x40, 0x52, 0x00, 0x00, 0x00, 0xa0, 0x00, 0x24, 0x00, 0x00},    // 32MHz
@@ -388,6 +741,29 @@ static const uint8_t default_reg[PLL_LV_NUM][REG_LENGTH] =
     {0x02, 0x6c, 0x40, 0x02, 0x00, 0x00, 0x00, 0xa0, 0x00, 0x20, 0x00, 0x00}     // 1296MHz
 };
 
+static const unsigned short wCRCTalbeAbs[] =
+{
+    0x0000, 0xCC01, 0xD801, 0x1400, 
+    0xF001, 0x3C00, 0x2800, 0xE401, 
+    0xA001, 0x6C00, 0x7800, 0xB401, 
+    0x5000, 0x9C01, 0x8801, 0x4400,
+};
+
+inline unsigned short CRC16_2(unsigned char* pchMsg, unsigned short wDataLen)
+{
+    volatile unsigned short wCRC = 0xFFFF;
+    unsigned short i;
+    unsigned char chChar;
+
+    for (i = 0; i < wDataLen; i++){
+        chChar = *pchMsg++;
+        wCRC = wCRCTalbeAbs[(chChar ^ wCRC) & 15] ^ (wCRC >> 4);
+        wCRC = wCRCTalbeAbs[((chChar >> 4) ^ wCRC) & 15] ^ (wCRC >> 4);
+    }
+
+    return wCRC;
+}
+
 static const uint8_t difficult_Tbl[7][32] = {
 	 /*128*/
 	 {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -665,7 +1041,6 @@ bool check_chip(struct A1_chain *a1, int cid)
     uint8_t buffer[REG_LENGTH];
     int chip_id = cid + 1;
 
-    memset(buffer, 0, sizeof(buffer));
     if (!mcompat_cmd_read_register(a1->chain_id, chip_id, buffer, REG_LENGTH)) {
         applog(LOG_NOTICE, "%d: Failed to read register for chip %d -> disabling", a1->chain_id, chip_id);
         a1->chips[cid].num_cores = 0;
@@ -677,12 +1052,14 @@ bool check_chip(struct A1_chain *a1, int cid)
     a1->num_cores += a1->chips[cid].num_cores;
     //applog(LOG_WARNING, "%d: Found chip %d with %d active cores",cid, chip_id, a1->chips[cid].num_cores);
 
-    //keep ASIC register value
+	/* Restore data in reg0a */
     memcpy(a1->chips[cid].reg, buffer, REG_LENGTH);
-    a1->chips[cid].temp= 0x000003ff & ((buffer[7]<<8) | buffer[8]);
+	/* Read chip voltages */
+	a1->chips[cid].nVol = mcompat_volt_to_mV(0x3ff & ((buffer[7] << 8) | buffer[8]));
 
     if (a1->chips[cid].num_cores < BROKEN_CHIP_THRESHOLD){
-        applog(LOG_NOTICE, "%d: broken chip %d with %d active cores (threshold = %d)",a1->chain_id,chip_id,a1->chips[cid].num_cores,BROKEN_CHIP_THRESHOLD);
+        applog(LOG_NOTICE, "%d: broken chip %d with %d active cores (threshold = %d)",
+			a1->chain_id, chip_id, a1->chips[cid].num_cores, BROKEN_CHIP_THRESHOLD);
         a1->chips[cid].disabled = true;
         a1->num_cores -= a1->chips[cid].num_cores;
 
@@ -695,159 +1072,6 @@ bool check_chip(struct A1_chain *a1, int cid)
     }
     a1->chips[cid].pll = a1->pll;
     return true;
-}
-
-int prechain_detect(struct A1_chain *a1, int idxpll, int lastidx)
-{
-    //uint8_t buffer[64];
-    int cid = a1->chain_id;
-    uint8_t temp_reg[REG_LENGTH];
-    int i,nCount = 0;
-    
-     a1->base_pll = idxpll;
-    //usleep(500000);
-    
-    for(i=lastidx; i<idxpll+1; i++)
-    {
-    	// update temperature for all chains once two second
-		dm_tempctrl_update_temp(0xff);
-
-        nCount = 0;
-        memcpy(temp_reg, default_reg[i], REG_LENGTH);
-        
-         while(!mcompat_cmd_write_register(a1->chain_id, ADDR_BROADCAST, temp_reg, REG_LENGTH))
-         {
-               usleep(200000);
-               nCount++;
-               if(nCount > 5) 
-               {
-                  applog(LOG_ERR, "set default PLL fail");
-                  return -1;
-                }
-          }
-       
-           usleep(20000);
-           a1->pll = i;
-      }
-        
-        applog(LOG_WARNING, "chain %d set PLL Lv.%d success", cid, i);
-
-        usleep(500000);
-    return 0;
-}
-
-/*
- * BIST_START works only once after HW reset, on subsequent calls it
- * returns 0 as number of chips.
- */
-int chain_detect(struct A1_chain *a1)
-{
-    uint8_t n_chips = mcompat_cmd_bist_start(a1->chain_id, ADDR_BROADCAST);
-
-    if(unlikely(n_chips == 0) || unlikely(n_chips == 0xff)){
-        return -1;
-    }
-
-    a1->num_chips = n_chips; 
-
-    return a1->num_chips;
-}
-
-//add 0922
-void b29_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor)
-{
-    //int i;
-    unsigned char tmp_reg[REG_LENGTH] = {0};
-    unsigned char src_reg[REG_LENGTH] = {0};
-    unsigned char reg[REG_LENGTH] = {0};
-
-    mcompat_cmd_read_register(a1->chain_id, 0x01, reg, REG_LENGTH);
-    memcpy(src_reg, reg, REG_LENGTH);
-    mcompat_cmd_write_register(a1->chain_id, chip_id, src_reg, REG_LENGTH);
-    usleep(200);
-
-    if(is_tsensor)
-    { //configure for tsensor
-        //Step1: wait for clock stable
-        //Step2: low the tsdac rst_n and release rst_n after 4 SysClk
-        //hexdump("write reg", reg, REG_LENGTH);
-        reg[7] = (src_reg[7]&0x7f);
-        memcpy(tmp_reg, reg, REG_LENGTH);
-        //hexdump("write reg", tmp_reg, REG_LENGTH);
-        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
-        usleep(200);
-        reg[7] = (src_reg[7]|0x80);
-        memcpy(tmp_reg, reg, REG_LENGTH);
-        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
-        usleep(200);
-
-        //Step3: Config tsadc_clk(default match)
-        //Step4: low tsadc_tsen_pd
-        //Step5: high tsadc_ana_reg_2
-        reg[6] = (src_reg[6]|0x04);
-        memcpy(tmp_reg, reg, REG_LENGTH);
-        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
-        usleep(200);
-
-        //Step6: high tsadc_en
-        reg[7] = (src_reg[7]|0x20);
-        memcpy(tmp_reg, reg, REG_LENGTH);
-        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
-        usleep(200);
-
-        //Step7: tsadc_ana_reg_9 = 0;tsadc_ana_reg_8  = 0
-        reg[5] = (src_reg[5]&0xfc);
-        memcpy(tmp_reg, reg, REG_LENGTH);
-        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
-        usleep(200);
-
-        //Step8: tsadc_ana_reg_7 = 1;tsadc_ana_reg_1 = 0
-        reg[6] = (src_reg[6]&0x7d);
-        memcpy(tmp_reg, reg, REG_LENGTH);
-        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
-        usleep(200);
-    }
-    else
-    { //configure for vsensor
-        //Step1: wait for clock stable
-        //Step2: low the tsdac rst_n and release rst_n after 4 SysClk
-        // hexdump("write reg", reg, REG_LENGTH);
-        reg[7] = (src_reg[7]&0x7f);
-        memcpy(tmp_reg, reg, REG_LENGTH);
-        // hexdump("write reg", tmp_reg, REG_LENGTH);
-        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
-        usleep(200);
-        reg[7] = (src_reg[7]|0x80);
-        memcpy(tmp_reg, reg, REG_LENGTH);
-        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
-        usleep(200);
-
-        //Step3: Config tsadc_clk(default match)
-        //Step4: low tsadc_tsen_pd
-        //Step5: high tsadc_ana_reg_2
-        reg[6] = (src_reg[6]|0x04);
-        memcpy(tmp_reg, reg, REG_LENGTH);
-        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
-        usleep(200);
-
-        //Step6: high tsadc_en
-        reg[7] = (src_reg[7]|0x20);
-        memcpy(tmp_reg, reg, REG_LENGTH);
-        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
-        usleep(200);
-
-        //Step7: tsadc_ana_reg_9 = 0;tsadc_ana_reg_8  = 0
-        reg[5] = ((src_reg[5]|0x01)&0xfd);
-        memcpy(tmp_reg, reg, REG_LENGTH);
-        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
-        usleep(200);
-
-        //Step8: tsadc_ana_reg_7 = 1;tsadc_ana_reg_1 = 0
-        reg[6] = ((src_reg[6]|0x02)&0x7f);
-        memcpy(tmp_reg, reg, REG_LENGTH);
-        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
-        usleep(200);
-    }
 }
 
 int b29_get_voltage_stats(struct A1_chain *a1, b29_reg_ctrl_t *s_reg_ctrl)
@@ -877,52 +1101,6 @@ int b29_get_voltage_stats(struct A1_chain *a1, b29_reg_ctrl_t *s_reg_ctrl)
     return 0;
 }
 
-bool b29_check_voltage(struct A1_chain *a1, int chip_id, b29_reg_ctrl_t *s_reg_ctrl)
-{
-  
-    uint8_t reg[REG_LENGTH];
-    memset(reg, 0, REG_LENGTH);
-  
-    if (!mcompat_cmd_read_register(a1->chain_id, chip_id, reg, REG_LENGTH)) {
-        applog(LOG_NOTICE, "%d: Failed to read register for ""chip %d -> disabling", a1->chain_id, chip_id);
-        a1->chips[chip_id].num_cores = 0;
-        a1->chips[chip_id].disabled = 1;
-        return false;
-    } else {
-        usleep(2000);
-
-        /* update temp database */
-        uint32_t rd_v = 0;
-        rd_v = 0x000003ff & ((reg[7] << 8) | reg[8]);
-        float tmp_v = (float)(rd_v * MUL_COEF)/1024;
-        a1->chips[chip_id-1].nVol = tmp_v *1000; 
-        s_reg_ctrl->stat_val[a1->chain_id][chip_id-1] = a1->chips[chip_id-1].nVol;
-        //s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1]++;
-        
-        //applog(LOG_WARNING,"read tmp %f/%d form chain %d,chip %d h:%f,l:%f,av:%f,cnt:%d\n",tmp_v,rd_v,a1->chain_id, chip_id,s_reg_ctrl->highest_vol[a1->chain_id][chip_id-1],s_reg_ctrl->lowest_vol[a1->chain_id][chip_id-1],s_reg_ctrl->avarge_vol[a1->chain_id][chip_id-1],s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1]);
-        nReadVolTimes++;
-                    
-        if((tmp_v > CHIP_VOL_MAX) || (tmp_v < CHIP_VOL_MIN)){
-            
-            applog(LOG_ERR,"tmp_v = %f,nVolTotal = %d",tmp_v,nVolTotal);
-            nVolTotal++;
-        }
-        //applog(LOG_ERR,"nReadVolTimes = %d,nVolTotal = %d",nReadVolTimes,nVolTotal);
-        
-        if(nVolTotal >= 3){
-            applog(LOG_ERR,"Notice chain %d chip %d maybe has some promble in voltage %d",a1->chain_id,chip_id,a1->chips[chip_id-1].nVol);
-            nVolTotal = 0;
-            nReadVolTimes = 0;
-            //mcompat_chain_power_down(a1->chain_id);
-           // early_quit(1,"Notice chain %d maybe has some promble in voltage %d",a1->chain_id,tmp_v);
-        }
-        
-    }
-
-    return true;
-}
-
-
 hardware_version_e b29_get_hwver(void)
 {
     FILE* fd;
@@ -951,43 +1129,6 @@ hardware_version_e b29_get_hwver(void)
     }
 
     return version;
-}
-
-
-b29_type_e b29_get_miner_type(void)
-{
-    FILE* fd;
-    char buffer[64] = {0};
-    b29_type_e miner_type;
-    
-    fd = fopen(B29_MINER_TYPE_FILE, "r");  
-    if(fd == NULL)
-    {               
-        applog(LOG_ERR, "Open type File Failed!");
-        return -1;
-    }
-
-    fread(buffer, 8, 1, fd);
-    fclose(fd);
-
-    if(strstr(buffer, "T1") != NULL) {
-        miner_type = B29_TYPE_A5;
-        applog(LOG_INFO, "miner type is T1");
-    }else if(strstr(buffer, "T2") != NULL) {
-        miner_type = B29_TYPE_A6;
-        applog(LOG_INFO, "miner type is T2");
-    }else if(strstr(buffer, "T3") != NULL) {
-        miner_type = B29_TYPE_A7;
-        applog(LOG_INFO, "miner type is T3");
-    }else if(strstr(buffer, "T4") != NULL) {
-        miner_type = B29_TYPE_A8;
-        applog(LOG_INFO, "miner type is T4");
-    }else {
-        miner_type = 0;
-        applog(LOG_INFO, "unknown miner type !!!");
-    }
-
-    return miner_type;
 }
 
 
