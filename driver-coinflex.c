@@ -70,19 +70,11 @@ static uint8_t A1Pll4=CHIP_PLL_BAL;
 static uint8_t A1Pll5=CHIP_PLL_BAL;
 static uint8_t A1Pll6=CHIP_PLL_BAL;
 
-static uint32_t show_log[ASIC_CHAIN_NUM];
 static uint32_t check_disbale_flag[ASIC_CHAIN_NUM];
 
-int spi_plug_status[ASIC_CHAIN_NUM] = {0};
-
-char szShowLog[ASIC_CHAIN_NUM][ASIC_CHIP_NUM][256] = {0};
-char volShowLog[ASIC_CHAIN_NUM][256] = {0};
-
 hardware_version_e g_hwver;
-b29_type_e g_type;
 int g_reset_delay = 0xffff;
 int g_miner_state = 0;
-int chain_flag[ASIC_CHAIN_NUM] = {0};
 b29_reg_ctrl_t s_reg_ctrl;
 
 /* added by yex in 20170907 */
@@ -485,86 +477,6 @@ static void coinflex_flush_work(struct cgpu_info *coinflex)
 
 }
 
-
-#define VOLTAGE_UPDATE_INT  6000
-//#define  LOG_FILE_PREFIX "/home/www/conf/analys"
-#define  LOG_FILE_PREFIX "/tmp/log/analys"
-#define  LOG_VOL_PREFIX "/tmp/log/volAnalys"
-
-
-const char cLevelError1[3] = "!";
-const char cLevelError2[3] = "#";
-const char cLevelError3[3] = "$";
-const char cLevelError4[3] = "%";
-const char cLevelError5[3] = "*";
-const char cLevelNormal[3] = "+";
-
-void B29_Log_Save(struct A1_chip *chip,int nChip,int nChain)
-{
-    char szInNormal[8] = {0};
-    memset(szInNormal,0, sizeof(szInNormal));
-    if(chip->hw_errors > 0){
-        strcat(szInNormal,cLevelError1);
-    }
-    if(chip->stales > 0){
-        strcat(szInNormal,cLevelError2);
-    }
-    if((chip->temp > 564) || (chip->temp < 445)){
-        strcat(szInNormal,cLevelError3);
-    }
-    if(chip->num_cores < 8){
-        strcat(szInNormal,cLevelError4);
-    }
-    if((chip->nVol > 550) || (chip->nVol < 450)){
-        strcat(szInNormal,cLevelError5);
-    }
-
-    if((chip->hw_errors == 0) && (chip->stales == 0) && ((chip->temp < 564) && (chip->temp > 445)) &&((chip->nVol < 550) && (chip->nVol > 450)) && (chip->num_cores == 8)){
-        strcat(szInNormal,cLevelNormal);
-    }
-
-    sprintf(szShowLog[nChain][nChip], "\n%-8s|%32d|%8d|%8d|%8d|%8d|%8d|%8d|%8d",szInNormal,chip->nonces_found,
-            chip->hw_errors, chip->stales,chip->temp,chip->nVol,chip->num_cores,nChip,nChain);
-}
-
-void b29_log_print(int cid, void* log, int len)
-{
-    FILE* fd;
-    char fileName[128] = {0};
-
-    sprintf(fileName, "%s%d.log", LOG_FILE_PREFIX, cid);
-
-    fd = fopen(fileName, "w+"); 
-
-    if(fd == NULL){             
-        //applog(LOG_ERR, "Open log File%d Failed!%d", cid, errno);
-        applog(LOG_ERR, "Open log File%d Failed!%s", cid, strerror(errno));
-        return; 
-    }
-
-    fwrite(log, len, 1, fd);
-    fflush(fd);
-    fclose(fd);
-}
-
-void b29_log_record(int cid, void* log, int len)
-{
-    FILE* fd;
-    char fileName[128] = {0};
-
-    sprintf(fileName, "%s%d.log", LOG_VOL_PREFIX, cid);
-    fd = fopen(fileName, "w+"); 
-    if(fd == NULL){             
-        //applog(LOG_ERR, "Open log File%d Failed!%d", cid, errno);
-        applog(LOG_ERR, "Open log File%d Failed!%s", cid, strerror(errno));
-        return; 
-    }
-
-    fwrite(log, len, 1, fd);
-    fflush(fd);
-    fclose(fd);
-}
-
 static void overheated_blinking(int cid)
 {
 	// block thread and blink led
@@ -607,17 +519,11 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     mutex_lock(&a1->lock);
     int cid = a1->chain_id;
 
-    if (a1->last_temp_time + TEMP_UPDATE_INT_MS < get_current_ms())
-    {
-        show_log[cid]++;
+    if (a1->last_temp_time + TEMP_UPDATE_INT_MS < get_current_ms()) {
         check_disbale_flag[cid]++;
 
         cgpu->chip_num = a1->num_active_chips;
         cgpu->core_num = a1->num_cores;
-
-        //printf("volShowLog[%d]=%s",cid,volShowLog[cid]);
-
-        b29_log_print(cid, szShowLog[cid], sizeof(szShowLog[0]));
 
         a1->last_temp_time = get_current_ms();
     }
