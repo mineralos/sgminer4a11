@@ -267,6 +267,9 @@ failure:
 static bool chain_detect(void)
 {
 	int i, cid;
+	int thr_args[ASIC_CHAIN_NUM];
+	void *thr_ret[ASIC_CHAIN_NUM];
+	pthread_t thr[ASIC_CHAIN_NUM];
 
 	/* Determine working PLL & VID */
 	performance_cfg();
@@ -274,12 +277,23 @@ static bool chain_detect(void)
 	/* Register PLL map config */
 	mcompat_chain_set_pllcfg(g_pll_list, g_pll_regs, PLL_LV_NUM);
 
-	applog(LOG_NOTICE, "Total chains: %d", g_chain_num);
+	applog(LOG_NOTICE, "total chains: %d", g_chain_num);
+
+	/* Chain detect */
+	for (i = 0; i < g_chain_num; ++i) {
+		thr_args[i] = i;
+		pthread_create(&thr[i], NULL, chain_detect_thread, (void*)&thr_args[i]);
+	}
+	for (i = 0; i < g_chain_num; ++i)
+		pthread_join(thr[i], &thr_ret[i]);
+
+	applog(LOG_NOTICE, "chain detect finished");
+
 	for (i = 0; i < g_chain_num; ++i) {
 		cid = g_chain_id[i];
 
 		/* FIXME: should be thread */
-		chain_detect_thread(&i);
+//		chain_detect_thread(&i);
 
 		if (!g_chain_alive[cid])
 			continue;
