@@ -63,11 +63,8 @@ sgminer_SOURCES += driver-coinflex.c
 # sgminer_SOURCES += i2c-context.c i2c-context.h
 
 sgminer_SOURCES += asic_b29.c
-# sgminer_SOURCES += asic_b29_cmd.c
-# sgminer_SOURCES += asic_b29_clock.c
-# sgminer_SOURCES += asic_b29_gpio.c
-sgminer_SOURCES += dm_temp_ctrl.c
-sgminer_SOURCES += dm_fan_ctrl.c
+# sgminer_SOURCES += dm_temp_ctrl.c
+# sgminer_SOURCES += dm_fan_ctrl.c
 # sgminer_SOURCES += scrypt.c
 # bitstreamsdir = $(bindir)/bitstreams						# Blocked by HKS 2016.07.05
 # dist_bitstreams_DATA = $(top_srcdir)/bitstreams/README	# Blocked by HKS 2016.07.05

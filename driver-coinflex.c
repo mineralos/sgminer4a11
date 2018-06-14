@@ -43,9 +43,8 @@
 #include "asic_b29.h"
 
 #include "mcompat_chain.h"
-
-#include "dm_temp_ctrl.h"
-#include "dm_fan_ctrl.h"
+#include "mcompat_tempctrl.h"
+#include "mcompat_fanctrl.h"
 
 #define WORK_SIZE               (80)
 #define DEVICE_TARGET_SIZE      (32)
@@ -370,9 +369,7 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 	
 	// init temp ctrl
 	c_temp_cfg tmp_cfg;
-	dm_tempctrl_get_defcfg(&tmp_cfg);
-	/* Set initial target temperature lower for more reliable startup */
-
+	mcompat_tempctrl_get_defcfg(&tmp_cfg);
     tmp_cfg.tmp_min      = -40;     // min value of temperature
     tmp_cfg.tmp_max      = 125;     // max value of temperature
     tmp_cfg.tmp_target   = 70;      // target temperature
@@ -381,20 +378,19 @@ static void coinflex_detect(bool __maybe_unused hotplug)
     tmp_cfg.tmp_thr_warn = 100;     // warning threshold
     tmp_cfg.tmp_thr_pd   = 105;     // power down threshold
     tmp_cfg.tmp_exp_time = 2000;   // temperature expiring time (ms)
-    
-	dm_tempctrl_init(&tmp_cfg);
+	mcompat_tempctrl_init(&tmp_cfg);
 
 	// start fan ctrl thread
 	c_fan_cfg fan_cfg;
-	dm_fanctrl_get_defcfg(&fan_cfg);
+	mcompat_fanctrl_get_defcfg(&fan_cfg);
 	fan_cfg.preheat = false;		// disable preheat
 	fan_cfg.fan_mode = g_auto_fan;
 	fan_cfg.fan_speed = g_fan_speed;
 	fan_cfg.fan_speed_target = 50;
-	dm_fanctrl_init(&fan_cfg);
-//	dm_fanctrl_init(NULL);			// using default cfg
+	mcompat_fanctrl_init(&fan_cfg);
+//	mcompat_fanctrl_init(NULL);			// using default cfg
 	pthread_t tid;
-	pthread_create(&tid, NULL, dm_fanctrl_thread, NULL);
+	pthread_create(&tid, NULL, mcompat_fanctrl_thread, NULL);
 
     // update time
     for(j = 0; j < 64; j++)
@@ -750,7 +746,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 	}
 
 	/* Temperature control */
-	int chain_temp_status = dm_tempctrl_update_chain_temp(cid);
+	int chain_temp_status = mcompat_tempctrl_update_chain_temp(cid);
 
 	cgpu->temp_min = (double)g_chain_tmp[cid].tmp_lo;
 	cgpu->temp_max = (double)g_chain_tmp[cid].tmp_hi;
