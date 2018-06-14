@@ -292,9 +292,6 @@ static bool chain_detect(void)
 	for (i = 0; i < g_chain_num; ++i) {
 		cid = g_chain_id[i];
 
-		/* FIXME: should be thread */
-//		chain_detect_thread(&i);
-
 		if (!g_chain_alive[cid])
 			continue;
 
@@ -390,8 +387,8 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 	c_fan_cfg fan_cfg;
 	mcompat_fanctrl_get_defcfg(&fan_cfg);
 	fan_cfg.preheat = false;		// disable preheat
-	fan_cfg.fan_mode = g_auto_fan;
-	fan_cfg.fan_speed = g_fan_speed;
+	fan_cfg.fan_mode = g_auto_fan ? FAN_MODE_AUTO : FAN_MODE_MANUAL;
+	fan_cfg.fan_speed_manual = g_fan_speed;
 	fan_cfg.fan_speed_target = 50;
 	mcompat_fanctrl_init(&fan_cfg);
 //	mcompat_fanctrl_init(NULL);			// using default cfg
@@ -399,29 +396,15 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 	pthread_create(&tid, NULL, mcompat_fanctrl_thread, NULL);
 
     // update time
-    for(j = 0; j < 64; j++)
-    {
+    for(j = 0; j < 64; j++) {
         cgtime(&test_tv);
         if(test_tv.tv_sec > 1000000000)
-        {
             break;
-        }
 
         usleep(500000);
     }
 
-    // chain poweron & reset
-//    mcompat_chain_power_down_all();
-//    sleep(5);
-//    mcompat_chain_power_on_all();
-
-//    if(detect_A1_chain()){
-//        return ;
-//    }
-
 	chain_detect();
-
-    applog(LOG_WARNING, "A1 dectect finish");
 
 }
 
