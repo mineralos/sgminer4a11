@@ -61,16 +61,9 @@
 //#define TEMP_UPDATE_INT_MS  10000
 #define CHECK_DISABLE_TIME  0
 
-struct A1_chain *chain[ASIC_CHAIN_NUM];
+struct A1_chain *chain[MAX_CHAIN_NUM];
 
-uint8_t A1Pll1=CHIP_PLL_BAL;
-static uint8_t A1Pll2=CHIP_PLL_BAL;
-static uint8_t A1Pll3=CHIP_PLL_BAL;
-static uint8_t A1Pll4=CHIP_PLL_BAL;
-static uint8_t A1Pll5=CHIP_PLL_BAL;
-static uint8_t A1Pll6=CHIP_PLL_BAL;
-
-static uint32_t check_disbale_flag[ASIC_CHAIN_NUM];
+static uint32_t check_disbale_flag[MAX_CHAIN_NUM];
 
 hardware_version_e g_hwver;
 int g_reset_delay = 0xffff;
@@ -188,7 +181,7 @@ static void performance_cfg(void)
 			vid = CHIP_VID_EFF;
 		}
 
-		for (i = 0; i < ASIC_CHAIN_NUM; ++i)
+		for (i = 0; i < MAX_CHAIN_NUM; ++i)
 			opt_voltage[i] = vid;
 	}
 }
@@ -267,17 +260,15 @@ failure:
 static bool chain_detect(void)
 {
 	int i, cid;
-	int thr_args[ASIC_CHAIN_NUM];
-	void *thr_ret[ASIC_CHAIN_NUM];
-	pthread_t thr[ASIC_CHAIN_NUM];
+	int thr_args[MAX_CHAIN_NUM];
+	void *thr_ret[MAX_CHAIN_NUM];
+	pthread_t thr[MAX_CHAIN_NUM];
 
 	/* Determine working PLL & VID */
 	performance_cfg();
 
 	/* Register PLL map config */
 	mcompat_chain_set_pllcfg(g_pll_list, g_pll_regs, PLL_LV_NUM);
-
-	applog(LOG_NOTICE, "total chains: %d", g_chain_num);
 
 	/* Chain detect */
 	for (i = 0; i < g_chain_num; ++i) {
@@ -366,7 +357,7 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 //    g_type = b29_get_miner_type();
 
     // TODO: 根据接口获取hwver和type
-    //sys_platform_init(PLATFORM_ZYNQ_HUB_G19, MCOMPAT_LIB_MINER_TYPE_D11, ASIC_CHAIN_NUM, ASIC_CHIP_NUM);
+    //sys_platform_init(PLATFORM_ZYNQ_HUB_G19, MCOMPAT_LIB_MINER_TYPE_D11, MAX_CHAIN_NUM, ASIC_CHIP_NUM);
     memset(&s_reg_ctrl,0,sizeof(s_reg_ctrl));
    // sys_platform_debug_init(3);
 	
@@ -490,8 +481,8 @@ volatile int g_nonce_read_err = 0;
 #define MAX_CMD_FAILS		(0)
 #define MAX_CMD_RESETS		(50)
 
-static int g_cmd_fails[ASIC_CHAIN_NUM];
-static int g_cmd_resets[ASIC_CHAIN_NUM];
+static int g_cmd_fails[MAX_CHAIN_NUM];
+static int g_cmd_resets[MAX_CHAIN_NUM];
 
 static int64_t coinflex_scanwork(struct thr_info *thr)
 {
@@ -507,6 +498,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
     uint8_t job_id;
     bool work_updated = false;
 	struct timeval now;
+
+	char errmsg[32] = {0};
 
     if (a1->num_cores == 0) {
         cgpu->deven = DEV_DISABLED;
@@ -572,8 +565,7 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 		       cid, CHAIN_DEAD_TIME / 60);
 		// TODO: should restart current chain only
 		/* Exit cgminer, allowing systemd watchdog to restart */
-		for (i = 0; i < ASIC_CHAIN_NUM; ++i)
-			mcompat_chain_power_down(cid);
+		mcompat_chain_power_down_all();
 		exit(1);
 	}
 
@@ -637,10 +629,11 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 					if (g_cmd_resets[cid] > MAX_CMD_RESETS) {
 						applog(LOG_ERR, "Chain %d is not working due to multiple resets. shutdown.",
 						       cid);
+						sprintf(errmsg, "%d", cid);
+						mcompat_save_errcode(ERRCODE_SPI_FAIL, errmsg);
 						/* Exit cgminer, allowing systemd watchdog to
 						 * restart */
-						for (i = 0; i < ASIC_CHAIN_NUM; ++i)
-							mcompat_chain_power_down(cid);
+						mcompat_chain_power_down_all();
 						exit(1);
 					}
 				}
@@ -662,7 +655,9 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 		mcompat_chain_power_down(cid);
 		cgpu->status = LIFE_DEAD;
 		cgtime(&thr->sick);
-
+		/* Write error code */
+		sprintf(errmsg, "%d", cid);
+		mcompat_save_errcode(ERRCODE_OVERHEAT, errmsg);
 		/* Function doesn't currently return */
 		overheated_blinking(cid);
 	}

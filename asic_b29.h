@@ -11,7 +11,8 @@
 #define NO_FAN_CTRL
 
 #ifdef CHIP_A11
-#define ASIC_CHAIN_NUM          (6)
+#define MAX_CHAIN_NUM			(6)
+#define ASIC_CHAIN_NUM			(3)
 #define ASIC_CHIP_NUM           (51)    // 45
 #define ASIC_CORE_NUM           (28)    // 63
 #define MAX_CHIP_NUM            (ASIC_CHIP_NUM)
@@ -104,11 +105,11 @@ typedef enum{
 }b29_type_e;
 
 typedef struct{
-   double highest_vol[ASIC_CHAIN_NUM];    /* chip temp bits */;
-   double lowest_vol[ASIC_CHAIN_NUM];    /* chip temp bits */;
-   double average_vol[ASIC_CHAIN_NUM];    /* chip temp bits */; 
-   int stat_val[ASIC_CHAIN_NUM][ASIC_CHIP_NUM];
-   int stat_cnt[ASIC_CHAIN_NUM][ASIC_CHIP_NUM];
+   double highest_vol[MAX_CHAIN_NUM];    /* chip temp bits */;
+   double lowest_vol[MAX_CHAIN_NUM];    /* chip temp bits */;
+   double average_vol[MAX_CHAIN_NUM];    /* chip temp bits */; 
+   int stat_val[MAX_CHAIN_NUM][ASIC_CHIP_NUM];
+   int stat_cnt[MAX_CHAIN_NUM][ASIC_CHIP_NUM];
 }b29_reg_ctrl_t;
 
 struct work_ent {

@@ -116,8 +116,8 @@ uint32_t opt_A1Pll8=1100; // -1 Default
 #endif
 #endif
 
-int opt_voltage[ASIC_CHAIN_NUM] = { CHIP_VID_RUN, CHIP_VID_RUN, CHIP_VID_RUN,
-									CHIP_VID_RUN, CHIP_VID_RUN, CHIP_VID_RUN };
+int opt_voltage[MAX_CHAIN_NUM] = {CHIP_VID_RUN, CHIP_VID_RUN, CHIP_VID_RUN,
+								  CHIP_VID_RUN, CHIP_VID_RUN, CHIP_VID_RUN };
 
 int opt_vote = 0;
 
@@ -6748,7 +6748,7 @@ static void submit_work_async(struct work *work)
 
 void inc_hw_errors(struct thr_info *thr)
 {
-    applog(LOG_INFO, "%s%d: invalid nonce - HW error", thr->cgpu->drv->name, thr->cgpu->device_id);
+//    applog(LOG_INFO, "%s%d: invalid nonce - HW error", thr->cgpu->drv->name, thr->cgpu->device_id);
 
     mutex_lock(&stats_lock);
     hw_errors++;
@@ -8791,12 +8791,15 @@ int main(int argc, char *argv[])
 
     gwsched_thr_id = 0;
     
-    
-    // TODO: 根据接口获取hwver和type
+#if defined(USE_COINFLEX)
+	/* Clear error code (by duanh) */
+	mcompat_errcode_init();
+
     sys_platform_init(PLATFORM_ZYNQ_HUB_G19, MCOMPAT_LIB_MINER_TYPE_D9, ASIC_CHAIN_NUM, ASIC_CHIP_NUM);
-    sys_platform_debug_init(3);
+    sys_platform_debug_init(MCOMPAT_LOG_NOTICE);
 
     mcompat_chain_power_down_all();
+#endif
 
     
         if (!total_pools) {
@@ -8861,7 +8864,9 @@ int main(int argc, char *argv[])
             }
             if (!use_curses)
             {
+#if defined(USE_COINFLEX)
                 mcompat_chain_power_down_all();
+#endif
                 early_quit(0, "No servers could be used! Exiting.");
             }   
 #ifdef HAVE_CURSES
@@ -8869,7 +8874,7 @@ int main(int argc, char *argv[])
             wrefresh(logwin);
             halfdelay(10);
             if (getch() != ERR)
-                early_quit(0, "No servers could be used! Exiting.");
+				early_quit(0, "No servers could be used! Exiting.");
             cbreak();
 #endif
         };
