@@ -171,14 +171,21 @@ static void performance_cfg(void)
 	if (opt_A1auto) {
 		/* different pll depending on performance strategy. */
 		if (opt_A1_factory) {
+			/* Factory mode */
 			opt_A1Pll1 = CHIP_PLL_BAL;
 			vid = CHIP_VID_BAL;
 		} else if (opt_A1_performance) {
+			/* Performance mode */
 			opt_A1Pll1 = CHIP_PLL_PER;      
 			vid = CHIP_VID_PER;
 		} else if (opt_A1_efficient) {
+			/* Efficient mode */
 			opt_A1Pll1 = CHIP_PLL_EFF;
 			vid = CHIP_VID_EFF;
+		} else {
+			/* Default */
+			opt_A1Pll1 = CHIP_PLL_PER;
+			vid = CHIP_VID_PER;
 		}
 
 		for (i = 0; i < MAX_CHAIN_NUM; ++i)
