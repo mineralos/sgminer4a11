@@ -215,7 +215,7 @@ void *chain_detect_thread(void *argv)
 		goto failure;
 	}
 
-	if (!mcompat_chain_set_pll(cid, opt_A1Pll1, opt_voltage[cid])) {
+	if (!mcompat_chain_set_pll_vid(cid, opt_A1Pll1, opt_voltage[cid])) {
 		goto failure;
 	}
 
