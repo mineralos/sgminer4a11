@@ -279,11 +279,17 @@ static bool chain_detect(void)
 
 	/* Chain detect */
 	for (i = 0; i < g_chain_num; ++i) {
-		thr_args[i] = i;
-		pthread_create(&thr[i], NULL, chain_detect_thread, (void*)&thr_args[i]);
+		if (opt_quickstart) {
+			thr_args[i] = i;
+			pthread_create(&thr[i], NULL, chain_detect_thread, (void*)&thr_args[i]);
+		} else {
+			chain_detect_thread((void*)&i);
+		}
 	}
-	for (i = 0; i < g_chain_num; ++i)
-		pthread_join(thr[i], &thr_ret[i]);
+	if (opt_quickstart) {
+		for (i = 0; i < g_chain_num; ++i)
+			pthread_join(thr[i], &thr_ret[i]);
+	}
 
 	applog(LOG_NOTICE, "chain detect finished");
 

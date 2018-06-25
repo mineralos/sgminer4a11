@@ -134,6 +134,7 @@ extern uint32_t opt_A1Pll7;
 extern uint32_t opt_A1Pll8;
 
 extern int opt_voltage[];
+extern bool opt_quickstart;
 
 extern int g_auto_fan;
 extern int g_fan_speed;

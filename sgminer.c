@@ -120,6 +120,7 @@ int opt_voltage[MAX_CHAIN_NUM] = {CHIP_VID_RUN, CHIP_VID_RUN, CHIP_VID_RUN,
 								  CHIP_VID_RUN, CHIP_VID_RUN, CHIP_VID_RUN };
 
 int opt_vote = 0;
+bool opt_quickstart = false;
 
 
 static char packagename[256];
@@ -1212,6 +1213,10 @@ static struct opt_table opt_config_table[] = {
              set_int_0_to_1, opt_show_intval, &g_auto_fan,
              "set fan control (0 ~ 1)"),
 #endif
+
+	OPT_WITHOUT_ARG("--A1quickstart",
+			opt_set_bool, &opt_quickstart,
+			"Enable quick startup"),
 
 #ifdef HAVE_CURSES
     OPT_WITHOUT_ARG("--compact",
