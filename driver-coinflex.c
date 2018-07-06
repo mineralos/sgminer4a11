@@ -277,6 +277,8 @@ static bool chain_detect(void)
 	/* Register PLL map config */
 	mcompat_chain_set_pllcfg(g_pll_list, g_pll_regs, PLL_LV_NUM);
 
+	mcompat_fanctrl_set_bypass(true);
+
 	/* Chain detect */
 	for (i = 0; i < g_chain_num; ++i) {
 		if (opt_quickstart) {
@@ -290,6 +292,8 @@ static bool chain_detect(void)
 		for (i = 0; i < g_chain_num; ++i)
 			pthread_join(thr[i], &thr_ret[i]);
 	}
+
+	mcompat_fanctrl_set_bypass(false);
 
 	applog(LOG_NOTICE, "chain detect finished");
 
