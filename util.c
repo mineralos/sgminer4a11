@@ -1482,7 +1482,7 @@ bool stratum_send(struct pool *pool, char *s, ssize_t len)
         applog(LOG_DEBUG, "SEND: %s", s);
 
     
- //   applog(LOG_DEBUG, "SEND: %s", s);
+   // applog(LOG_ERR, "SEND: %s", s);
 
     mutex_lock(&pool->stratum_lock);
     if (pool->stratum_active)
@@ -1659,7 +1659,7 @@ out:
     else if (opt_protocol)
         applog(LOG_DEBUG, "RECVD: %s", sret);
 
-   // applog(LOG_DEBUG, "RECVD: %s", sret);
+    //applog(LOG_ERR, "RECVD: %s", sret);
     return sret;
 }
 
@@ -2204,15 +2204,19 @@ static bool parse_extranonce(struct pool *pool, json_t *params, int pndx)
      unsigned char xn1_size;
 
     xnonce1 = json_string_value(json_array_get(params, pndx));
-    xn1_size = json_integer_value(json_array_get(params, pndx+1));
-    pool->xnonce1_size = xn1_size;
-    applog(LOG_ERR, "xnonce1 size %d", pool->xnonce1_size);
+    xn1_size = strlen(xnonce1);
+    xn2_size = json_integer_value(json_array_get(params, pndx+1));
+    
+    pool->xnonce1_size = xn1_size/2;
+    pool->xnonce2_size = xn2_size;
+    
+    applog(LOG_ERR, "xnonce1 size %d,xnonce2 size %d", pool->xnonce1_size,pool->xnonce2_size);
     if (!xnonce1) {
         applog(LOG_ERR, "Failed to get extranonce1");
         goto out;
     }
 
-    xn2_size = (int) json_integer_value(json_array_get(params, pndx+1));
+   // xn2_size = (int) json_integer_value(json_array_get(params, pndx+1));
     
     cg_wlock(&pool->data_lock);
     if (pool->xnonce1)
@@ -2226,7 +2230,6 @@ static bool parse_extranonce(struct pool *pool, json_t *params, int pndx)
     }
    // applog(LOG_ERR,"xnonce:len %d ,%s",pool->xnonce1_size,xnonce1);
     hex2bin(pool->xnonce1, xnonce1, pool->xnonce1_size);
-    pool->xnonce2_size = xn2_size;
 
     cg_wunlock(&pool->data_lock);
 

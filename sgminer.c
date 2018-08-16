@@ -93,7 +93,17 @@ bool opt_A1_efficient;
 bool opt_A1_factory;
 bool opt_A1_performance;
 
-#if 1
+#if defined(USE_DCR_PLUS)
+uint32_t opt_A1Pll1=1332; // -1 Default
+uint32_t opt_A1Pll2=1332; // -1 Default
+uint32_t opt_A1Pll3=1332; // -1 Default
+uint32_t opt_A1Pll4=1332; // -1 Default
+uint32_t opt_A1Pll5=1332; // -1 Default
+uint32_t opt_A1Pll6=1332; // -1 Default
+uint32_t opt_A1Pll7=1332; // -1 Default
+uint32_t opt_A1Pll8=1332; // -1 Default
+
+#else
 //for A4
 uint32_t opt_A1Pll1=1200; // -1 Default
 uint32_t opt_A1Pll2=1200; // -1 Default
@@ -103,15 +113,7 @@ uint32_t opt_A1Pll5=1200; // -1 Default
 uint32_t opt_A1Pll6=1200; // -1 Default
 uint32_t opt_A1Pll7=1200; // -1 Default
 uint32_t opt_A1Pll8=1200; // -1 Default
-#else
-uint32_t opt_A1Pll1=1100; // -1 Default
-uint32_t opt_A1Pll2=1100; // -1 Default
-uint32_t opt_A1Pll3=1100; // -1 Default
-uint32_t opt_A1Pll4=1100; // -1 Default
-uint32_t opt_A1Pll5=1100; // -1 Default
-uint32_t opt_A1Pll6=1100; // -1 Default
-uint32_t opt_A1Pll7=1100; // -1 Default
-uint32_t opt_A1Pll8=1100; // -1 Default
+
 
 #endif
 #endif
@@ -5852,17 +5854,17 @@ static void *stratum_sthread(void *userdata)
        // memcpy(nonce2hex+4,(const unsigned char*)&work->data[37],4);
        // xnonce2str = bin2hex(nonce2hex, pool->xnonce1_size);
      
-       nonce2hex = malloc(pool->xnonce1_size);
-       memset(nonce2hex,0,pool->xnonce1_size);
+       nonce2hex = malloc(pool->xnonce2_size);
+       memset(nonce2hex,0,pool->xnonce2_size);
 
-       if(pool->xnonce1_size > 4)
-       {
-        memcpy(nonce2hex+pool->xnonce1_size-4,pool->xnonce1+pool->xnonce1_size-4,4);
-        memcpy(nonce2hex+pool->xnonce1_size-8,(const unsigned char*)&work->data[37],4);
-        }else
-        memcpy(nonce2hex, (const unsigned char*)&work->data[37], pool->xnonce1_size);
+      // if(pool->xnonce1_size > 4)
+     //  {
+      //  memcpy(nonce2hex+pool->xnonce1_size-4,pool->xnonce1+pool->xnonce1_size-4,4);
+      //  memcpy(nonce2hex+pool->xnonce1_size-8,(const unsigned char*)&work->data[37],4);
+      //  }else
+        memcpy(nonce2hex, (const unsigned char*)&work->data[36]+pool->xnonce1_size, pool->xnonce2_size);
         
-       xnonce2str = bin2hex(nonce2hex, pool->xnonce1_size);
+       xnonce2str = bin2hex(nonce2hex, pool->xnonce2_size);
       // xnonce2str = bin2hex((const unsigned char*)&work->data[36], pool->xnonce1_size);
         
         //applog(LOG_DEBUG,"nonce2 0x%x %x %x %x %d",nonce2[3],nonce2[2],nonce2[1],nonce2[0],work->xnonce2_len);
@@ -6531,12 +6533,38 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
 }
 
 #else
+
+static void applog_hexdump(char *prefix, uint8_t *buff, int len, int level)
+{
+    static char line[2048];
+    char *pos = line;
+    int i;
+    if (len < 1)
+    {
+        return;
+    }
+
+    pos += sprintf(pos, "%s: %d bytes:", prefix, len);
+    for (i = 0; i < len; i++) 
+    {
+        if (i > 0 && (i % 32) == 0) 
+        {
+            applog(LOG_INFO, "%s", line);
+            pos = line;
+            pos += sprintf(pos, "\t");
+        }
+        pos += sprintf(pos, "%.2X ", buff[i]);
+    }
+    applog(level, "%s", line);
+}
+
 /* Generates stratum based work based on the most recent notify information
  * from the pool. This will keep generating work while a pool is down so we use
  * other means to detect when the pool has died in stratum_thread */
 static void gen_stratum_work(struct pool *pool, struct work *work)
 {
     unsigned char merkle_root[64] = { 0 };
+    unsigned char extra_data[32] = { 0 };
         int i;
         if (!pool->swork.job_id) {
              applog(LOG_WARNING, "stratum_gen_work: job not yet retrieved");
@@ -6569,16 +6597,25 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
             memcpy(&vote, &work->data[25], 2);
             vote = (opt_vote << 1) | (vote & 1);
             memcpy(&work->data[25], &vote, 2);
+
+#if 1            
             // extradata
-            if (pool->xnonce1_size > sizeof(work->data)-(32*4)) {
-                // should never happen...
-                applog(LOG_ERR, "extranonce size overflow!");
-                pool->xnonce1_size = sizeof(work->data)-(32*4);
+            uint32_t extra_data1 = rand();
+            uint32_t extra_data2 = rand();
+            memcpy(extra_data,pool->xnonce1,pool->xnonce1_size);
+            if(pool->xnonce2_size <=4)
+               memcpy(extra_data+pool->xnonce1_size,&extra_data1,pool->xnonce2_size);
+            else
+             {
+                memcpy(extra_data+pool->xnonce1_size,&extra_data1,4);
+                memcpy(extra_data+pool->xnonce1_size+4,&extra_data2,4);
             }
-            memcpy(&work->data[36], pool->xnonce1, pool->xnonce1_size);
-            work->data[37] = rand();
-           // work->data[37] = (rand()*4) << 8; // random work data
-          
+            
+            //applog_hexdump("extra_data:",extra_data,pool->xnonce1_size + pool->xnonce2_size,LOG_ERR);
+            memcpy((unsigned char *)&work->data[36], extra_data, pool->xnonce1_size + pool->xnonce2_size);
+            //work->data[37] = ;
+#endif
+
             // block header suffix from coinb2 (stake version)
             memcpy(&work->data[44], &pool->swork.coinbase[pool->swork.coinbase_size-4], 4);
             pool->swork.height = work->data[32];

@@ -387,7 +387,7 @@ static void coinflex_detect(bool __maybe_unused hotplug)
     tmp_cfg.tmp_thr_lo   = 30;      // low temperature threshold
     tmp_cfg.tmp_thr_hi   = 95;      // high temperature threshold
     tmp_cfg.tmp_thr_warn = 100;     // warning threshold
-    tmp_cfg.tmp_thr_pd   = 105;     // power down threshold
+    tmp_cfg.tmp_thr_pd   = 110;     // power down threshold
     tmp_cfg.tmp_exp_time = 2000;   // temperature expiring time (ms)
 	mcompat_tempctrl_init(&tmp_cfg);
 

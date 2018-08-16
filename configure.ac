@@ -141,6 +141,16 @@ if test "x$coinflex" = xyes; then
 fi
 AM_CONDITIONAL([HAS_COINFLEX], [test x$coinflex = xyes])
 
+AC_ARG_ENABLE([dcrplus],
+	[AC_HELP_STRING([--enable-dcrplus],[Compile support for dcr plus (default disabled)])],
+	[dcrplus=$enableval]
+	)
+if test "x$dcrplus" = xyes; then
+	AC_DEFINE([USE_DCR_PLUS], [1], [Defined to 1 if dcrplus support is wanted])
+fi
+AM_CONDITIONAL([HAS_DCR_PLUS], [test x$dcrplus = xyes])
+
+
 curses="auto"
 
 AC_ARG_WITH([curses],

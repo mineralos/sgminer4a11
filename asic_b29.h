@@ -9,6 +9,7 @@
 
 #define CHIP_A11
 #define NO_FAN_CTRL
+//#define USE_SOC
 
 #ifdef CHIP_A11
 #define MAX_CHAIN_NUM			(6)
@@ -17,6 +18,17 @@
 #define ASIC_CORE_NUM           (28)    // 63
 #define MAX_CHIP_NUM            (ASIC_CHIP_NUM)
 #define MAX_CORES               (MAX_CHIP_NUM * ASIC_CORE_NUM)
+
+#if defined(USE_DCR_PLUS)
+#define CHIP_PLL_PER                   (1332)
+#define CHIP_VID_PER                   (0)
+
+#define CHIP_PLL_BAL                   (1296)
+#define CHIP_VID_BAL                   (5)
+
+#define CHIP_PLL_EFF                   (1250)
+#define CHIP_VID_EFF                   (8)
+#else
 #define CHIP_PLL_PER                   (1200)
 #define CHIP_VID_PER                   (0)
 
@@ -25,6 +37,8 @@
 
 #define CHIP_PLL_EFF                   (1000)
 #define CHIP_VID_EFF                   (8)
+
+#endif 
 
 
 #endif
@@ -69,7 +83,7 @@
 #define CHIP_VOL_MIN            (0.45)
 #endif
 
-#define PLL_LV_NUM				(359)
+#define PLL_LV_NUM				(386) //(359+27)
 
 #define SPI_SPEED_RUN			(SPI_SPEED_6250K)
 #define CHAIN_DEAD_TIME			(600)			// s
