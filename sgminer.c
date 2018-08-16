@@ -5849,20 +5849,10 @@ static void *stratum_sthread(void *userdata)
         /* Give the stratum share a unique id */
         sshare->id = swork_id++;
         mutex_unlock(&sshare_lock);
-
-       // memcpy(nonce2hex+(pool->xnonce1_size - 4),pool->xnonce1,4);
-       // memcpy(nonce2hex+4,(const unsigned char*)&work->data[37],4);
-       // xnonce2str = bin2hex(nonce2hex, pool->xnonce1_size);
      
        nonce2hex = malloc(pool->xnonce2_size);
        memset(nonce2hex,0,pool->xnonce2_size);
-
-      // if(pool->xnonce1_size > 4)
-     //  {
-      //  memcpy(nonce2hex+pool->xnonce1_size-4,pool->xnonce1+pool->xnonce1_size-4,4);
-      //  memcpy(nonce2hex+pool->xnonce1_size-8,(const unsigned char*)&work->data[37],4);
-      //  }else
-        memcpy(nonce2hex, (const unsigned char*)&work->data[36]+pool->xnonce1_size, pool->xnonce2_size);
+       memcpy(nonce2hex, (const unsigned char*)&work->data[36]+pool->xnonce1_size, pool->xnonce2_size);
         
        xnonce2str = bin2hex(nonce2hex, pool->xnonce2_size);
       // xnonce2str = bin2hex((const unsigned char*)&work->data[36], pool->xnonce1_size);
@@ -6602,18 +6592,32 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
             // extradata
             uint32_t extra_data1 = rand();
             uint32_t extra_data2 = rand();
+            uint32_t extra_data3 = rand();
+            uint32_t extra_data4 = rand();
             memcpy(extra_data,pool->xnonce1,pool->xnonce1_size);
             if(pool->xnonce2_size <=4)
                memcpy(extra_data+pool->xnonce1_size,&extra_data1,pool->xnonce2_size);
-            else
+            else if((pool->xnonce2_size > 4)&&(pool->xnonce2_size <=8))
              {
                 memcpy(extra_data+pool->xnonce1_size,&extra_data1,4);
                 memcpy(extra_data+pool->xnonce1_size+4,&extra_data2,4);
+            }else if((pool->xnonce2_size > 8)&&(pool->xnonce2_size <=12))
+             {
+                memcpy(extra_data+pool->xnonce1_size,&extra_data1,4);
+                memcpy(extra_data+pool->xnonce1_size+4,&extra_data2,4);
+                memcpy(extra_data+pool->xnonce1_size+4+4,&extra_data3,4);
+            }else if((pool->xnonce2_size > 12)&&(pool->xnonce2_size <=16))
+             {
+                memcpy(extra_data+pool->xnonce1_size,&extra_data1,4);
+                memcpy(extra_data+pool->xnonce1_size+4,&extra_data2,4);
+                memcpy(extra_data+pool->xnonce1_size+4+4,&extra_data3,4);
+                memcpy(extra_data+pool->xnonce1_size+4+4+4,&extra_data4,4);
             }
+            
             
             //applog_hexdump("extra_data:",extra_data,pool->xnonce1_size + pool->xnonce2_size,LOG_ERR);
             memcpy((unsigned char *)&work->data[36], extra_data, pool->xnonce1_size + pool->xnonce2_size);
-            //work->data[37] = ;
+
 #endif
 
             // block header suffix from coinb2 (stake version)
