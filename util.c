@@ -1755,7 +1755,7 @@ static bool parse_notify(struct pool *pool, json_t *params)
     json_t *merkle_arr;
     unsigned char **merkle = NULL;
     // uchar(*merkle_tree)[32] = { 0 };
-    int ntime;
+   // int ntime;
     char algo[64] = { 0 };
 
      merkle_arr = json_array_get(params, 4);
@@ -1785,8 +1785,8 @@ static bool parse_notify(struct pool *pool, json_t *params)
     }
 
     /* store stratum server time diff */
-    hex2bin((unsigned char *)&ntime, stime, 4);
-    ntime = swab32(ntime) - (uint32_t) time(0);
+   // hex2bin((unsigned char *)&ntime, stime, 4);
+   // ntime = swab32(ntime) - (uint32_t) time(0);
 
     if (merkle_count)
         merkle = (unsigned char**) malloc(merkle_count * sizeof(char *));
