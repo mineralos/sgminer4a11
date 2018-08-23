@@ -1095,99 +1095,41 @@ bool abort_work(struct A1_chain *a1)
     return true;
 }
 
-bool check_chip(struct A1_chain *a1, int cid)
+bool check_chips(struct A1_chain *a1)
 {
-    uint8_t buffer[REG_LENGTH];
-    int chip_id = cid + 1;
+	int i;
+	int cores[MAX_CHIP_NUM] = {0};
 
-    if (!mcompat_cmd_read_register(a1->chain_id, chip_id, buffer, REG_LENGTH)) {
-        applog(LOG_NOTICE, "%d: Failed to read register for chip %d -> disabling", a1->chain_id, chip_id);
-        a1->chips[cid].num_cores = 0;
-        a1->chips[cid].disabled = 1;
-        return false;
-    }
+	if (mcompat_chain_get_chip_cores(a1->chain_id, a1->num_active_chips, cores)) {
+		for (i = 0; i < a1->num_active_chips; i++) {
+			a1->chips[i].num_cores = cores[i];
+			a1->num_cores += cores[i];
 
-    a1->chips[cid].num_cores = buffer[11];
-    a1->num_cores += a1->chips[cid].num_cores;
-    //applog(LOG_WARNING, "%d: Found chip %d with %d active cores",cid, chip_id, a1->chips[cid].num_cores);
+			if (a1->chips[i].num_cores < BROKEN_CHIP_THRESHOLD)
+			{
+				applog(LOG_WARNING, "%d: broken chip %d with %d active cores (threshold = %d)",
+					a1->chain_id, i + 1, a1->chips[i].num_cores, BROKEN_CHIP_THRESHOLD);
+				a1->chips[i].disabled = true;
+				a1->num_cores -= a1->chips[i].num_cores;
 
-	/* Restore data in reg0a */
-    memcpy(a1->chips[cid].reg, buffer, REG_LENGTH);
-	/* Read chip voltages */
-	a1->chips[cid].nVol = mcompat_volt_to_mV(0x3ff & ((buffer[7] << 8) | buffer[8]));
+				return false;
+			}
 
-    if (a1->chips[cid].num_cores < BROKEN_CHIP_THRESHOLD){
-        applog(LOG_NOTICE, "%d: broken chip %d with %d active cores (threshold = %d)",
-			a1->chain_id, chip_id, a1->chips[cid].num_cores, BROKEN_CHIP_THRESHOLD);
-        a1->chips[cid].disabled = true;
-        a1->num_cores -= a1->chips[cid].num_cores;
+			if (a1->chips[i].num_cores < WEAK_CHIP_THRESHOLD)
+			{
+				applog(LOG_WARNING, "%d: weak chip %d with %d active cores (threshold = %d)",
+					a1->chain_id, i + 1, a1->chips[i].num_cores, WEAK_CHIP_THRESHOLD);
 
-        return false;
-    }
+				return false;
+			}
 
-    if (a1->chips[cid].num_cores < WEAK_CHIP_THRESHOLD) {
-        applog(LOG_NOTICE, "%d: weak chip %d with %d active cores (threshold = %d)",a1->chain_id,chip_id, a1->chips[cid].num_cores, WEAK_CHIP_THRESHOLD);
-        return false;
-    }
-    a1->chips[cid].pll = a1->pll;
-    return true;
+			/* Reenable this in case we have cycled through this function more than
+			 * once. */
+			a1->chips[i].disabled = false;
+		}
+
+		return true;
+	} else
+		return false;
 }
-
-int b29_get_voltage_stats(struct A1_chain *a1, b29_reg_ctrl_t *s_reg_ctrl)
-{
-    int i = 0;
-    int cid = a1->chain_id;
-    s_reg_ctrl->highest_vol[cid] = s_reg_ctrl->stat_val[cid][0];
-    s_reg_ctrl->lowest_vol[cid] = s_reg_ctrl->stat_val[cid][0];
-    int total_vol = s_reg_ctrl->stat_val[cid][0];
-
-    if((a1->num_active_chips < 1) || (a1 == NULL))
-        return -1;
-
-    for (i = 1; i < a1->num_active_chips; i++)
-    {
-        if(s_reg_ctrl->highest_vol[cid] < s_reg_ctrl->stat_val[cid][i])
-            s_reg_ctrl->highest_vol[cid] = s_reg_ctrl->stat_val[cid][i];
-
-        if(s_reg_ctrl->lowest_vol[cid] > s_reg_ctrl->stat_val[cid][i])
-            s_reg_ctrl->lowest_vol[cid] = s_reg_ctrl->stat_val[cid][i];
-
-        total_vol += s_reg_ctrl->stat_val[cid][i];
-    }
-
-    s_reg_ctrl->average_vol[cid] = total_vol / a1->num_active_chips;
-
-    return 0;
-}
-
-hardware_version_e b29_get_hwver(void)
-{
-    FILE* fd;
-    char buffer[64] = {0};
-    hardware_version_e version;
-    
-    fd = fopen(B29_HARDWARE_VERSION_FILE, "r");    
-    if(fd == NULL)
-    {               
-        applog(LOG_ERR, "Open hwver File Failed !");
-        return -1;
-    }
-
-    fread(buffer, 8, 1, fd);
-    fclose(fd);
-
-    if(strstr(buffer, "G9") != NULL) {
-        version = HARDWARE_VERSION_G9;
-        applog(LOG_INFO, "hardware version is G9");
-    }else if(strstr(buffer, "G19") != 0) {
-        version = HARDWARE_VERSION_G19;
-        applog(LOG_INFO, "hardware version is G19");
-    }else {
-        version = 0;
-        applog(LOG_ERR, "unknown hardware version !!!");
-    }
-
-    return version;
-}
-
 

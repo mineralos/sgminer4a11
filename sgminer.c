@@ -118,8 +118,9 @@ uint32_t opt_A1Pll8=1200; // -1 Default
 #endif
 #endif
 
-int opt_voltage[MAX_CHAIN_NUM] = {CHIP_VID_RUN, CHIP_VID_RUN, CHIP_VID_RUN,
-								  CHIP_VID_RUN, CHIP_VID_RUN, CHIP_VID_RUN };
+int opt_voltage[MCOMPAT_CONFIG_MAX_CHAIN_NUM] = 
+			{CHIP_VID_RUN, CHIP_VID_RUN, CHIP_VID_RUN, CHIP_VID_RUN,
+			 CHIP_VID_RUN, CHIP_VID_RUN, CHIP_VID_RUN, CHIP_VID_RUN };
 
 int opt_vote = 0;
 bool opt_quickstart = false;
