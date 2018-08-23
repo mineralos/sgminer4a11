@@ -1183,8 +1183,6 @@ struct stratum_work {
 	size_t coinbase_size;
 	unsigned char *coinbase;
 	unsigned char *xnonce2;
-	int merkle_count;
-	unsigned char **merkle;
 	unsigned char version[4];
 	unsigned char nbits[4];
 	unsigned char ntime[4];
@@ -1200,6 +1198,21 @@ struct stratum_work {
 #define RECVSIZE (RBUFSIZE - 4)
 
 struct pool {
+    /* Shared by both stratum & GBT */
+
+    unsigned char header_bin[128];
+    int merkles;
+    char prev_hash[68];
+    char bbversion[12];
+    char nbit[12];
+    char ntime[12];
+    double sdiff;
+    
+    size_t n1_len;
+    unsigned char *coinbase;
+    int coinbase_len;
+    int nonce2_offset;
+
     int pool_no;
     int prio;
     int64_t accepted, rejected;
@@ -1326,18 +1339,6 @@ struct pool {
     CURL *gbt_curl;
     bool gbt_curl_inuse;
 
-    /* Shared by both stratum & GBT */
-    size_t n1_len;
-    unsigned char *coinbase;
-    int coinbase_len;
-    int nonce2_offset;
-    unsigned char header_bin[128];
-    int merkles;
-    char prev_hash[68];
-    char bbversion[12];
-    char nbit[12];
-    char ntime[12];
-    double sdiff;
 
     struct timeval tv_lastwork;
 };

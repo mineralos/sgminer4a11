@@ -9070,9 +9070,11 @@ int main(int argc, char *argv[])
         };
 
    
-    get_nand_access();
-    mcompat_record_params();
-
+    if(get_nand_access() != -1)
+       mcompat_record_params();
+    else
+       applog(LOG_ERR,"Failed to get nand access.");
+        
     /* Use the DRIVER_PARSE_COMMANDS macro to fill all the device_drvs */
     DRIVER_PARSE_COMMANDS(DRIVER_FILL_DEVICE_DRV)
 
