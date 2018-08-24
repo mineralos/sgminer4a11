@@ -641,9 +641,9 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 	/* Temperature control */
 	int chain_temp_status = mcompat_tempctrl_update_chain_temp(cid);
 
-	cgpu->temp_min = (double)g_chain_tmp[cid].tmp_lo;
-	cgpu->temp_max = (double)g_chain_tmp[cid].tmp_hi;
-	cgpu->temp	   = (double)g_chain_tmp[cid].tmp_avg;
+	a1->temp_min = cgpu->temp_min = (double)g_chain_tmp[cid].tmp_lo;
+	a1->temp_max = cgpu->temp_max = (double)g_chain_tmp[cid].tmp_hi;
+	a1->temp     = cgpu->temp     = (double)g_chain_tmp[cid].tmp_avg;
 
 	if (chain_temp_status == TEMP_SHUTDOWN) {
 		// shut down chain
