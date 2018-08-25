@@ -257,7 +257,7 @@ bool chain_detect_all()
 
 	for (i = 0; i < g_chain_num; ++i) {
 		cid = g_chain_id[i];
-		chain_params[i].chain_id = i;
+		chain_params[i].chain_id = cid;
 		chain_params[i].spi_speed = SPI_SPEED_RUN;
 		chain_params[i].pll = opt_A1Pll1;
 		chain_params[i].vol = 0;		/* Set to 0 to disable voltage calibration */
