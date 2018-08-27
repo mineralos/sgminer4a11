@@ -149,6 +149,35 @@ static bool coinflex_queue_full(struct cgpu_info *cgpu)
     return queue_full;
 }
 
+static void performance_cfg(void)
+{
+	int i, vid;
+
+	if (opt_A1auto) {
+		/* different pll depending on performance strategy. */
+		if (opt_A1_factory) {
+			/* Factory mode */
+			opt_A1Pll1 = CHIP_PLL_BAL;
+			vid = CHIP_VID_BAL;
+		} else if (opt_A1_performance) {
+			/* Performance mode */
+			opt_A1Pll1 = CHIP_PLL_PER;      
+			vid = CHIP_VID_PER;
+		} else if (opt_A1_efficient) {
+			/* Efficient mode */
+			opt_A1Pll1 = CHIP_PLL_EFF;
+			vid = CHIP_VID_EFF;
+		} else {
+			/* Default */
+			opt_A1Pll1 = CHIP_PLL_PER;
+			vid = CHIP_VID_PER;
+		}
+
+		for (i = 0; i < MAX_CHAIN_NUM; ++i)
+			opt_voltage[i] = vid;
+	}
+}
+
 static void get_temperatures(struct A1_chain *a1)
 {
 	int i;
@@ -191,36 +220,86 @@ static void get_voltages(struct A1_chain *a1)
 	mcompat_configure_tvsensor(a1->chain_id, CMD_ADDR_BROADCAST, 1);
 }
 
-static void performance_cfg(void)
+static bool check_chips(struct A1_chain *a1)
 {
-	int i, vid;
+	int i;
+	int cores[MAX_CHIP_NUM] = {0};
 
-	if (opt_A1auto) {
-		/* different pll depending on performance strategy. */
-		if (opt_A1_factory) {
-			/* Factory mode */
-			opt_A1Pll1 = CHIP_PLL_BAL;
-			vid = CHIP_VID_BAL;
-		} else if (opt_A1_performance) {
-			/* Performance mode */
-			opt_A1Pll1 = CHIP_PLL_PER;      
-			vid = CHIP_VID_PER;
-		} else if (opt_A1_efficient) {
-			/* Efficient mode */
-			opt_A1Pll1 = CHIP_PLL_EFF;
-			vid = CHIP_VID_EFF;
-		} else {
-			/* Default */
-			opt_A1Pll1 = CHIP_PLL_PER;
-			vid = CHIP_VID_PER;
+	if (mcompat_chain_get_chip_cores(a1->chain_id, a1->num_active_chips, cores)) {
+		a1->num_cores = 0;
+		for (i = 0; i < a1->num_active_chips; i++) {
+			a1->chips[i].num_cores = cores[i];
+			a1->num_cores += cores[i];
+
+			if (a1->chips[i].num_cores < BROKEN_CHIP_THRESHOLD)
+			{
+				applog(LOG_WARNING, "%d: broken chip %d with %d active cores (threshold = %d)",
+					a1->chain_id, i + 1, a1->chips[i].num_cores, BROKEN_CHIP_THRESHOLD);
+				a1->chips[i].disabled = true;
+				a1->num_cores -= a1->chips[i].num_cores;
+
+				return false;
+			}
+
+			if (a1->chips[i].num_cores < WEAK_CHIP_THRESHOLD)
+			{
+				applog(LOG_WARNING, "%d: weak chip %d with %d active cores (threshold = %d)",
+					a1->chain_id, i + 1, a1->chips[i].num_cores, WEAK_CHIP_THRESHOLD);
+
+				return false;
+			}
+
+			/* Reenable this in case we have cycled through this function more than
+			 * once. */
+			a1->chips[i].disabled = false;
 		}
 
-		for (i = 0; i < MAX_CHAIN_NUM; ++i)
-			opt_voltage[i] = vid;
-	}
+		return true;
+	} else
+		return false;
 }
 
-bool chain_detect_all()
+static bool chain_restart(struct A1_chain *a1, int retry_cnt, int retry_intval)
+{
+	int retries = 0;
+	c_chain_param chain_param;
+
+	applog(LOG_NOTICE, "chain%d: restarting", a1->chain_id);
+
+	chain_param.chain_id = a1->chain_id;
+	chain_param.spi_speed = SPI_SPEED_RUN;
+	chain_param.pll = opt_A1Pll1;
+	chain_param.vol = 0;
+	chain_param.vid = opt_voltage[a1->chain_id];
+	chain_param.tuning = false;
+	applog(LOG_NOTICE, "\tparam->pll: %d", chain_param.pll);
+	applog(LOG_NOTICE, "\tparam->vol: %d", chain_param.vol);
+	applog(LOG_NOTICE, "\tparam->vid: %d", chain_param.vid);
+
+	while(retries < retry_cnt) {
+		mcompat_chain_detect_thread((void*)&chain_param);
+		if (g_chain_alive[a1->chain_id] && check_chips(a1)) {
+			applog(LOG_NOTICE, "chain%d: detected %d chips / %d cores",
+				a1->chain_id, a1->num_active_chips, a1->num_cores);
+
+			get_voltages(a1);
+
+			struct timeval now;
+			cgtime(&now);
+			a1->lastshare = now.tv_sec;
+
+			break;
+		}
+
+		applog(LOG_ERR, "chain%d: failed to restart, retry(%d) after %d seconds",
+			a1->chain_id, ++retries, retry_intval);
+		sleep(retry_intval);
+	}
+
+	return g_chain_alive[a1->chain_id];
+}
+
+static bool chain_detect_all()
 {
 	int i, j, cid;
 	c_chain_param chain_params[MAX_CHAIN_NUM];
@@ -558,12 +637,26 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 #endif
 
 	if (unlikely(now.tv_sec - a1->lastshare > CHAIN_DEAD_TIME)) {
-		applog(LOG_EMERG, "chain %d not producing shares for more than %d mins, shutting down.",
-		       cid, CHAIN_DEAD_TIME / 60);
-		// TODO: should restart current chain only
+#ifdef SINGLE_CHAIN_RESTART
+		/* Restart chain */
+		applog(LOG_EMERG, "A1 chain %d not producing shares for more than %d mins, restart",
+			   cid, CHAIN_DEAD_TIME / 60);
+		if (!chain_restart(a1, CHAIN_RESTART_RETRIES, 10)) {
+			applog(LOG_ERR, "chain%d: failed to restart for %d times, SHUTDOWN", CHAIN_RESTART_RETRIES);
+			cgpu->shutdown = true;
+			cgpu->status = LIFE_DEAD;
+			cgtime(&thr->sick);
+			/* FIXME: should not be infinit loop here */
+			while (42)
+				sleep(10);
+		}
+#else
+		applog(LOG_EMERG, "A1 chain %d not producing shares for more than %d mins, shutting down.",
+		       cid, (CHAIN_DEAD_TIME / 60)*g_job_resets[cid]);
 		/* Exit cgminer, allowing systemd watchdog to restart */
 		mcompat_chain_power_down_all();
 		exit(1);
+#endif
 	}
 
     /* check for completed works */
@@ -624,14 +717,27 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 					hub_spi_clean_chain(cid);
 					g_cmd_resets[cid]++;
 					if (g_cmd_resets[cid] > MAX_CMD_RESETS) {
-						applog(LOG_ERR, "Chain %d is not working due to multiple resets. shutdown.",
-						       cid);
 						sprintf(errmsg, "%d", cid);
-						mcompat_save_errcode(ERRCODE_SPI_FAIL, errmsg);
+						if (mcompat_set_errcode(ERRCODE_SPI_FAIL, errmsg, false))
+							mcompat_save_errcode();
+#ifdef SINGLE_CHAIN_RESTART
+						/* Restart chain */
+						applog(LOG_ERR, "chain%d: not working due to multiple resets, restart", cid);
+						if (!chain_restart(a1, CHAIN_RESTART_RETRIES, 10)) {
+							applog(LOG_ERR, "chain%d: failed to restart for %d times, SHUTDOWN", CHAIN_RESTART_RETRIES);
+							cgpu->shutdown = true;
+							cgpu->status = LIFE_DEAD;
+							cgtime(&thr->sick);
+							/* FIXME: should not be infinit loop here */
+							while (42)
+								sleep(10);
+						}
+#else
 						/* Exit cgminer, allowing systemd watchdog to
 						 * restart */
 						mcompat_chain_power_down_all();
 						exit(1);
+#endif
 					}
 				}
 			}

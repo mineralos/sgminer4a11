@@ -87,6 +87,9 @@
 
 #define SPI_SPEED_RUN			(SPI_SPEED_6250K)
 #define CHAIN_DEAD_TIME			(600)			// s
+#define CHAIN_RESTART_RETRIES	(3)
+
+#define SINGLE_CHAIN_RESTART
 
 //#define USE_AUTONONCE
 //#define USE_AUTOCMD0A
@@ -198,7 +201,6 @@ int get_current_ms(void);
 bool is_chip_disabled(struct A1_chain *a1, uint8_t chip_id);
 void disable_chip(struct A1_chain *a1, uint8_t chip_id);
 void check_disabled_chips(struct A1_chain *a1);
-bool check_chips(struct A1_chain *a1);
 
 bool get_nonce(struct A1_chain *a1, uint8_t *nonce, uint8_t *chip_id, uint8_t *job_id);
 bool set_work(struct A1_chain *a1, uint8_t chip_id, struct work *work, uint8_t queue_states);
