@@ -9056,7 +9056,9 @@ int main(int argc, char *argv[])
             if (!use_curses)
             {
 #if defined(USE_COINFLEX)
-                mcompat_chain_power_down_all();
+                /* Overwrite other codes */
+				mcompat_set_errcode(ERRCODE_CONN_FAIL, NULL, true);
+				mcompat_save_errcode();
 #endif
                 early_quit(0, "No servers could be used! Exiting.");
             }   
