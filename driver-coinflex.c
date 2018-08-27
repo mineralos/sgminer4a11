@@ -344,8 +344,8 @@ static bool chain_detect_all()
 		chain_params[i].tuning = false;
 	}
 
-	/* Detect all chains with fan bypass disabled during startup */
-	if (0 == mcompat_chain_detect_all(0xff, chain_params, false))
+	/* Detect all chains sequentially with fan bypass disabled during startup */
+	if (0 == mcompat_chain_detect_all(0xff, chain_params, false, false))
 		return false;
 
 	for (i = 0; i < g_chain_num; ++i) {
