@@ -370,13 +370,10 @@ static bool chain_detect_all()
 
 		/* Get core number for each chip */
 		if (!check_chips(chain[i])) {
-			/* Shutdown chain if fails */
-			mcompat_chain_power_down(cid);
-			g_chain_alive[cid] = 0;
 			free(chain[i]->chips);
 			free(chain[i]);
 			chain[i] = NULL;
-			return false;
+			continue;
 		}
 
 		/* Init chip voltages */
