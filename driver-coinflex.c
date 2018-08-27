@@ -749,15 +749,8 @@ static int64_t coinflex_scanwork(struct thr_info *thr)
 	cgpu->temp     = a1->temp     = g_chain_tmp[cid].tmp_avg;
 
 	if (chain_temp_status == TEMP_SHUTDOWN) {
-		// shut down chain
-		applog(LOG_ERR, "DANGEROUS TEMPERATURE(%.0f): power down chain %d",
-			cgpu->temp_max, cid);
-		mcompat_chain_power_down(cid);
 		cgpu->status = LIFE_DEAD;
 		cgtime(&thr->sick);
-		/* Write error code */
-		sprintf(errmsg, "%d", cid);
-		mcompat_save_errcode(ERRCODE_OVERHEAT, errmsg);
 		/* Function doesn't currently return */
 		overheated_blinking(cid);
 	}
