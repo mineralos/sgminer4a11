@@ -373,6 +373,7 @@ static bool chain_detect_all()
 			free(chain[i]->chips);
 			free(chain[i]);
 			chain[i] = NULL;
+			g_chain_alive[cid] = 0;
 			continue;
 		}
 
