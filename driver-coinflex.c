@@ -224,15 +224,16 @@ static bool check_chips(struct A1_chain *a1)
 {
 	int i;
 	int cores[MAX_CHIP_NUM] = {0};
+	char errmsg[64];
 
 	if (mcompat_chain_get_chip_cores(a1->chain_id, a1->num_active_chips, cores)) {
 		a1->num_cores = 0;
 		for (i = 0; i < a1->num_active_chips; i++) {
-			if (cores[i] > MAX_CORE_NUM) {
+			if (cores[i] > ASIC_CORE_NUM) {
 				applog(LOG_WARNING, "chain%d: chip%d invalid core number(%d), set to default(%d)",
 					a1->chain_id, i + 1, cores[i], ASIC_CORE_NUM);
-				cores[i] = MAX_CORE_NUM;
-			} else if (cores[i] < MAX_CORE_NUM) {
+				cores[i] = ASIC_CORE_NUM;
+			} else if (cores[i] < ASIC_CORE_NUM) {
 				applog(LOG_WARNING, "chain%d: chip%d core number(%d) < %d",
 					a1->chain_id, i + 1, cores[i], ASIC_CORE_NUM);
 			}
@@ -240,22 +241,28 @@ static bool check_chips(struct A1_chain *a1)
 			a1->chips[i].num_cores = cores[i];
 			a1->num_cores += cores[i];
 
-			if (a1->chips[i].num_cores < BROKEN_CHIP_THRESHOLD)
-			{
+			if (a1->chips[i].num_cores < BROKEN_CHIP_THRESHOLD) {
 				applog(LOG_WARNING, "%d: broken chip %d with %d active cores (threshold = %d)",
 					a1->chain_id, i + 1, a1->chips[i].num_cores, BROKEN_CHIP_THRESHOLD);
 				a1->chips[i].disabled = true;
 				a1->num_cores -= a1->chips[i].num_cores;
 
-				return false;
+				sprintf(errmsg, "%d:%d", a1->chain_id, i + 1);
+				if (mcompat_set_errcode(ERRCODE_INV_CORENUM, errmsg, false))
+					mcompat_save_errcode();
+
+				goto failure;
 			}
 
-			if (a1->chips[i].num_cores < WEAK_CHIP_THRESHOLD)
-			{
+			if (a1->chips[i].num_cores < WEAK_CHIP_THRESHOLD) {
 				applog(LOG_WARNING, "%d: weak chip %d with %d active cores (threshold = %d)",
 					a1->chain_id, i + 1, a1->chips[i].num_cores, WEAK_CHIP_THRESHOLD);
 
-				return false;
+				sprintf(errmsg, "%d:%d", a1->chain_id, i + 1);
+				if (mcompat_set_errcode(ERRCODE_INV_CORENUM, errmsg, false))
+					mcompat_save_errcode();
+
+				goto failure;
 			}
 
 			/* Reenable this in case we have cycled through this function more than
@@ -264,8 +271,17 @@ static bool check_chips(struct A1_chain *a1)
 		}
 
 		return true;
-	} else
-		return false;
+	} else {
+		sprintf(errmsg, "%d", a1->chain_id);
+		if (mcompat_set_errcode(ERRCODE_INV_CORENUM, errmsg, false))
+			mcompat_save_errcode();
+		goto failure;
+	}
+
+failure:
+	g_chain_alive[a1->chain_id] = 0;
+	mcompat_chain_power_down(a1->chain_id);
+	return false;
 }
 
 static bool chain_restart(struct A1_chain *a1, int retry_cnt, int retry_intval)
@@ -382,7 +398,6 @@ static bool chain_detect_all()
 			free(chain[i]->chips);
 			free(chain[i]);
 			chain[i] = NULL;
-			g_chain_alive[cid] = 0;
 			continue;
 		}
 
