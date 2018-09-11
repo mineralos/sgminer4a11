@@ -208,8 +208,10 @@ static void get_voltages(struct A1_chain *a1)
 	/* Get voltage for each chip */
 	mcompat_get_chip_volt(a1->chain_id, volt);
 	for (i = 0; i < a1->num_active_chips; i++)
+    {
+        applog(LOG_NOTICE,"chain:%d,chip:%d,vol:%d",a1->chain_id,i+1,volt[i]);
 		a1->chips[i].nVol = volt[i];
-
+       }
 	/* Get voltage stat. */
 	mcompat_stat_chain_volt(volt, &volt_stat);
 	a1->volt	 = volt_stat.vol_avg;

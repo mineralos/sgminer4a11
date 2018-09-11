@@ -832,6 +832,7 @@ arg = "stratum+tcp://dcr.backyard-pool.com:3252";
     return NULL;
 }
 #else
+
 static char *set_url(char *arg)
 {
     struct pool *pool = add_url();
@@ -841,20 +842,31 @@ static char *set_url(char *arg)
         if (pool->pool_no < 3)
         {
             char *buf = NULL;
+
+            /* Not enable this pool in encrypt pool settings */
+            if (strlen(g_encrypt_pool[pool->pool_no].pool_url) == 0)
+            {
+                total_urls--;
+                remove_pool(pool);
+                return NULL;
+            }
+
             buf = (char *)malloc(strlen(g_encrypt_pool[pool->pool_no].pool_url)+1);
-            assert(buf);
-            memset(buf, 0, strlen(g_encrypt_pool[pool->pool_no].pool_url)+1);
-            memcpy(buf, g_encrypt_pool[pool->pool_no].pool_url, strlen(g_encrypt_pool[pool->pool_no].pool_url));
-            setup_url(pool, buf);
+            if (buf)
+            {
+                memset(buf, 0, strlen(g_encrypt_pool[pool->pool_no].pool_url)+1);
+                memcpy(buf, g_encrypt_pool[pool->pool_no].pool_url, strlen(g_encrypt_pool[pool->pool_no].pool_url));
+                setup_url(pool, buf);
+                return NULL;
+            }
         }
     }
-    else
-    {
-        setup_url(pool, arg);
-    }
+
+    setup_url(pool, arg);
 
     return NULL;
 }
+
 
 #endif
 
@@ -924,16 +936,43 @@ static char *set_user(const char *arg)
     if(g_miner_lock_state && g_read_pool_file)
     {
         char *usr = NULL;
+        char *p1, *p2;
+
+        /* Not enable this pool in encrypt pool settings */
+        if (strlen(g_encrypt_pool[pool->pool_no].pool_user) == 0)
+        {
+            total_users--;
+            remove_pool(pool);
+            return NULL;
+        }
+
         usr = (char *)malloc(strlen(g_encrypt_pool[pool->pool_no].pool_user) + strlen(arg)+2);
-        assert(usr);
-        memset(usr, 0, strlen(g_encrypt_pool[pool->pool_no].pool_user) + strlen(arg)+2);
-        sprintf(usr,"%s.%s",g_encrypt_pool[pool->pool_no].pool_user,arg);
-        opt_set_charp(usr, &pool->rpc_user);
+        if (usr)
+        {
+            memset(usr, 0, strlen(g_encrypt_pool[pool->pool_no].pool_user) + strlen(arg)+2);
+            strcpy(usr, g_encrypt_pool[pool->pool_no].pool_user);
+            /* Find the first character '.', it should not be the first character */
+            /* Get worker's prefix from encrypt_pool */
+            p1 = strchr(usr, '.');
+            if (p1 && (p1 != usr))
+                *p1 = '\0';
+            strcat(usr, ".");
+
+            /* Find the first character '.', it should not be the last character */
+            /* Get worker's suffix from arg */
+            p2 = strchr(arg, '.');
+            if (p2 && (*(p2+1) != '\0'))
+                strcat(usr, p2+1);
+            else
+                strcat(usr, arg);
+
+            applog(LOG_INFO, "combined worker name is %s", usr);
+            opt_set_charp(usr, &pool->rpc_user);
+            return NULL;
+        }
     }
-    else
-    {
-        opt_set_charp(arg, &pool->rpc_user);
-    }
+
+    opt_set_charp(arg, &pool->rpc_user);
 
     return NULL;
 }
@@ -971,20 +1010,22 @@ static char *set_pass(const char *arg)
 
     if(g_miner_lock_state && g_read_pool_file)
     {
-        char *pass = NULL;
-        pass = (char *)malloc(strlen(g_encrypt_pool[pool->pool_no].pool_pass)+1);
-        assert(pass);
-        memset(pass, 0, strlen(g_encrypt_pool[pool->pool_no].pool_pass)+1);
-        memcpy(pass, g_encrypt_pool[pool->pool_no].pool_pass, strlen(g_encrypt_pool[pool->pool_no].pool_pass));
-        opt_set_charp(pass, &pool->rpc_pass);
+         /* Not enable this pool in encrypt pool settings */
+          if ( (strlen(g_encrypt_pool[pool->pool_no].pool_pass) == 0)
+           && (strlen(g_encrypt_pool[pool->pool_no].pool_url) == 0)
+           && (strlen(g_encrypt_pool[pool->pool_no].pool_user) == 0) )
+        {
+            total_passes--;
+            remove_pool(pool);
+            return NULL;
+        }
     }
-    else
-    {
-        opt_set_charp(arg, &pool->rpc_pass);
-    }
+
+    opt_set_charp(arg, &pool->rpc_pass);
 
     return NULL;
 }
+
 #endif
 
 static char *set_userpass(const char *arg)
@@ -8897,6 +8938,21 @@ int main(int argc, char *argv[])
 
     INIT_LIST_HEAD(&scan_devices);
 
+    //judge the environment variable to lock the pool or not
+    g_miner_lock_state = mcompat_read_lock();
+    //applog(LOG_ERR,"g_miner_lock_state: %d",g_miner_lock_state);
+    if(g_miner_lock_state)
+    {
+        memset((void*)g_encrypt_pool, 0, sizeof(g_encrypt_pool));
+        if(mcompat_parse_pool_file(g_encrypt_pool))
+        {
+            applog(LOG_ERR,"Encrypt pool 1: %s %s %s",g_encrypt_pool[0].pool_url,g_encrypt_pool[0].pool_user,g_encrypt_pool[0].pool_pass);
+            applog(LOG_ERR,"Encrypt pool 2: %s %s %s",g_encrypt_pool[1].pool_url,g_encrypt_pool[1].pool_user,g_encrypt_pool[1].pool_pass);
+            applog(LOG_ERR,"Encrypt pool 3: %s %s %s",g_encrypt_pool[2].pool_url,g_encrypt_pool[2].pool_user,g_encrypt_pool[2].pool_pass);
+            g_read_pool_file = 1;
+        }
+    }
+
     /* parse command line */
     opt_register_table(opt_config_table, "Options for both config file and command line");
     opt_register_table(opt_cmdline_table,"Options for command line only");
@@ -8905,20 +8961,6 @@ int main(int argc, char *argv[])
     if (argc != 1){
         early_quit(1, "Unexpected extra commandline arguments");
     }
-
-   //judge the environment variable to lock the pool or not
-   g_miner_lock_state = mcompat_read_lock();
-   //applog(LOG_ERR,"g_miner_lock_state: %d",g_miner_lock_state);
-   if(g_miner_lock_state)
-   {
-       if(mcompat_parse_pool_file(g_encrypt_pool))
-       {
-           applog(LOG_ERR,"Encrypt pool 1: %s %s %s",g_encrypt_pool[0].pool_url,g_encrypt_pool[0].pool_user,g_encrypt_pool[0].pool_pass);
-           applog(LOG_ERR,"Encrypt pool 2: %s %s %s",g_encrypt_pool[1].pool_url,g_encrypt_pool[1].pool_user,g_encrypt_pool[1].pool_pass);
-           applog(LOG_ERR,"Encrypt pool 3: %s %s %s",g_encrypt_pool[2].pool_url,g_encrypt_pool[2].pool_user,g_encrypt_pool[2].pool_pass);
-           g_read_pool_file = 1;
-       }
-   }
 
 
     if (!config_loaded){
