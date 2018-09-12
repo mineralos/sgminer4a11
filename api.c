@@ -3287,6 +3287,49 @@ static void minerstats(struct io_data *io_data, __maybe_unused SOCKETTYPE c, __m
         io_close(io_data);
 }
 
+
+ static void minerdebug(struct io_data *io_data, __maybe_unused SOCKETTYPE c, __maybe_unused char *param, bool isjson, __maybe_unused char group)
+ {
+    struct cgpu_info *cgpu;
+        bool io_open = false;
+        struct api_data *extra;
+        char id[20];
+        int i, j;
+
+        message(io_data, MSG_MINESTATS, 0, NULL, isjson);
+
+        if (isjson)
+            io_open = io_add(io_data, COMSTR JSON_MINESTATS);
+
+        i = 0;
+        for (j = 0; j < total_devices; j++)
+        {
+            cgpu = get_devices(j);
+
+            if (cgpu && cgpu->drv/* && !cgpu->usbinfo.nodev*/)
+            {
+                if (cgpu->drv->get_api_debug)
+                    extra = cgpu->drv->get_api_debug(cgpu);
+                else
+                    extra = NULL;
+
+                sprintf(id, "%s%d", cgpu->drv->name, cgpu->device_id);
+                i = itemstats(io_data, i, id, &(cgpu->sgminer_stats), NULL, extra, cgpu, isjson);
+            }
+        }
+
+        for (j = 0; j < total_pools; j++)
+        {
+            struct pool *pool = pools[j];
+
+            sprintf(id, "POOL%d", j);
+            i = itemstats(io_data, i, id, &(pool->sgminer_stats), &(pool->sgminer_pool_stats), NULL, NULL, isjson);
+        }
+
+        if (isjson && io_open)
+            io_close(io_data);
+    }
+
 static void minerestats(struct io_data *io_data, __maybe_unused SOCKETTYPE c, __maybe_unused char *param, bool isjson, __maybe_unused char group)
 {
     struct cgpu_info *cgpu;
@@ -4092,6 +4135,7 @@ struct CMDS {
     //{ "startminer",   dostart,        false,  true },
     { "stats",          minerstats, false,  true },
     { "estats",     minerestats,    false,  true },
+    { "dbgstats",   minerdebug, false, true },
     { "check",      checkcommand,   false,  false },
     { "failover-only",  failoveronly,   true,       false },
     { "coin",           minecoin,   false,  true },

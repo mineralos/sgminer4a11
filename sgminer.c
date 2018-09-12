@@ -4502,7 +4502,8 @@ static bool test_work_current(struct work *work)
     if (work->mandatory)
         return ret;
 
-    swap256(bedata, work->data + 4);
+    swap256(bedata, (unsigned char*)work->data + 4);
+
     __bin2hex(hexstr, bedata, 32);
 
     /* Search to see if this block exists yet and if not, consider it a
@@ -5806,7 +5807,7 @@ static bool cnx_needed(struct pool *pool)
 
 static void wait_lpcurrent(struct pool *pool);
 static void pool_resus(struct pool *pool);
-static void gen_stratum_work(struct pool *pool, struct work *work);
+static bool gen_stratum_work(struct pool *pool, struct work *work);
 
 void stratum_resumed(struct pool *pool)
 {
@@ -5921,8 +5922,13 @@ static void *stratum_rthread(void *userdata)
             struct work *work = make_work();
 
             /* Generate a single work item to update the current block database */
+            if(!gen_stratum_work(pool, work))
+            {
+              free(s);
+              continue;
+            }
+
             pool->swork.clean = false;
-            gen_stratum_work(pool, work);
             work->longpoll = true;
             /* Return value doesn't matter. We're just informing that we may need to restart. */
             test_work_current(work);
@@ -6696,14 +6702,14 @@ static void applog_hexdump(char *prefix, uint8_t *buff, int len, int level)
 /* Generates stratum based work based on the most recent notify information
  * from the pool. This will keep generating work while a pool is down so we use
  * other means to detect when the pool has died in stratum_thread */
-static void gen_stratum_work(struct pool *pool, struct work *work)
+static bool gen_stratum_work(struct pool *pool, struct work *work)
 {
     unsigned char merkle_root[64] = { 0 };
     unsigned char extra_data[32] = { 0 };
         int i;
         if (!pool->swork.job_id) {
              applog(LOG_WARNING, "stratum_gen_work: job not yet retrieved");
-            return ;
+            return false;
         }
         
     cg_wlock(&pool->data_lock);
@@ -6812,6 +6818,7 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
     calc_diff(work, work->sdiff);
 
     cgtime(&work->tv_staged);
+    return true;
 }
 #endif
 
@@ -9345,7 +9352,11 @@ retry:
                     goto retry;
                 }
             }
-            gen_stratum_work(pool, work);
+            if(!gen_stratum_work(pool, work))
+            {
+             // free(s);
+              continue;
+            }
             applog(LOG_DEBUG, "Generated stratum work");
             stage_work(work);
             continue;

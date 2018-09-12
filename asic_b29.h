@@ -98,6 +98,13 @@
 
 //#define LED_ON					(0)
 //#define LED_OFF					(1)
+typedef struct{
+   double highest_vol[ASIC_CHAIN_NUM];    /* chip temp bits */;
+   double lowest_vol[ASIC_CHAIN_NUM];    /* chip temp bits */;
+   double average_vol[ASIC_CHAIN_NUM];    /* chip temp bits */; 
+   int stat_val[ASIC_CHAIN_NUM][ASIC_CHIP_NUM];
+   int stat_cnt[ASIC_CHAIN_NUM][ASIC_CHIP_NUM];
+}b29_reg_ctrl_t;
 
 struct work_ent {
     struct work *work;
@@ -116,6 +123,7 @@ struct A1_chip {
     struct work *work[4];
     /* stats */
     int hw_errors;
+	int reject_cnt;
     int stales;
     int nonces_found;
     int nonce_ranges_done;
@@ -186,6 +194,7 @@ struct A1_chain {
     struct timeval tvScryptCurr;
     struct timeval tvScryptDiff;
     int work_start_delay;
+	int chip_id_for_nonce;
 };
 
 struct A1_config_options {
@@ -196,6 +205,9 @@ struct A1_config_options {
     int override_chip_num;
     int wiper;
 };
+bool b29_check_voltage(struct A1_chain *a1, int chip_id, b29_reg_ctrl_t *s_reg_ctrl);
+void b29_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor);
+int b29_get_voltage_stats(struct A1_chain *a1, b29_reg_ctrl_t *s_reg_ctrl);
 
 int get_current_ms(void);
 bool is_chip_disabled(struct A1_chain *a1, uint8_t chip_id);

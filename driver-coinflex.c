@@ -67,6 +67,7 @@ static uint32_t check_disbale_flag[MAX_CHAIN_NUM];
 
 int g_reset_delay = 0xffff;
 int g_miner_state = 0;
+b29_reg_ctrl_t s_reg_ctrl;
 
 /* added by yex in 20170907 */
 /*
@@ -88,6 +89,21 @@ struct A1_config_options A1_config_options = {
 /* override values with --bitmine-a1-options ref:sys:spi: - use 0 for default */
 static struct A1_config_options *parsed_config_options;
 
+
+static void coinflex_set_chip_reject(struct cgpu_info *cgpu)
+{
+	int i = 0;
+    struct A1_chain *a1 = cgpu->device_data;
+	a1->chips[a1->chip_id_for_nonce].reject_cnt++;
+	applog(LOG_ERR, "Chain[%d] Chip[%d] reject count: %d",a1->chain_id,a1->chip_id_for_nonce,a1->chips[a1->chip_id_for_nonce-1].reject_cnt);
+	//applog(LOG_ERR, "************** Reject Table **************");
+
+	//for(i=0;i<ASIC_CHIP_NUM;i++)
+		//applog(LOG_ERR, "Chain[%d] Chip[%d] reject count: %d",a1->chain_id,i+1,a1->chips[i].reject_cnt);
+
+
+	//applog(LOG_ERR, "******************************************");
+}
 
 #if COINFLEX_TEST_MODE
 static void coinflex_set_testdata(struct work *work);
@@ -434,7 +450,7 @@ static bool chain_detect_all()
 
 	/* Now adjust temperature config for runtime setting */
 	g_tmp_cfg.tmp_thr_warn = 100;
-	g_tmp_cfg.tmp_thr_pd = 110;
+	g_tmp_cfg.tmp_thr_pd = 105;
 
 	return true;
 }
@@ -876,27 +892,75 @@ static struct api_data *coinflex_api_stats(struct cgpu_info *cgpu)
 }
 
 
-    struct device_drv coinflex_drv = 
-    {
-        .drv_id                 = DRIVER_coinflex,
-        .dname                  = "HLT_Coinflex",
-        .name                   = "HLT",
-        .drv_ver                = COINFLEX_DRIVER_VER,
-        .drv_date               = COINFLEX_DRIVER_DATE,
-        .drv_detect             = coinflex_detect,
-        .get_statline_before    = coinflex_get_statline_before,
-        .queue_full             = coinflex_queue_full,
-        .get_api_stats          = coinflex_api_stats,
-        .identify_device        = NULL,
-        .set_device             = NULL,
-        .thread_prepare         = NULL,
-        .thread_shutdown        = NULL,
-        .hw_reset               = NULL,
-        .hash_work              = hash_queued_work,
-        .update_work            = NULL,
-        .flush_work             = coinflex_flush_work,          // new block detected or work restart 
-        .scanwork               = coinflex_scanwork,            // scan hash
-//        .max_diff               = 65536
+static struct api_data *coinflex_chip_status(struct cgpu_info *cgpu)
+{
+	char buffer[12]={0};
+    struct A1_chain *a1 = cgpu->device_data;
+
+	//printf("\n\n\nGet chip status\n\n\n");
+	int i=0;
+	//configure for vsensor
+
+    if(g_temp_status[a1->chain_id] == TEMP_SHUTDOWN)
+     return NULL;
+
+	mutex_lock(&a1->lock);
+
+    b29_configure_tvsensor(a1,CMD_ADDR_BROADCAST,0);
+	for (i = 0; i < a1->num_active_chips; i++){
+    b29_check_voltage(a1, i+1, &s_reg_ctrl);
+	}
+
+	//configure for tsensor
+    b29_configure_tvsensor(a1,CMD_ADDR_BROADCAST,1);
+	//b29_get_voltage_stats(a1, &s_reg_ctrl);
+
+    usleep(20000);
+
+	for (i = 0; i < a1->num_active_chips; i++){
+		memset(buffer, 0, sizeof(buffer));
+		if (!mcompat_cmd_read_register(a1->chain_id, i+1, buffer, REG_LENGTH)) {
+			applog(LOG_NOTICE, "%d: Failed to read register for chip %d -> disabling", a1->chain_id, i+1);
+			a1->chips[i].num_cores = 0;
+			a1->chips[i].disabled = 1;
+			return false;
+		}
+
+		//keep ASIC register value
+		memcpy(a1->chips[i].reg, buffer, REG_LENGTH);
+		a1->chips[i].temp= mcompat_temp_to_centigrade(0x000003ff & ((buffer[7]<<8) | buffer[8]));
+	}
+
+	mutex_unlock(&a1->lock);
+
+    //applog(LOG_NOTICE, "T1 api command dbgstats recieved");
+	return coinflex_api_stats(cgpu);
+
+}
+
+
+struct device_drv coinflex_drv = 
+{
+	.drv_id                 = DRIVER_coinflex,
+	.dname                  = "HLT_Coinflex",
+	.name                   = "HLT",
+	.drv_ver                = COINFLEX_DRIVER_VER,
+	.drv_date               = COINFLEX_DRIVER_DATE,
+	.drv_detect             = coinflex_detect,
+	.get_statline_before    = coinflex_get_statline_before,
+	.queue_full             = coinflex_queue_full,
+	.get_api_stats          = coinflex_api_stats,
+	.get_api_debug          = coinflex_chip_status,
+	.identify_device        = NULL,
+	.set_device             = NULL,
+	.thread_prepare         = NULL,
+	.thread_shutdown        = NULL,
+	.hw_reset               = NULL,
+	.hash_work              = hash_queued_work,
+	.update_work            = NULL,
+	.flush_work             = coinflex_flush_work,          // new block detected or work restart 
+	.scanwork               = coinflex_scanwork,            // scan hash
+	.set_chip_reject		= coinflex_set_chip_reject,
 		.max_diff				= DIFF_DEF
     };
 

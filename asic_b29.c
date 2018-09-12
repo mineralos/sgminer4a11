@@ -12,6 +12,10 @@
 #include "asic_b29.h"
 
 
+//#define MAGIC_NUM  100 
+#define MUL_COEF 1.23
+
+extern b29_reg_ctrl_t s_reg_ctrl;
 int nReadVolTimes = 0;
 int nVolTotal = 0;
 
@@ -1095,3 +1099,153 @@ bool abort_work(struct A1_chain *a1)
     return true;
 }
 
+//add 0922
+void b29_configure_tvsensor(struct A1_chain *a1, int chip_id,bool is_tsensor)
+{
+    //int i;
+    unsigned char tmp_reg[REG_LENGTH] = {0};
+    unsigned char src_reg[REG_LENGTH] = {0};
+    unsigned char reg[REG_LENGTH] = {0};
+
+    mcompat_cmd_read_register(a1->chain_id, 0x01, reg, REG_LENGTH);
+    memcpy(src_reg, reg, REG_LENGTH);
+    mcompat_cmd_write_register(a1->chain_id, chip_id, src_reg, REG_LENGTH);
+    usleep(200);
+
+    if(is_tsensor)
+    { //configure for tsensor
+        //Step1: wait for clock stable
+        //Step2: low the tsdac rst_n and release rst_n after 4 SysClk
+       // hexdump("write reg", reg, REG_LENGTH);
+        reg[7] = (src_reg[7]&0x7f);
+        memcpy(tmp_reg, reg, REG_LENGTH);
+        //hexdump("write reg", tmp_reg, REG_LENGTH);
+        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        usleep(200);
+        reg[7] = (src_reg[7]|0x80);
+        memcpy(tmp_reg, reg, REG_LENGTH);
+        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        usleep(200);
+
+        //Step3: Config tsadc_clk(default match)
+        //Step4: low tsadc_tsen_pd
+        //Step5: high tsadc_ana_reg_2
+        reg[6] = (src_reg[6]|0x04);
+        memcpy(tmp_reg, reg, REG_LENGTH);
+        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        usleep(200);
+
+        //Step6: high tsadc_en
+        reg[7] = (src_reg[7]|0x20);
+        memcpy(tmp_reg, reg, REG_LENGTH);
+        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        usleep(200);
+
+        //Step7: tsadc_ana_reg_9 = 0;tsadc_ana_reg_8  = 0
+        reg[5] = (src_reg[5]&0xfc);
+        memcpy(tmp_reg, reg, REG_LENGTH);
+        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        usleep(200);
+
+        //Step8: tsadc_ana_reg_7 = 1;tsadc_ana_reg_1 = 0
+        reg[6] = (src_reg[6]&0x7d);
+        memcpy(tmp_reg, reg, REG_LENGTH);
+        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        usleep(200);
+    }
+    else
+    { //configure for vsensor
+        //Step1: wait for clock stable
+        //Step2: low the tsdac rst_n and release rst_n after 4 SysClk
+        // hexdump("write reg", reg, REG_LENGTH);
+        reg[7] = (src_reg[7]&0x7f);
+        memcpy(tmp_reg, reg, REG_LENGTH);
+        // hexdump("write reg", tmp_reg, REG_LENGTH);
+        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        usleep(200);
+        reg[7] = (src_reg[7]|0x80);
+        memcpy(tmp_reg, reg, REG_LENGTH);
+        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        usleep(200);
+
+        //Step3: Config tsadc_clk(default match)
+        //Step4: low tsadc_tsen_pd
+        //Step5: high tsadc_ana_reg_2
+        reg[6] = (src_reg[6]|0x04);
+        memcpy(tmp_reg, reg, REG_LENGTH);
+        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        usleep(200);
+
+        //Step6: high tsadc_en
+        reg[7] = (src_reg[7]|0x20);
+        memcpy(tmp_reg, reg, REG_LENGTH);
+        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        usleep(200);
+
+        //Step7: tsadc_ana_reg_9 = 0;tsadc_ana_reg_8  = 0
+        reg[5] = ((src_reg[5]|0x01)&0xfd);
+        memcpy(tmp_reg, reg, REG_LENGTH);
+        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        usleep(200);
+
+        //Step8: tsadc_ana_reg_7 = 1;tsadc_ana_reg_1 = 0
+        reg[6] = ((src_reg[6]|0x02)&0x7f);
+        memcpy(tmp_reg, reg, REG_LENGTH);
+        mcompat_cmd_write_register(a1->chain_id,chip_id,tmp_reg, REG_LENGTH);
+        usleep(200);
+    }
+}
+
+int b29_get_voltage_stats(struct A1_chain *a1, b29_reg_ctrl_t *s_reg_ctrl)
+{
+    int i = 0;
+    int cid = a1->chain_id;
+    s_reg_ctrl->highest_vol[cid] = s_reg_ctrl->stat_val[cid][0];
+    s_reg_ctrl->lowest_vol[cid] = s_reg_ctrl->stat_val[cid][0];
+    int total_vol = s_reg_ctrl->stat_val[cid][0];
+
+    if((a1->num_active_chips < 1) || (a1 == NULL))
+        return -1;
+
+    for (i = 1; i < a1->num_active_chips; i++)
+    {
+        if(s_reg_ctrl->highest_vol[cid] < s_reg_ctrl->stat_val[cid][i])
+            s_reg_ctrl->highest_vol[cid] = s_reg_ctrl->stat_val[cid][i];
+
+        if(s_reg_ctrl->lowest_vol[cid] > s_reg_ctrl->stat_val[cid][i])
+            s_reg_ctrl->lowest_vol[cid] = s_reg_ctrl->stat_val[cid][i];
+
+        total_vol += s_reg_ctrl->stat_val[cid][i];
+    }
+
+    s_reg_ctrl->average_vol[cid] = total_vol / a1->num_active_chips;
+
+    return 0;
+}
+
+bool b29_check_voltage(struct A1_chain *a1, int chip_id, b29_reg_ctrl_t *s_reg_ctrl)
+{
+
+    uint8_t reg[REG_LENGTH];
+    memset(reg, 0, REG_LENGTH);
+
+    if (!mcompat_cmd_read_register(a1->chain_id, chip_id, reg, REG_LENGTH)) {
+        applog(LOG_NOTICE, "%d: Failed to read register for ""chip %d -> disabling", a1->chain_id, chip_id);
+        a1->chips[chip_id].num_cores = 0;
+        a1->chips[chip_id].disabled = 1;
+        return false;
+    } else {
+        usleep(2000);
+
+            /* update temp database */
+            uint32_t rd_v = 0;
+            rd_v = 0x000003ff & ((reg[7] << 8) | reg[8]);
+            float tmp_v = (float)(rd_v * MUL_COEF)/1024;
+            a1->chips[chip_id-1].nVol = tmp_v *1000;
+            //printf("chain:%d, chip:%d, vol:%d\n",a1->chain_id,chip_id,a1->chips[chip_id-1].nVol);
+            s_reg_ctrl->stat_val[a1->chain_id][chip_id-1] = a1->chips[chip_id-1].nVol;
+            //s_reg_ctrl->stat_cnt[a1->chain_id][chip_id-1]++;
+
+   }
+    return true;
+}
