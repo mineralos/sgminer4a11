@@ -41,7 +41,7 @@ sgminer_SOURCES	+= klist.h klist.c
 
 sgminer_SOURCES	+= noncedup.c
 
-sgminer_SOURCES += scrypt.c scrypt.h
+#sgminer_SOURCES += scrypt.c scrypt.h
 
 #sgminer_SOURCES += darkcoin.c darkcoin.h
 #sgminer_SOURCES += marucoin.c marucoin.h
