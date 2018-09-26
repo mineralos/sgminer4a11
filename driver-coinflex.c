@@ -508,6 +508,7 @@ static void coinflex_detect(bool __maybe_unused hotplug)
 	/* Chain detect */
 	if (chain_detect_all()) {
 		applog(LOG_NOTICE, "D9 detect finish");
+        mcompat_get_miner_status();
 		return;
 	}
 

@@ -1219,6 +1219,7 @@ struct stratum_work {
 
 struct connection{
    int socket;
+   bool ssl_pool;
    SSL *sslHandle;
    SSL_CTX *sslContext;
 };

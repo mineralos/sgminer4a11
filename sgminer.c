@@ -8853,6 +8853,8 @@ int main(int argc, char *argv[])
 
     /* This dangerous functions tramples random dynamically allocated
      * variables so do it before anything at all */
+     mcompat_mount_fs();
+
     if (unlikely(curl_global_init(CURL_GLOBAL_ALL))){
         early_quit(1, "Failed to curl_global_init");
     }
@@ -9116,12 +9118,13 @@ int main(int argc, char *argv[])
 #endif
         };
 
-   
+#if 0   
     if(get_nand_access() != -1)
        mcompat_record_params();
     else
        applog(LOG_ERR,"Failed to get nand access.");
-        
+#endif
+
     /* Use the DRIVER_PARSE_COMMANDS macro to fill all the device_drvs */
     DRIVER_PARSE_COMMANDS(DRIVER_FILL_DEVICE_DRV)
 
